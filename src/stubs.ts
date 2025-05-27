@@ -26,6 +26,8 @@ import {
   ToolDefinition,
   ValidationContract,
   ValidationReport,
+  createSDDError, // Added import
+  SDDError, // Added import
 } from "./contracts.js";
 
 // Blueprint: NotImplementedError for tracking implementation progress
@@ -40,14 +42,29 @@ class NotImplementedError extends Error {
 const createResult = <T>(
   agentId: AgentId,
   data?: T,
-  error?: string
-): ContractResult<T> => ({
-  success: !error,
-  data: error ? undefined : data,
-  error,
-  agentId,
-  timestamp: new Date().toISOString(),
-});
+  errorMsg?: string,
+  seamName?: string
+): ContractResult<T> => {
+  let sddError: SDDError | undefined = undefined;
+  if (errorMsg) {
+    let category: SDDError["category"] = "ProcessingError";
+    if (errorMsg.toLowerCase().includes("not implemented")) {
+      category = "NotImplementedError";
+    }
+    sddError = createSDDError(agentId, category, errorMsg, undefined, seamName);
+  }
+
+  return {
+    success: !errorMsg,
+    data: errorMsg ? undefined : data,
+    error: sddError,
+    metadata: {
+      agentId,
+      timestamp: new Date().toISOString(),
+      seamName,
+    },
+  };
+};
 
 // ================================
 // MCP Server Implementation Stub
@@ -95,41 +112,45 @@ export class MCPServerStub implements MCPServerContract {
 export class SDDAnalyzerStub implements SDDFunctionContract {
   private readonly agentId: AgentId = "SDDAnalyzer";
 
-  analyzeRequirements(prd: string): ContractResult<SeamDefinition[]> {
+  async analyzeRequirements(
+    prd: string
+  ): Promise<ContractResult<SeamDefinition[]>> {
     // TODO: Implement PRD analysis with seam identification
     // Should parse requirements and identify component boundaries
     // Must follow proven SDD patterns for seam detection
     throw new NotImplementedError(this.agentId, "analyzeRequirements");
   }
 
-  generateContract(
+  async generateContract(
     seam: SeamDefinition
-  ): ContractResult<ContractGenerationResult> {
+  ): Promise<ContractResult<ContractGenerationResult>> {
     // TODO: Implement contract generation from seam definition
     // Should use templates and follow ContractResult<T> patterns
     // Must include blueprint comments and type aliases
     throw new NotImplementedError(this.agentId, "generateContract");
   }
 
-  createStub(
+  async createStub(
     contract: ContractGenerationResult
-  ): ContractResult<StubGenerationResult> {
+  ): Promise<ContractResult<StubGenerationResult>> {
     // TODO: Implement stub creation with implementation blueprint
     // Should generate NotImplementedError patterns
     // Must include integration test templates
     throw new NotImplementedError(this.agentId, "createStub");
   }
 
-  orchestrateWorkflow(prd: string): ContractResult<ProjectStructure> {
+  async orchestrateWorkflow(
+    prd: string
+  ): Promise<ContractResult<ProjectStructure>> {
     // TODO: Implement full SDD workflow orchestration
     // Should execute: analyze → generate → create → validate
     // Must return complete project structure with readiness score
     throw new NotImplementedError(this.agentId, "orchestrateWorkflow");
   }
 
-  validateProject(
+  async validateProject(
     structure: ProjectStructure
-  ): ContractResult<ValidationReport> {
+  ): Promise<ContractResult<ValidationReport>> {
     // TODO: Implement project validation
     // Should check contract compliance and SDD patterns
     // Must provide actionable feedback
@@ -542,7 +563,7 @@ export function performHealthCheck(): ContractResult<string> {
   // TODO: Implement comprehensive health check
   // Should test all seam connections
   // Must return overall system status
-  return createResult(
+  return createResult<string>(
     "HealthChecker",
     undefined,
     "Health check not implemented"
