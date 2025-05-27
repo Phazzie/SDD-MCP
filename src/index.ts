@@ -24,6 +24,25 @@ import {
 } from "./stubs.js";
 import { TemplateProcessor } from "./template-processor.js";
 
+// 🔌 INTEGRATION: Import Enhanced MCP Tools
+import { 
+  ENHANCED_SEAM_ANALYSIS_TOOL_DEFINITION,
+  handleEnhancedSeamAnalysis 
+} from "./tools/enhanced-seam-analysis-tool.js";
+import { 
+  GENERATE_INTERACTION_MATRIX_TOOL_DEFINITION,
+  handleGenerateInteractionMatrix 
+} from "./tools/generate-interaction-matrix-tool.js";
+import { 
+  ANALYZE_DATA_FLOWS_TOOL_DEFINITION,
+  handleAnalyzeDataFlows 
+} from "./tools/analyze-data-flows-tool.js";
+import { 
+  VALIDATE_SEAM_READINESS_TOOL_DEFINITION,
+  handleValidateSeamReadiness 
+} from "./tools/validate-seam-readiness-tool.js";
+import { mcpIntelligenceBridge } from "./agents/mcp-intelligence-bridge.js";
+
 // Initialize SDD Foundation Agents
 const configManager = new ConfigManagerStub();
 const errorHandler = new ErrorHandlerStub();
@@ -379,10 +398,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               enum: ["basic", "comprehensive", "critical-only"],
               description: "Level of validation to perform",
             },
-          },
-          required: ["seamDefinitions"],
+          },          required: ["seamDefinitions"],
         },
       },
+      // 🔌 INTEGRATION: Enhanced Seam Analysis Tools
+      ENHANCED_SEAM_ANALYSIS_TOOL_DEFINITION,
+      GENERATE_INTERACTION_MATRIX_TOOL_DEFINITION,
+      ANALYZE_DATA_FLOWS_TOOL_DEFINITION,
+      VALIDATE_SEAM_READINESS_TOOL_DEFINITION,
     ] as Tool[],
   };
 });
@@ -413,12 +436,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "sdd_visualize_architecture":
         return await visualizeArchitecture(
           args as { seams: SeamDefinition[]; projectName: string }
-        );
-
-      case "sdd_validate_compliance":
+        );      case "sdd_validate_compliance":
         return await validateCompliance(
           args as { projectPath: string; strictMode?: boolean }
         );
+
+      // 🔌 INTEGRATION: Enhanced Seam Analysis Tool Handlers
+      case "enhanced_seam_analysis":
+        return await handleEnhancedSeamAnalysisWrapper(args);
+
+      case "generate_interaction_matrix":
+        return await handleGenerateInteractionMatrixWrapper(args);
+
+      case "analyze_data_flows":
+        return await handleAnalyzeDataFlowsWrapper(args);
+
+      case "validate_seam_readiness":
+        return await handleValidateSeamReadinessWrapper(args);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -1495,8 +1529,250 @@ async function performComplianceChecks(
           "Implement ContractResult pattern consistently",
           "Add integration tests for all seams",
           "Enable TypeScript strict mode",
+        ],  };
+}
+
+// 🔌 INTEGRATION: Enhanced MCP Tool Wrapper Functions
+// PURPOSE: Convert ContractResult<T> to MCP response format
+
+/**
+ * 🎯 CRITICAL: Enhanced seam analysis wrapper
+ * SEAM: MCP Server → Enhanced Tool Handler → Intelligence Bridge → Enhanced Analyzer
+ */
+async function handleEnhancedSeamAnalysisWrapper(args: unknown) {
+  try {
+    // Initialize bridge if needed
+    await mcpIntelligenceBridge.initialize();
+    
+    const result = await handleEnhancedSeamAnalysis(args, mcpIntelligenceBridge);
+    
+    if (result.success && result.data) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## 🧠 Enhanced Seam Analysis Complete
+
+**Identified ${result.data.identifiedSeams.length} seams using advanced pattern recognition:**
+
+${result.data.identifiedSeams.map((seam, i) => `
+### ${i + 1}. ${seam.name}
+- **Purpose**: ${seam.purpose}
+- **Participants**: ${seam.participants.join(", ")}
+- **Data Flow**: ${seam.dataFlow}
+- **Confidence**: ${seam.confidence || "N/A"}
+`).join("\n")}
+
+**Analysis Quality Metrics:**
+- Confidence Score: ${result.data.confidenceScore}
+- Pattern Matches: ${result.data.patternMatches?.length || 0}
+- Cross-cutting Concerns: ${result.data.crossCuttingConcerns?.length || 0}
+
+**Processing Time**: ${result.metadata?.processingTimeMs}ms`,
+          },
         ],
-  };
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Enhanced seam analysis failed: ${result.error?.message || "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ Enhanced seam analysis error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
+/**
+ * 🎯 CRITICAL: Interaction matrix generation wrapper
+ */
+async function handleGenerateInteractionMatrixWrapper(args: unknown) {
+  try {
+    await mcpIntelligenceBridge.initialize();
+    const result = await handleGenerateInteractionMatrix(args, mcpIntelligenceBridge);
+    
+    if (result.success && result.data) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## 🔗 Component Interaction Matrix
+
+**Matrix Generated for ${result.data.components.length} components:**
+
+### Component Interactions:
+${result.data.interactions.map(interaction => `
+- **${interaction.source} → ${interaction.target}**
+  - Type: ${interaction.type}
+  - Frequency: ${interaction.frequency || "N/A"}
+  - Complexity: ${interaction.complexity || "N/A"}
+`).join("\n")}
+
+### Critical Paths:
+${result.data.criticalPaths?.map(path => `- ${path}`).join("\n") || "None identified"}
+
+**Processing Time**: ${result.metadata?.processingTimeMs}ms`,
+          },
+        ],
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Interaction matrix generation failed: ${result.error?.message || "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ Interaction matrix error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
+/**
+ * 💰 HIGH_ROI: Data flow analysis wrapper
+ */
+async function handleAnalyzeDataFlowsWrapper(args: unknown) {
+  try {
+    await mcpIntelligenceBridge.initialize();
+    const result = await handleAnalyzeDataFlows(args, mcpIntelligenceBridge);
+    
+    if (result.success && result.data) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## 📊 Data Flow Analysis
+
+**Analyzed ${result.data.dataFlows.length} data flows:**
+
+### Data Transformations:
+${result.data.dataFlows.map(flow => `
+- **${flow.source} → ${flow.target}**
+  - Input: ${flow.inputType}
+  - Output: ${flow.outputType}
+  - Transformation: ${flow.transformationLogic || "Direct"}
+`).join("\n")}
+
+### Potential Bottlenecks:
+${result.data.bottlenecks?.map(bottleneck => `
+- **${bottleneck.location}**: ${bottleneck.reason}
+  - Severity: ${bottleneck.severity}
+  - Impact: ${bottleneck.impact}
+`).join("\n") || "None identified"}
+
+### Optimization Recommendations:
+${result.data.optimizationRecommendations?.map(rec => `- ${rec}`).join("\n") || "No recommendations"}
+
+**Processing Time**: ${result.metadata?.processingTimeMs}ms`,
+          },
+        ],
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Data flow analysis failed: ${result.error?.message || "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ Data flow analysis error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
+/**
+ * ⚡ QUICK_WIN: Seam readiness validation wrapper
+ */
+async function handleValidateSeamReadinessWrapper(args: unknown) {
+  try {
+    await mcpIntelligenceBridge.initialize();
+    const result = await handleValidateSeamReadiness(args, mcpIntelligenceBridge);
+    
+    if (result.success && result.data) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## ✅ Seam Readiness Validation
+
+**Validated ${result.data.validatedSeams.length} seams:**
+
+### Validation Results:
+${result.data.validatedSeams.map(seam => `
+- **${seam.name}**: ${seam.isReady ? "✅ Ready" : "❌ Not Ready"}
+  - Score: ${seam.readinessScore}/100
+  - Issues: ${seam.issues?.join(", ") || "None"}
+`).join("\n")}
+
+### Overall Readiness: ${result.data.overallReadiness}%
+
+### Missing Requirements:
+${result.data.missingRequirements?.map(req => `- ${req}`).join("\n") || "None"}
+
+### Recommendations:
+${result.data.recommendations?.map(rec => `- ${rec}`).join("\n") || "No recommendations"}
+
+**Processing Time**: ${result.metadata?.processingTimeMs}ms`,
+          },
+        ],
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Seam readiness validation failed: ${result.error?.message || "Unknown error"}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ Seam readiness validation error: ${error instanceof Error ? error.message : String(error)}`,
+        },
+      ],
+      isError: true,
+    };
+  }
 }
 
 // Start the server

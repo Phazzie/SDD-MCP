@@ -693,7 +693,9 @@ export interface IPatternDetector {
   analyzeCrossCuttingConcerns(
     input: CrossCuttingAnalysisInput
   ): Promise<ContractResult<CrossCuttingAnalysis>>;
-  identifyAntiPatterns(codebase: string): Promise<ContractResult<AntiPatternAnalysis>>;
+  identifyAntiPatterns(
+    codebase: string
+  ): Promise<ContractResult<AntiPatternAnalysis>>;
 }
 
 export interface PatternDetectionInput {
@@ -904,4 +906,300 @@ export interface PatternMatch {
   components: string[];
   seamImplications: string[];
   implementationNotes: string[];
+}
+
+// ===================================================================
+// 🔧 MCP SERVER INTEGRATION CONTRACTS - PHASE 1
+// ===================================================================
+// Blueprint: Connection between MCP tools and Enhanced Seam Analysis
+// Seam: MCP-Enhanced Analyzer Communication Pathway
+
+export interface IMCPToolRegistry {
+  registerEnhancedTools(): Promise<ContractResult<ToolRegistration[]>>;
+  validateToolSchema(
+    toolName: string,
+    args: unknown
+  ): Promise<ContractResult<ValidationResult>>;
+  routeToolRequest(
+    toolName: string,
+    args: unknown
+  ): Promise<ContractResult<unknown>>;
+  getRegisteredTools(): Promise<ContractResult<RegisteredTool[]>>;
+  refreshToolRegistry(): Promise<ContractResult<void>>;
+}
+
+export interface IMCPRequestHandler {
+  handleAnalyzeRequirementsEnhanced(
+    args: SeamAnalysisInput
+  ): Promise<ContractResult<EnhancedSeamAnalysis>>;
+  handleGenerateInteractionMatrix(
+    args: InteractionMatrixInput
+  ): Promise<ContractResult<InteractionMatrix>>;
+  handleAnalyzeDataFlows(
+    args: DataFlowAnalysisInput
+  ): Promise<ContractResult<DataFlowAnalysis>>;
+  handleValidateSeamReadiness(
+    args: SeamValidationInput
+  ): Promise<ContractResult<SeamValidationResult>>;
+  handleToolRequest(
+    toolName: string,
+    args: unknown
+  ): Promise<ContractResult<unknown>>;
+}
+
+export interface IMCPServerOrchestrator {
+  initializeWithDependencies(): Promise<
+    ContractResult<ServerInitializationResult>
+  >;
+  connectEnhancedAnalyzer(): Promise<ContractResult<void>>;
+  setupErrorBoundaries(): Promise<ContractResult<void>>;
+  startServer(): Promise<ContractResult<ServerStartResult>>;
+  stopServer(): Promise<ContractResult<void>>;
+}
+
+// Supporting Types for MCP Integration
+export interface ToolRegistration {
+  name: string;
+  description: string;
+  inputSchema: object;
+  outputSchema: object;
+  agentId: string;
+  version: string;
+  registeredAt: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+  warnings: string[];
+  processedArgs: unknown;
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+  expectedType: string;
+  actualValue: unknown;
+}
+
+export interface RegisteredTool {
+  name: string;
+  description: string;
+  schema: object;
+  handler: string;
+  status: "ACTIVE" | "INACTIVE" | "ERROR";
+  lastUpdated: string;
+}
+
+export interface ServerInitializationResult {
+  serverId: string;
+  version: string;
+  toolsRegistered: number;
+  dependenciesConnected: string[];
+  initializationTime: string;
+}
+
+export interface ServerStartResult {
+  serverId: string;
+  port?: number;
+  endpoint?: string;
+  status: "RUNNING" | "ERROR";
+  startTime: string;
+}
+
+// ===================================================================
+// 🧪 TESTING FRAMEWORK CONTRACTS - PHASE 2
+// ===================================================================
+// Blueprint: Comprehensive testing and validation infrastructure
+
+export interface IIntegrationTestRunner {
+  executeEndToEndScenario(
+    scenario: TestScenario
+  ): Promise<ContractResult<TestResult>>;
+  validateSeamDetectionAccuracy(
+    expected: SeamDefinition[],
+    actual: SeamDefinition[]
+  ): Promise<ContractResult<AccuracyReport>>;
+  measurePerformance(
+    operation: string
+  ): Promise<ContractResult<PerformanceMetrics>>;
+  runBatchTests(
+    scenarios: TestScenario[]
+  ): Promise<ContractResult<BatchTestResult>>;
+  generateTestReport(): Promise<ContractResult<TestReport>>;
+}
+
+export interface IIntelligenceValidator {
+  validateComponentRecognition(
+    input: string,
+    expected: ComponentCandidate[]
+  ): Promise<ContractResult<ValidationScore>>;
+  validateInteractionMatrix(
+    input: InteractionMatrixInput,
+    expected: InteractionMatrix
+  ): Promise<ContractResult<MatrixValidation>>;
+  validateDataFlowAnalysis(
+    input: DataFlowAnalysisInput,
+    expected: DataFlowAnalysis
+  ): Promise<ContractResult<FlowValidation>>;
+  validateSeamQuality(
+    seams: SeamDefinition[]
+  ): Promise<ContractResult<SeamQualityReport>>;
+}
+
+export interface IPerformanceMonitor {
+  startTimer(operationId: string): Promise<ContractResult<void>>;
+  endTimer(operationId: string): Promise<ContractResult<TimerResult>>;
+  measureMemoryUsage(): Promise<ContractResult<MemoryUsage>>;
+  generatePerformanceReport(): Promise<ContractResult<PerformanceReport>>;
+}
+
+// Supporting Types for Testing Framework
+export interface TestScenario {
+  id: string;
+  name: string;
+  description: string;
+  input: TestInput;
+  expectedOutput: unknown;
+  tags: string[];
+  priority: "HIGH" | "MEDIUM" | "LOW";
+}
+
+export interface TestInput {
+  prdText: string;
+  designNotes?: string;
+  configuration?: Record<string, any>;
+}
+
+export interface TestResult {
+  scenarioId: string;
+  success: boolean;
+  actualOutput: unknown;
+  executionTimeMs: number;
+  memoryUsedMB: number;
+  errors: TestError[];
+  warnings: string[];
+}
+
+export interface TestError {
+  type: string;
+  message: string;
+  location?: string;
+  severity: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+}
+
+export interface AccuracyReport {
+  totalSeams: number;
+  correctlyIdentified: number;
+  missed: number;
+  falsePositives: number;
+  accuracy: number;
+  precision: number;
+  recall: number;
+  f1Score: number;
+}
+
+export interface ValidationScore {
+  overallScore: number;
+  componentAccuracy: number;
+  interactionAccuracy: number;
+  dataFlowAccuracy: number;
+  confidenceLevel: number;
+  details: ValidationDetail[];
+}
+
+export interface ValidationDetail {
+  category: string;
+  expected: unknown;
+  actual: unknown;
+  match: boolean;
+  confidence: number;
+}
+
+export interface MatrixValidation {
+  structureValid: boolean;
+  relationshipsValid: boolean;
+  missingInteractions: string[];
+  incorrectInteractions: string[];
+  overallAccuracy: number;
+}
+
+export interface FlowValidation {
+  pathsValid: boolean;
+  transformationsValid: boolean;
+  bottlenecksIdentified: boolean;
+  missingFlows: string[];
+  incorrectFlows: string[];
+  overallAccuracy: number;
+}
+
+export interface SeamQualityReport {
+  totalSeams: number;
+  highQualitySeams: number;
+  mediumQualitySeams: number;
+  lowQualitySeams: number;
+  averageQuality: number;
+  improvementSuggestions: string[];
+}
+
+export interface TimerResult {
+  operationId: string;
+  durationMs: number;
+  startTime: string;
+  endTime: string;
+}
+
+export interface MemoryUsage {
+  used: number;
+  total: number;
+  percentage: number;
+  timestamp: string;
+}
+
+export interface PerformanceMetrics {
+  averageResponseTime: number;
+  memoryEfficiency: number;
+  throughput: number;
+  errorRate: number;
+  resourceUtilization: number;
+}
+
+export interface BatchTestResult {
+  totalScenarios: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  executionTimeMs: number;
+  results: TestResult[];
+}
+
+export interface TestReport {
+  summary: BatchTestResult;
+  accuracy: AccuracyReport;
+  performance: PerformanceMetrics;
+  generatedAt: string;
+  recommendations: string[];
+}
+
+export interface PerformanceReport {
+  period: string;
+  metrics: PerformanceMetrics;
+  trends: PerformanceTrend[];
+  bottlenecks: Bottleneck[];
+  recommendations: string[];
+}
+
+export interface PerformanceTrend {
+  metric: string;
+  direction: "IMPROVING" | "DEGRADING" | "STABLE";
+  changePercentage: number;
+  significance: "HIGH" | "MEDIUM" | "LOW";
+}
+
+export interface Bottleneck {
+  location: string;
+  type: string;
+  impact: "HIGH" | "MEDIUM" | "LOW";
+  suggestion: string;
+  estimatedImprovement: string;
 }
