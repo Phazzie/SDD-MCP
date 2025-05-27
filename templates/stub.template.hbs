@@ -1,0 +1,81 @@
+/**
+ * SDD Stub Template
+ * Generated template for creating implementation stubs following SDD methodology
+ */
+
+{{#each imports}}
+import { {{this.items}} } from '{{this.path}}';
+{{/each}}
+
+// Blueprint: NotImplementedError for SDD progress tracking
+class NotImplementedError extends Error {
+  constructor(agentId: string, method: string) {
+    super(`${agentId}.${method} not yet implemented - part of SDD development process`);
+    this.name = 'NotImplementedError';
+  }
+}
+
+{{#if description}}
+/**
+ * Blueprint: {{description}}
+ * Implementation stub for {{CONTRACT_NAME}}Contract
+ */
+{{/if}}
+export class {{CLASS_NAME}} implements {{CONTRACT_NAME}}Contract {
+  private readonly agentId: AgentId = '{{AGENT_ID}}';
+
+  {{#each methods}}
+  {{#if this.description}}
+  // Blueprint: {{this.description}}
+  {{/if}}
+  {{#if this.async}}async {{/if}}{{this.name}}({{#each this.parameters}}{{this.name}}: {{this.type}}{{#unless @last}}, {{/unless}}{{/each}}): {{#if this.async}}Promise<{{/if}}ContractResult<{{this.returnType}}>{{#if this.async}}>{{/if}} {
+    // TODO: Implement {{this.name}}
+    {{#if this.todos}}
+    {{#each this.todos}}
+    // {{this.text}}
+    {{/each}}
+    {{/if}}
+    throw new NotImplementedError(this.agentId, '{{this.name}}');
+  }
+
+  {{/each}}
+  {{#if includeHealthCheck}}
+  // Blueprint: Health check for {{AGENT_ID}} service
+  async healthCheck(): Promise<ContractResult<string>> {
+    try {
+      const checks = [];
+      
+      // TODO: Add specific health checks for {{AGENT_ID}}
+      checks.push('✅ {{AGENT_ID}} initialized');
+      
+      const healthStatus = checks.join('\n');
+      const isHealthy = !checks.some(check => check.includes('❌'));
+
+      return {
+        success: isHealthy,
+        data: healthStatus,
+        error: isHealthy ? undefined : 'Some {{AGENT_ID}} issues detected',
+        agentId: this.agentId,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Health check failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        agentId: this.agentId,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+  {{/if}}
+}
+
+{{#if exportSingleton}}
+// Export singleton instance
+export const {{SINGLETON_NAME}} = new {{CLASS_NAME}}();
+{{/if}}
+
+{{#if exportDefault}}
+// Blueprint: Export stub for implementation
+export default {{CLASS_NAME}};
+{{/if}}

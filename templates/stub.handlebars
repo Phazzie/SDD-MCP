@@ -1,0 +1,98 @@
+/**
+ * IMPLEMENTATION STUB: {{componentName}}
+ * PURPOSE: {{purpose}}
+ * STATUS: STUB - Needs implementation
+ * NEXT STEPS: Replace NotImplementedError with actual business logic
+ * BLUEPRINT: {{blueprint}}
+ * ESTIMATED EFFORT: {{estimatedEffort}}
+ */
+
+import { AgentId, ContractResult, AgentError, createAgentError } from "./types.js";
+import { 
+  I{{contractName}}, 
+  {{pascalCaseName}}Request, 
+  {{pascalCaseName}}Response 
+} from "./{{contractFileName}}";
+
+export class {{componentName}} implements I{{contractName}} {
+  private readonly agentId: AgentId;
+  
+  constructor() {
+    this.agentId = "{{agentId}}" as AgentId;
+  }
+
+  /**
+   * {{methodDescription}}
+   * 
+   * BLUEPRINT: {{methodBlueprint}}
+   * TODO: Implement {{purpose}}
+   */
+  async {{methodName}}(request: {{pascalCaseName}}Request): Promise<{{pascalCaseName}}Response> {
+    try {
+      // 🛡️ DEFENSIVE: Validate input
+      if (!request) {
+        return {
+          success: false,
+          error: "Invalid request - failing fast",
+          agentId: this.agentId
+        };
+      }
+
+      if (!request.requestingAgentId) {
+        return {
+          success: false,
+          error: "Missing requestingAgentId - failing fast", 
+          agentId: this.agentId
+        };
+      }
+
+      // 🔨 HARD_WORK: Replace with actual implementation
+      throw new NotImplementedError(
+        "{{componentName}}.{{methodName}}", 
+        "Blueprint: {{implementationHint}}"
+      );
+
+    } catch (error) {
+      if (error instanceof NotImplementedError) {
+        throw error; // Re-throw NotImplementedError for development
+      }
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        agentId: this.agentId
+      };
+    }
+  }
+
+  /**
+   * Health check for integration testing
+   */
+  async healthCheck(): Promise<ContractResult<{ status: string; agentId: AgentId }>> {
+    return {
+      success: true,
+      data: {
+        status: "stub-ready",
+        agentId: this.agentId
+      },
+      agentId: this.agentId
+    };
+  }
+
+  /**
+   * Get agent identification for debugging
+   */
+  getAgentId(): AgentId {
+    return this.agentId;
+  }
+}
+
+/**
+ * NotImplementedError for development-time feedback
+ */
+class NotImplementedError extends Error {
+  constructor(methodName: string, blueprint: string) {
+    super(`🔨 HARD_WORK: ${methodName} needs implementation\n${blueprint}`);
+    this.name = "NotImplementedError";
+  }
+}

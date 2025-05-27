@@ -1,0 +1,70 @@
+/**
+ * PURPOSE: {{purpose}}
+ * DATA FLOW: {{dataFlow}} - {{#each participants}}{{this}}{{#unless @last}} ↔ {{/unless}}{{/each}}
+ * INTEGRATION POINTS: {{#each participants}}Called by: {{this}}{{#unless @last}}, {{/unless}}{{/each}}
+ * FAILURE MODES: 
+ * - Invalid input data: Returns ValidationError
+ * - Dependency unavailable: Returns DependencyError
+ * - Processing failure: Returns ProcessingError
+ * RATIONALE: {{rationale}}
+ * EXAMPLES: {{examples}}
+ * CONTRACT VERSION: 1.0.0
+ * ERROR HANDLING: Returns ContractResult with AgentError for failures
+ */
+
+import { AgentId, ContractResult, AgentError } from "./types.js";
+
+// Input Type Alias (for template precision)
+export type {{pascalCaseName}}Input = {
+  requestingAgentId: AgentId;
+  {{#each inputFields}}
+  {{name}}: {{type}}; // {{description}}
+  {{/each}}
+};
+
+// Output Type Alias (for template precision)
+export type {{pascalCaseName}}Output = {
+  {{#each outputFields}}
+  {{name}}: {{type}}; // {{description}}
+  {{/each}}
+};
+
+// Request Type (combines input + metadata)
+export type {{pascalCaseName}}Request = {{pascalCaseName}}Input & {
+  timestamp: Date;
+  correlationId: string;
+  {{#if hasMetadata}}
+  metadata?: Record<string, any>;
+  {{/if}}
+};
+
+// Response Type (standardized ContractResult)
+export type {{pascalCaseName}}Response = ContractResult<{{pascalCaseName}}Output>;
+
+/**
+ * SEAM CONTRACT: {{contractName}}
+ * Defines the communication pathway for {{purpose}}
+ */
+export interface I{{contractName}} {
+  /**
+   * {{methodDescription}}
+   * 
+   * @param request - {{pascalCaseName}}Request with all required data
+   * @returns Promise<{{pascalCaseName}}Response> with ContractResult pattern
+   * 
+   * Blueprint: {{blueprintComment}}
+   */
+  {{methodName}}(request: {{pascalCaseName}}Request): Promise<{{pascalCaseName}}Response>;
+
+  /**
+   * Health check for integration testing
+   * @returns Promise<ContractResult<{ status: string; agentId: AgentId }>>
+   */
+  healthCheck(): Promise<ContractResult<{ status: string; agentId: AgentId }>>;
+
+  /**
+   * Get agent identification for debugging
+   * @returns AgentId of this contract implementation
+   */
+  getAgentId(): AgentId;
+}

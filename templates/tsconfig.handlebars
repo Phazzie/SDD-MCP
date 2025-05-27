@@ -1,0 +1,110 @@
+{{! 
+PURPOSE: Generate TypeScript configuration optimized for SDD development with ES modules and strict type checking
+DATA FLOW: Project structure → TypeScript config → Compilation settings and path mappings
+INTEGRATION POINTS: TypeScript compiler, ES modules, Node.js, SDD patterns
+FAILURE MODES: Compilation errors, module resolution issues, type checking failures
+RATIONALE: Optimal TypeScript setup ensures type safety and proper SDD pattern enforcement
+EXAMPLES: SDD MCP Server → strict mode, ES2022, Node16 module resolution
+CONTRACT VERSION: 1.0.0
+}}
+{ "compilerOptions": { // Target and Module "target": "{{target}}", "module": "{{module}}",
+"moduleResolution": "{{moduleResolution}}", "lib": [
+{{#each lib}}
+  "{{this}}"{{#unless @last}},{{/unless}}
+{{/each}}
+], // Output Settings "outDir": "{{outDir}}", "rootDir": "{{rootDir}}",
+"sourceMap":
+{{sourceMap}}, "declaration":
+{{declaration}},
+{{#if declarationMap}}
+  "declarationMap":
+  {{declarationMap}},
+{{/if}}
+{{#if declarationDir}}
+  "declarationDir": "{{declarationDir}}",
+{{/if}}
+
+// ES Module Support for Node.js "esModuleInterop": true,
+"allowSyntheticDefaultImports": true, "forceConsistentCasingInFileNames": true,
+"moduleDetection": "force", // Strict Type Checking (SDD Requirements) "strict":
+true, "noImplicitAny": true, "noImplicitReturns": true, "noImplicitThis": true,
+"noImplicitOverride": true, "noPropertyAccessFromIndexSignature":
+{{noPropertyAccessFromIndexSignature}}, "noUncheckedIndexedAccess":
+{{noUncheckedIndexedAccess}}, "exactOptionalPropertyTypes":
+{{exactOptionalPropertyTypes}}, // Additional Checks "noUnusedLocals":
+{{noUnusedLocals}}, "noUnusedParameters":
+{{noUnusedParameters}}, "noFallthroughCasesInSwitch": true, "noEmitOnError":
+{{noEmitOnError}}, // Advanced Options "skipLibCheck":
+{{skipLibCheck}}, "resolveJsonModule": true, "isolatedModules": true,
+"verbatimModuleSyntax":
+{{verbatimModuleSyntax}},
+
+{{#if pathMappings}}
+  // Path Mappings for SDD Structure "baseUrl": "{{baseUrl}}", "paths": {
+  {{#each pathMappings}}
+    "{{@key}}": [
+    {{#each this}}
+      "{{this}}"{{#unless @last}},{{/unless}}
+    {{/each}}
+    ]{{#unless @last}},{{/unless}}
+  {{/each}}
+  },
+{{/if}}
+
+{{#if experimentalDecorators}}
+  // Decorator Support "experimentalDecorators": true, "emitDecoratorMetadata":
+  true,
+{{/if}}
+
+// Type Checking for SDD Patterns "useDefineForClassFields": true,
+"allowUmdGlobalAccess": false, "allowArbitraryExtensions": false
+
+{{#if additionalOptions}}
+  {{#each additionalOptions}}
+    ,"{{@key}}":
+    {{this}}
+  {{/each}}
+{{/if}}
+}, "include": [
+{{#each includePatterns}}
+  "{{this}}"{{#unless @last}},{{/unless}}
+{{/each}}
+], "exclude": [
+{{#each excludePatterns}}
+  "{{this}}"{{#unless @last}},{{/unless}}
+{{/each}}
+]
+{{#if references}}
+  ,"references": [
+  {{#each references}}
+    { "path": "{{this}}" }{{#unless @last}},{{/unless}}
+  {{/each}}
+  ]
+{{/if}}
+{{#if watchOptions}}
+  ,"watchOptions": { "watchFile": "{{watchOptions.watchFile}}",
+  "watchDirectory": "{{watchOptions.watchDirectory}}", "fallbackPolling": "{{watchOptions.fallbackPolling}}",
+  "synchronousWatchDirectory":
+  {{watchOptions.synchronousWatchDirectory}}, "excludeDirectories": [
+  {{#each watchOptions.excludeDirectories}}
+    "{{this}}"{{#unless @last}},{{/unless}}
+  {{/each}}
+  ] }
+{{/if}}
+{{#if compileOnSave}}
+  ,"compileOnSave":
+  {{compileOnSave}}
+{{/if}}
+{{#if typeAcquisition}}
+  ,"typeAcquisition": { "enable":
+  {{typeAcquisition.enable}}, "include": [
+  {{#each typeAcquisition.include}}
+    "{{this}}"{{#unless @last}},{{/unless}}
+  {{/each}}
+  ], "exclude": [
+  {{#each typeAcquisition.exclude}}
+    "{{this}}"{{#unless @last}},{{/unless}}
+  {{/each}}
+  ] }
+{{/if}}
+}

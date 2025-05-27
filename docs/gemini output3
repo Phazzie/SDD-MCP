@@ -1,0 +1,666 @@
+Fantastic! This detailed feedback is incredibly helpful and the "Iteration 2" document you shared is a perfect example of how to guide an LLM effectively. It's clear, precise, and sets very well-defined expectations.
+
+I understand the issues encountered with the previous batch and will be extra vigilant about Handlebars syntax, especially avoiding comparisons in {{#if}} and sticking to standard helpers. Your validation strategy is also crystal clear.
+
+Let's proceed with the ESLint and Prettier configuration templates.
+
+1. eslintrc.handlebars
+A. Template Filename
+
+eslintrc.handlebars (or .eslintrc.json.handlebars if you prefer the full extension)
+
+B. Complete Handlebars Template Code
+{
+  "root": true,
+  "parser": "{{#if projectTypeIsTypeScript}}@typescript-eslint/parser{{else}}espree{{/if}}",
+  {{#if projectTypeIsTypeScript}}
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "project": "./tsconfig.json" // Assumes tsconfig.json is at the root
+  },
+  {{else}}
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  {{/if}}
+  "env": {
+    {{#if frameworkIsNodeOrBoth}}
+    "node": true,
+    {{/if}}
+    {{#if frameworkIsBrowserOrBoth}}
+    "browser": true,
+    {{/if}}
+    "es2021": true
+    {{#if useVitestInEnv}}
+    ,"vitest-globals/env": true // If using vitest globals plugin
+    {{/if}}
+  },
+  "plugins": [
+    {{#if projectTypeIsTypeScript}}
+    "@typescript-eslint"{{#if usePrettier}},{{/if}}
+    {{/if}}
+    {{#if usePrettier}}
+    "prettier"
+    {{/if}}
+    {{#if useVitestInEnv}}
+    {{#if projectTypeIsTypeScriptOrUsePrettier}},{{/if}}"vitest-globals"
+    {{/if}}
+    {{#each additionalPlugins}}
+    {{#if ../projectTypeIsTypeScriptOrUsePrettierOrUseVitestInEnv}},{{/if}}"{{this}}"{{#unless @last}},{{/unless}}
+    {{/each}}
+  ],
+  "extends": [
+    "eslint:recommended"
+    {{#if projectTypeIsTypeScript}}
+    ,"plugin:@typescript-eslint/recommended"
+    {{#if strictMode}}
+    ,"plugin:@typescript-eslint/recommended-requiring-type-checking" // More strict rules
+    {{/if}}
+    {{/if}}
+    {{#if useReact}}
+    ,"plugin:react/recommended"
+    ,"plugin:react-hooks/recommended"
+    {{#if projectTypeIsTypeScript}}
+    ,"plugin:react/jsx-runtime" // For new JSX transform
+    {{/if}}
+    {{/if}}
+    {{#if useNextJS}}
+    ,"next/core-web-vitals"
+    {{/if}}
+    {{#if usePrettier}}
+    ,"plugin:prettier/recommended" // Enables eslint-plugin-prettier and eslint-config-prettier
+    {{/if}}
+    {{#each additionalExtends}}
+    ,"{{this}}"
+    {{/each}}
+  ],
+  "rules": {
+    {{#if usePrettier}}
+    "prettier/prettier": "warn", // Show prettier errors as warnings
+    {{/if}}
+    {{#if projectTypeIsTypeScript}}
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/explicit-module-boundary-types": "off", // Often too verbose for internal modules
+    {{#if strictMode}}
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/await-thenable": "error",
+    "@typescript-eslint/no-unsafe-assignment": "warn", // Can be noisy, adjust as needed
+    "@typescript-eslint/no-unsafe-call": "warn",
+    "@typescript-eslint/no-unsafe-member-access": "warn",
+    "@typescript-eslint/no-unsafe-return": "warn",
+    {{else}}
+    "@typescript-eslint/no-floating-promises": "warn",
+    {{/if}}
+    {{else}}
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    {{/if}}
+    {{#if useReact}}
+    "react/prop-types": "off", // Often handled by TypeScript
+    "react/react-in-jsx-scope": "off", // Not needed with new JSX transform
+    {{/if}}
+    "no-console": "{{#if strictMode}}warn{{else}}off{{/if}}", // Allow console in dev, warn in strict
+    "eqeqeq": ["error", "always"],
+    "no-implicit-coercion": "warn",
+    // SDD Specific or common good practices:
+    "curly": ["warn", "all"], // Enforce curly braces for all blocks
+    "no-else-return": ["warn", { "allowElseIf": false }], // Discourage `else` after `return`
+    "no-lonely-if": "warn", // Discourage `if` statements as the only statement in an `else` block
+    {{#each customRules}}
+    "{{@key}}": {{#isObject this}}{{jsonStringify this}}{{else}}{{#isBoolean this}}{{this}}{{else}}"{{this}}"{{/isBoolean}}{{/isObject}}{{#unless @last}},{{/unless}}
+    {{/each}}
+    "padding-line-between-statements": [
+      "warn",
+      { "blankLine": "always", "prev": "*", "next": "return" },
+      { "blankLine": "always", "prev": ["const", "let", "var"], "next": "*"},
+      { "blankLine": "any", "prev": ["const", "let", "var"], "next": ["const", "let", "var"]},
+      { "blankLine": "always", "prev": "directive", "next": "*" },
+      { "blankLine": "any", "prev": "directive", "next": "directive" }
+    ]
+  }
+  {{#if settings}}
+  ,"settings": {
+    {{#each settings}}
+    "{{@key}}": {{#isObject this}}{{jsonStringify this}}{{else}}{{#isBoolean this}}{{this}}{{else}}"{{this}}"{{/isBoolean}}{{/isObject}}{{#unless @last}},{{/unless}}
+    {{/each}}
+    {{#if useReact}}
+    {{#if Object.keys(settings).length > 0}},{{/if}}
+    "react": {
+      "version": "detect" // Automatically detect the React version
+    }
+    {{/if}}
+  }
+  {{else if useReact}}
+  ,"settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
+  {{/if}}
+  {{#if overrides.length}}
+  ,"overrides": [
+    {{#each overrides}}
+    {
+      "files": [
+        {{#each this.files}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      {{#if this.excludedFiles.length}}
+      "excludedFiles": [
+        {{#each this.excludedFiles}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      {{/if}}
+      {{#if this.parser}}
+      "parser": "{{this.parser}}",
+      {{/if}}
+      {{#if this.parserOptions}}
+      "parserOptions": {{jsonStringify this.parserOptions}},
+      {{/if}}
+      {{#if this.plugins.length}}
+      "plugins": [
+        {{#each this.plugins}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      {{/if}}
+      {{#if this.extends.length}}
+      "extends": [
+        {{#each this.extends}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      {{/if}}
+      "rules": {
+        {{#each this.rules}}
+        "{{@key}}": {{#isObject this}}{{jsonStringify this}}{{else}}{{#isBoolean this}}{{this}}{{else}}"{{this}}"{{/isBoolean}}{{/isObject}}{{#unless @last}},{{/unless}}
+        {{/each}}
+      }
+    }{{#unless @last}},{{/unless}}
+    {{/each}}
+  ]
+  {{/if}}
+}
+
+C. Example TemplateContext for eslintrc.handlebars
+const eslintrcContext = {
+  projectType: "typescript", // "typescript" | "javascript"
+  framework: "node",       // "node" | "browser" | "both"
+  useReact: false,
+  useNextJS: false, // If it's a Next.js project
+  usePrettier: true,       // To integrate eslint-plugin-prettier
+  useVitestInEnv: true, // If you want vitest-globals/env in your env
+  strictMode: true,        // Enables more strict TypeScript rules and stricter general rules
+
+  // Helper flags derived in TemplateProcessor for simpler Handlebars logic
+  projectTypeIsTypeScript: true, // Derived from projectType
+  frameworkIsNodeOrBoth: true,   // Derived from framework
+  frameworkIsBrowserOrBoth: false, // Derived from framework
+  projectTypeIsTypeScriptOrUsePrettier: true, // For comma logic in plugins array
+  projectTypeIsTypeScriptOrUsePrettierOrUseVitestInEnv: true, // For comma logic
+
+  additionalPlugins: ["import"], // e.g., ["import", "jsx-a11y"]
+  additionalExtends: ["plugin:import/typescript"], // e.g., ["plugin:jsx-a11y/recommended"]
+
+  customRules: {
+    "import/order": ["warn", {
+      "groups": ["builtin", "external", "internal", ["parent", "sibling", "index"]],
+      "newlines-between": "always",
+      "alphabetize": { "order": "asc", "caseInsensitive": true }
+    }],
+    "import/no-unresolved": "off", // Often handled by TS/paths
+    "no-return-await": "warn",
+    // Add any project-specific rule overrides here
+  },
+  settings: { // For plugins like eslint-plugin-import
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true // Project uses TypeScript
+      }
+    }
+  },
+  overrides: [
+    {
+      files: ["*.js", "*.cjs"],
+      excludedFiles: [],
+      // parser: undefined,
+      // parserOptions: undefined,
+      // plugins: [],
+      // extends: [],
+      rules: {
+        "@typescript-eslint/no-var-requires": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off"
+      }
+    },
+    {
+      files: ["tests/**/*.ts", "*.test.ts", "*.spec.ts"],
+      excludedFiles: [],
+      rules: {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+        "@typescript-eslint/no-floating-promises": "off", // Common in tests for async fire-and-forget
+        "max-lines-per-function": "off"
+      }
+    }
+  ]
+};
+
+// Handlebars helpers needed:
+// Handlebars.registerHelper('isBoolean', (value) => typeof value === 'boolean');
+// Handlebars.registerHelper('isObject', (value) => typeof value === 'object' && value !== null && !Array.isArray(value));
+// Handlebars.registerHelper('jsonStringify', (obj) => JSON.stringify(obj));
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+
+Note: The derived boolean flags (projectTypeIsTypeScript, etc.) should ideally be prepared in your TemplateProcessor before passing the context to Handlebars. This keeps the Handlebars logic cleaner and avoids needing complex helpers for simple AND/OR conditions.
+
+D. Example of Generated Output (.eslintrc.json)
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  "env": {
+    "node": true,
+    "es2021": true,
+    "vitest-globals/env": true
+  },
+  "plugins": [
+    "@typescript-eslint",
+    "prettier",
+    "vitest-globals",
+    "import"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking",
+    "plugin:prettier/recommended",
+    "plugin:import/typescript"
+  ],
+  "rules": {
+    "prettier/prettier": "warn",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/await-thenable": "error",
+    "@typescript-eslint/no-unsafe-assignment": "warn",
+    "@typescript-eslint/no-unsafe-call": "warn",
+    "@typescript-eslint/no-unsafe-member-access": "warn",
+    "@typescript-eslint/no-unsafe-return": "warn",
+    "no-console": "warn",
+    "eqeqeq": [
+      "error",
+      "always"
+    ],
+    "no-implicit-coercion": "warn",
+    "curly": [
+      "warn",
+      "all"
+    ],
+    "no-else-return": [
+      "warn",
+      {
+        "allowElseIf": false
+      }
+    ],
+    "no-lonely-if": "warn",
+    "import/order": [
+      "warn",
+      {
+        "groups": [
+          "builtin",
+          "external",
+          "internal",
+          [
+            "parent",
+            "sibling",
+            "index"
+          ]
+        ],
+        "newlines-between": "always",
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        }
+      }
+    ],
+    "import/no-unresolved": "off",
+    "no-return-await": "warn",
+    "padding-line-between-statements": [
+      "warn",
+      {
+        "blankLine": "always",
+        "prev": "*",
+        "next": "return"
+      },
+      {
+        "blankLine": "always",
+        "prev": [
+          "const",
+          "let",
+          "var"
+        ],
+        "next": "*"
+      },
+      {
+        "blankLine": "any",
+        "prev": [
+          "const",
+          "let",
+          "var"
+        ],
+        "next": [
+          "const",
+          "let",
+          "var"
+        ]
+      },
+      {
+        "blankLine": "always",
+        "prev": "directive",
+        "next": "*"
+      },
+      {
+        "blankLine": "any",
+        "prev": "directive",
+        "next": "directive"
+      }
+    ]
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true
+      }
+    }
+  },
+  "overrides": [
+    {
+      "files": [
+        "*.js",
+        "*.cjs"
+      ],
+      "rules": {
+        "@typescript-eslint/no-var-requires": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off"
+      }
+    },
+    {
+      "files": [
+        "tests/**/*.ts",
+        "*.test.ts",
+        "*.spec.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+        "@typescript-eslint/no-floating-promises": "off",
+        "max-lines-per-function": "off"
+      }
+    }
+  ]
+}
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Json
+IGNORE_WHEN_COPYING_END
+2. prettierrc.handlebars
+A. Template Filename
+
+prettierrc.handlebars (or .prettierrc.json.handlebars)
+
+B. Complete Handlebars Template Code
+{
+  {{#if printWidth}}
+  "printWidth": {{printWidth}},
+  {{else}}
+  "printWidth": 80,
+  {{/if}}
+  {{#if tabWidth}}
+  "tabWidth": {{tabWidth}},
+  {{else}}
+  "tabWidth": 2,
+  {{/if}}
+  {{#if useTabs}}
+  "useTabs": {{useTabs}},
+  {{else}}
+  "useTabs": false,
+  {{/if}}
+  {{#if semi}}
+  "semi": {{semi}},
+  {{else}}
+  "semi": true,
+  {{/if}}
+  {{#if singleQuote}}
+  "singleQuote": {{singleQuote}},
+  {{else}}
+  "singleQuote": true, 
+  {{/if}}
+  {{#if quoteProps}}
+  "quoteProps": "{{quoteProps}}",
+  {{else}}
+  "quoteProps": "as-needed",
+  {{/if}}
+  {{#if jsxSingleQuote}}
+  "jsxSingleQuote": {{jsxSingleQuote}},
+  {{else}}
+  "jsxSingleQuote": false,
+  {{/if}}
+  {{#if trailingComma}}
+  "trailingComma": "{{trailingComma}}",
+  {{else}}
+  "trailingComma": "es5",
+  {{/if}}
+  {{#if bracketSpacing}}
+  "bracketSpacing": {{bracketSpacing}},
+  {{else}}
+  "bracketSpacing": true,
+  {{/if}}
+  {{#if bracketSameLine}}
+  "bracketSameLine": {{bracketSameLine}},
+  {{else}}
+  "bracketSameLine": false,
+  {{/if}}
+  {{#if arrowParens}}
+  "arrowParens": "{{arrowParens}}",
+  {{else}}
+  "arrowParens": "always",
+  {{/if}}
+  {{#if rangeStart}}
+  "rangeStart": {{rangeStart}},
+  {{/if}}
+  {{#if rangeEnd}}
+  "rangeEnd": {{rangeEnd}},
+  {{/if}}
+  // "parser": "...", // Rarely needed, Prettier infers
+  // "filepath": "...", // Rarely needed
+  {{#if requirePragma}}
+  "requirePragma": {{requirePragma}},
+  {{else}}
+  "requirePragma": false,
+  {{/if}}
+  {{#if insertPragma}}
+  "insertPragma": {{insertPragma}},
+  {{else}}
+  "insertPragma": false,
+  {{/if}}
+  {{#if proseWrap}}
+  "proseWrap": "{{proseWrap}}",
+  {{else}}
+  "proseWrap": "preserve",
+  {{/if}}
+  {{#if htmlWhitespaceSensitivity}}
+  "htmlWhitespaceSensitivity": "{{htmlWhitespaceSensitivity}}",
+  {{else}}
+  "htmlWhitespaceSensitivity": "css",
+  {{/if}}
+  {{#if vueIndentScriptAndStyle}}
+  "vueIndentScriptAndStyle": {{vueIndentScriptAndStyle}},
+  {{else}}
+  "vueIndentScriptAndStyle": false,
+  {{/if}}
+  {{#if endOfLine}}
+  "endOfLine": "{{endOfLine}}"{{#if plugins}},{{/if}}
+  {{else}}
+  "endOfLine": "lf"{{#if plugins}},{{/if}}
+  {{/if}}
+  {{#if embeddedLanguageFormatting}}
+  "embeddedLanguageFormatting": "{{embeddedLanguageFormatting}}"{{#if plugins}},{{/if}}
+  {{else}}
+  "embeddedLanguageFormatting": "auto"{{#if plugins}},{{/if}}
+  {{/if}}
+  {{#if singleAttributePerLine}}
+  "singleAttributePerLine": {{singleAttributePerLine}}{{#if plugins}},{{/if}}
+  {{else}}
+  "singleAttributePerLine": false{{#if plugins}},{{/if}}
+  {{/if}}
+  {{#if plugins.length}}
+  "plugins": [
+    {{#each plugins}}
+    "{{this}}"{{#unless @last}},{{/unless}}
+    {{/each}}
+  ]
+  {{/if}}
+}
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Handlebars
+IGNORE_WHEN_COPYING_END
+C. Example TemplateContext for prettierrc.handlebars
+const prettierrcContext = {
+  printWidth: 100,
+  tabWidth: 2,
+  useTabs: false,
+  semi: true,
+  singleQuote: true, // Often preferred in modern JS/TS
+  quoteProps: "as-needed", // "as-needed" | "consistent" | "preserve"
+  jsxSingleQuote: false,
+  trailingComma: "all", // "all" | "es5" | "none" (good for git diffs)
+  bracketSpacing: true,
+  bracketSameLine: false, // Puts `>` of multi-line JSX elements on new line
+  arrowParens: "always", // "always" | "avoid"
+  // rangeStart: 0, // For formatting a specific range, usually not in .prettierrc
+  // rangeEnd: Infinity,
+  requirePragma: false,
+  insertPragma: false,
+  proseWrap: "preserve", // "always" | "never" | "preserve"
+  htmlWhitespaceSensitivity: "css", // "css" | "strict" | "ignore"
+  vueIndentScriptAndStyle: false,
+  endOfLine: "lf", // "lf" | "crlf" | "cr" | "auto"
+  embeddedLanguageFormatting: "auto", // "auto" | "off"
+  singleAttributePerLine: false, // For JSX
+  plugins: [ // e.g., "prettier-plugin-tailwindcss"
+    // "prettier-plugin-prisma"
+  ]
+};
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Example of Generated Output (.prettierrc.json)
+{
+  "printWidth": 100,
+  "tabWidth": 2,
+  "useTabs": false,
+  "semi": true,
+  "singleQuote": true,
+  "quoteProps": "as-needed",
+  "jsxSingleQuote": false,
+  "trailingComma": "all",
+  "bracketSpacing": true,
+  "bracketSameLine": false,
+  "arrowParens": "always",
+  "requirePragma": false,
+  "insertPragma": false,
+  "proseWrap": "preserve",
+  "htmlWhitespaceSensitivity": "css",
+  "vueIndentScriptAndStyle": false,
+  "endOfLine": "lf",
+  "embeddedLanguageFormatting": "auto",
+  "singleAttributePerLine": false
+}
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Json
+IGNORE_WHEN_COPYING_END
+
+(If plugins array in context was populated, that section would also appear)
+
+Integration Instructions for ESLint & Prettier Templates:
+
+Part of project-structure.handlebars: These .eslintrc.handlebars and .prettierrc.handlebars templates are intended to be invoked by the project-structure.handlebars manifest if the respective includeESLint and includePrettier flags are true in the project setup context.
+
+Context Derivation:
+
+Your TemplateProcessor will need to prepare the specific context for each.
+
+For eslintrc.handlebars, derive helper booleans like projectTypeIsTypeScript from the primary projectType to simplify Handlebars conditionals.
+
+For prettierrc.handlebars, the context is mostly direct mappings, but you can establish project-wide defaults in your TemplateProcessor if a value isn't provided.
+
+Handlebars Helpers:
+
+The isBoolean, isObject, and jsonStringify helpers are used in eslintrc.handlebars. Ensure these are registered:
+
+Handlebars.registerHelper('isBoolean', (value) => typeof value === 'boolean');
+Handlebars.registerHelper('isObject', (value) => typeof value === 'object' && value !== null && !Array.isArray(value));
+Handlebars.registerHelper('jsonStringify', (obj) => JSON.stringify(obj, null, 2)); // null, 2 for pretty print if needed inside template, otherwise just JSON.stringify(obj)
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+JavaScript
+IGNORE_WHEN_COPYING_END
+
+Note: For jsonStringify within a JSON template, you usually just want the raw JSON string, so JSON.stringify(obj) is fine. The null, 2 is if you were embedding JSON within a string value in the output JSON. My template usage for rules and settings assumes the output of jsonStringify will be directly inserted, so it should produce compact JSON for object/array rule values.
+
+JSON Validity: Pay very close attention to commas, especially with conditional sections. The {{#unless @last}},{{/unless}} pattern is key for arrays. For objects, Handlebars doesn't have a direct "unless last property" for commas. A common strategy is:
+
+Always have a comma after each property in the template.
+
+After rendering, programmatically remove any trailing comma before the closing } of an object if the last rendered property was conditional and didn't render. (This is a bit of a hack but common).
+
+Alternatively, structure the template so that unconditional properties come last, or make the last property's comma conditional.
+
+The Prettier template is simpler as most properties are independent. The ESLint template has more complex conditional structures. I've tried to manage commas carefully with {{#if condition}},{{/if}} for properties that might be wholly absent.
+
+I've tried to make these robust. Let me know your thoughts and if these look good for your validation!

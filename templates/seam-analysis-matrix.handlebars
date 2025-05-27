@@ -1,0 +1,252 @@
+# 🔗 Seam Analysis Matrix
+**Generated: {{timestamp}}**  
+**Project: {{projectName}}**  
+**SDD Version: {{sddVersion}}**
+
+---
+
+## 📊 Component Interaction Overview
+
+{{#if components}}
+### Identified Components ({{components.length}})
+{{#each components}}
+- **{{this.name}}** (`{{this.type}}`)
+  - Purpose: {{this.purpose}}
+  - Dependencies: {{#if this.dependencies}}{{this.dependencies.length}}{{else}}0{{/if}}
+  - Consumers: {{#if this.consumers}}{{this.consumers.length}}{{else}}0{{/if}}
+{{/each}}
+{{else}}
+⚠️ **No components identified for analysis**
+{{/if}}
+
+---
+
+## 🎯 Seam Interaction Matrix
+
+{{#if seamConnections}}
+| Source Component | Target Component | Seam Type | Data Flow | Status | Risk Level |
+|------------------|------------------|-----------|-----------|---------|------------|
+{{#each seamConnections}}
+| {{this.source}} | {{this.target}} | {{this.seamType}} | {{this.dataFlow}} | {{this.status}} | {{this.riskLevel}} |
+{{/each}}
+
+### Matrix Analysis Summary
+- **Total Seam Connections**: {{seamConnections.length}}
+- **Active Connections**: {{default activeConnections 0}}
+- **Pending Connections**: {{default pendingConnections 0}}
+- **High-Risk Connections**: {{default highRiskConnections 0}}
+{{else}}
+⚠️ **No seam connections defined yet**
+
+### Recommended Next Steps:
+1. Define component interfaces using SDD contract templates
+2. Identify communication pathways between components
+3. Establish seam definitions with proper data flow patterns
+{{/if}}
+
+---
+
+## 🔄 Data Flow Analysis
+
+{{#if dataFlows}}
+### Primary Data Transformation Chains
+
+{{#each dataFlows}}
+#### {{this.name}} Flow
+```
+{{#each this.steps}}
+{{this.component}} --[{{this.operation}}]--> 
+  └── Input: {{this.inputType}}
+  └── Output: {{this.outputType}}
+  └── Transform: {{this.transformation}}
+{{/each}}
+```
+
+**Flow Metrics:**
+- **Complexity**: {{this.complexity}}/10
+- **Performance Impact**: {{this.performanceImpact}}
+- **Error Handling**: {{this.errorHandling}}
+- **Validation Points**: {{this.validationPoints}}
+
+{{/each}}
+{{else}}
+### 🎯 Seam-First Development Approach
+
+Since no data flows are defined yet, follow SDD methodology:
+
+1. **Identify Communication Seams**
+   ```typescript
+   // Example seam definition
+   interface {{pascalCase projectName}}Seam {
+     processData(input: InputType): Promise<ContractResult<OutputType>>;
+   }
+   ```
+
+2. **Define Data Contracts**
+   ```typescript
+   type ContractResult<T> = {
+     success: boolean;
+     data?: T;
+     error?: string;
+     metadata?: Record<string, any>;
+   };
+   ```
+
+3. **Establish Seam Manager Integration**
+   ```typescript
+   import { seamManager } from "../seams.js";
+   const result = await seamManager.executeSeam("SeamName", data);
+   ```
+{{/if}}
+
+---
+
+## ⚡ Critical Seam Analysis
+
+{{#if criticalSeams}}
+### High-Priority Seam Definitions
+
+{{#each criticalSeams}}
+#### 🔴 {{this.name}} ({{this.priority}} Priority)
+
+**Communication Pattern**: {{this.pattern}}
+**Components Involved**: {{this.components}}
+**Data Dependencies**: {{this.dataDependencies}}
+
+**Risk Assessment**:
+- **Complexity**: {{this.complexity}}/10
+- **Failure Impact**: {{this.failureImpact}}
+- **Integration Difficulty**: {{this.integrationDifficulty}}
+
+**Recommended Actions**:
+{{#each this.recommendations}}
+- {{this}}
+{{/each}}
+
+**Contract Template Needed**:
+```typescript
+interface {{pascalCase this.name}}Contract {
+  {{#each this.methods}}
+  {{this.name}}({{this.params}}): Promise<ContractResult<{{this.returnType}}>>;
+  {{/each}}
+}
+```
+
+---
+{{/each}}
+{{else}}
+### 💡 Seam Discovery Recommendations
+
+To identify critical seams, analyze your requirements for:
+
+1. **Cross-Component Communication**
+   - Where do components need to exchange data?
+   - What are the primary integration points?
+   - Which operations require coordination?
+
+2. **Data Transformation Points**
+   - Where does data change format or structure?
+   - What validation steps are required?
+   - How are errors propagated between components?
+
+3. **External System Integration**
+   - Which external APIs or services are involved?
+   - How is configuration and credentials managed?
+   - What retry and fallback mechanisms are needed?
+{{/if}}
+
+---
+
+## 🛡️ Risk Assessment Matrix
+
+{{#if riskAssessment}}
+### Component Risk Analysis
+
+| Component | Risk Level | Issues | Mitigation Status |
+|-----------|------------|--------|-------------------|
+{{#each riskAssessment.components}}
+| {{this.name}} | {{this.riskLevel}} | {{this.issueCount}} | {{this.mitigationStatus}} |
+{{/each}}
+
+### Seam Risk Analysis
+
+| Seam Connection | Risk Level | Critical Issues | Recommendations |
+|-----------------|------------|-----------------|------------------|
+{{#each riskAssessment.seams}}
+| {{this.source}} → {{this.target}} | {{this.riskLevel}} | {{this.criticalIssues}} | {{this.recommendations}} |
+{{/each}}
+
+**Overall Project Risk**: {{riskAssessment.overallRisk}}/10
+{{else}}
+### 🎯 Risk Assessment Placeholder
+
+Risk assessment will be populated once seam connections are defined. Key risk factors to monitor:
+
+- **Integration Complexity**: Complex data transformations increase failure risk
+- **External Dependencies**: Third-party services introduce reliability concerns  
+- **Error Propagation**: Poor error handling can cascade failures
+- **Performance Bottlenecks**: Synchronous seam calls can impact responsiveness
+{{/if}}
+
+---
+
+## 📈 Implementation Roadmap
+
+{{#if implementationPlan}}
+### Phase-Based Implementation
+
+{{#each implementationPlan.phases}}
+#### Phase {{this.number}}: {{this.name}}
+**Duration**: {{this.duration}}  
+**Dependencies**: {{this.dependencies}}
+
+**Seam Implementations**:
+{{#each this.seams}}
+- [ ] {{this.name}} - {{this.description}}
+  - Complexity: {{this.complexity}}
+  - Effort: {{this.effort}}
+{{/each}}
+
+**Success Criteria**:
+{{#each this.successCriteria}}
+- [ ] {{this}}
+{{/each}}
+
+---
+{{/each}}
+{{else}}
+### 🎯 Recommended Implementation Strategy
+
+1. **Phase 1: Core Seam Definitions** (Week 1)
+   - Define primary component contracts
+   - Implement seam manager integration
+   - Create error handling patterns
+
+2. **Phase 2: Data Flow Implementation** (Week 2)
+   - Build data transformation seams
+   - Implement validation layers
+   - Add performance monitoring
+
+3. **Phase 3: Integration & Testing** (Week 3)
+   - End-to-end seam testing
+   - Error scenario validation
+   - Performance optimization
+{{/if}}
+
+---
+
+## 🔍 Validation Checklist
+
+- [ ] **Contract Consistency**: All seams return `ContractResult<T>`
+- [ ] **Error Handling**: Fail-fast patterns implemented
+- [ ] **Seam Manager**: Integration with central seam registry
+- [ ] **Type Safety**: TypeScript contracts for all interfaces
+- [ ] **Documentation**: Seam purposes and data flows documented
+- [ ] **Testing**: Integration tests for critical seam paths
+- [ ] **Performance**: Response time requirements defined
+- [ ] **Monitoring**: Seam health metrics established
+
+---
+
+**Generated by SDD MCP Server**  
+*Seam-Driven Development: Build connections first, implementation second*

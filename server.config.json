@@ -1,0 +1,63 @@
+{
+  "sdd_mcp_server": {
+    "name": "SDD MCP Server",
+    "version": "1.0.0",
+    "description": "Seam-Driven Development tools for AI-assisted software development",
+    "capabilities": {
+      "tools": [
+        "sdd_analyze_requirements",
+        "sdd_generate_contract",
+        "sdd_create_stub",
+        "sdd_orchestrate_full_workflow"
+      ]
+    },
+    "configuration": {
+      "default_project_template": "typescript",
+      "contract_template_engine": "handlebars",
+      "validation_engine": "zod",
+      "seam_analysis_mode": "ai_assisted",
+      "error_handling": "fail_fast",
+      "blueprint_comments": true,
+      "integration_testing": true
+    },
+    "project_templates": {
+      "typescript": {
+        "name": "TypeScript Project",
+        "file_extensions": [".ts", ".js"],
+        "contract_pattern": "ContractResult<T>",
+        "async_contracts": true,
+        "test_framework": "jest"
+      },
+      "python": {
+        "name": "Python Project",
+        "file_extensions": [".py"],
+        "contract_pattern": "Result[T]",
+        "async_contracts": true,
+        "test_framework": "pytest"
+      },
+      "javascript": {
+        "name": "JavaScript Project",
+        "file_extensions": [".js", ".mjs"],
+        "contract_pattern": "Promise<Result>",
+        "async_contracts": true,
+        "test_framework": "jest"
+      }
+    },
+    "seam_patterns": {
+      "data_flow_types": ["IN", "OUT", "BOTH"],
+      "communication_patterns": [
+        "request_response",
+        "publish_subscribe",
+        "stream_processing",
+        "batch_processing"
+      ],
+      "integration_points": [
+        "api_gateway",
+        "database_layer",
+        "external_service",
+        "user_interface",
+        "business_logic"
+      ]
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+{{#if printWidth}}
+  "printWidth":
+  {{printWidth}},
+{{else}}
+  "printWidth": 80,
+{{/if}}
+{{#if tabWidth}}
+  "tabWidth":
+  {{tabWidth}},
+{{else}}
+  "tabWidth": 2,
+{{/if}}
+{{#if useTabs}}
+  "useTabs":
+  {{useTabs}},
+{{else}}
+  "useTabs": false,
+{{/if}}
+{{#if semi}}
+  "semi":
+  {{semi}},
+{{else}}
+  "semi": true,
+{{/if}}
+{{#if singleQuote}}
+  "singleQuote":
+  {{singleQuote}},
+{{else}}
+  "singleQuote": true,
+{{/if}}
+{{#if quoteProps}}
+  "quoteProps": "{{quoteProps}}",
+{{else}}
+  "quoteProps": "as-needed",
+{{/if}}
+{{#if jsxSingleQuote}}
+  "jsxSingleQuote":
+  {{jsxSingleQuote}},
+{{else}}
+  "jsxSingleQuote": false,
+{{/if}}
+{{#if trailingComma}}
+  "trailingComma": "{{trailingComma}}",
+{{else}}
+  "trailingComma": "es5",
+{{/if}}
+{{#if bracketSpacing}}
+  "bracketSpacing":
+  {{bracketSpacing}},
+{{else}}
+  "bracketSpacing": true,
+{{/if}}
+{{#if bracketSameLine}}
+  "bracketSameLine":
+  {{bracketSameLine}},
+{{else}}
+  "bracketSameLine": false,
+{{/if}}
+{{#if arrowParens}}
+  "arrowParens": "{{arrowParens}}",
+{{else}}
+  "arrowParens": "always",
+{{/if}}
+{{#if rangeStart}}
+  "rangeStart":
+  {{rangeStart}},
+{{/if}}
+{{#if rangeEnd}}
+  "rangeEnd":
+  {{rangeEnd}},
+{{/if}}
+{{#if requirePragma}}
+  "requirePragma":
+  {{requirePragma}},
+{{else}}
+  "requirePragma": false,
+{{/if}}
+{{#if insertPragma}}
+  "insertPragma":
+  {{insertPragma}},
+{{else}}
+  "insertPragma": false,
+{{/if}}
+{{#if proseWrap}}
+  "proseWrap": "{{proseWrap}}",
+{{else}}
+  "proseWrap": "preserve",
+{{/if}}
+{{#if htmlWhitespaceSensitivity}}
+  "htmlWhitespaceSensitivity": "{{htmlWhitespaceSensitivity}}",
+{{else}}
+  "htmlWhitespaceSensitivity": "css",
+{{/if}}
+{{#if vueIndentScriptAndStyle}}
+  "vueIndentScriptAndStyle":
+  {{vueIndentScriptAndStyle}},
+{{else}}
+  "vueIndentScriptAndStyle": false,
+{{/if}}
+{{#if endOfLine}}
+  "endOfLine": "{{endOfLine}}",
+{{else}}
+  "endOfLine": "lf",
+{{/if}}
+{{#if embeddedLanguageFormatting}}
+  "embeddedLanguageFormatting": "{{embeddedLanguageFormatting}}",
+{{else}}
+  "embeddedLanguageFormatting": "auto",
+{{/if}}
+{{#if singleAttributePerLine}}
+  "singleAttributePerLine":
+  {{singleAttributePerLine}}{{#if plugins.length}},{{/if}}
+{{else}}
+  "singleAttributePerLine": false{{#if plugins.length}},{{/if}}
+{{/if}}
+{{#if plugins.length}}
+  "plugins": [
+  {{#each plugins}}
+    "{{this}}"{{#unless @last}},{{/unless}}
+  {{/each}}
+  ]
+{{/if}}
+}

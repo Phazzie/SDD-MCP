@@ -1,0 +1,280 @@
+// {{stubFileName}}
+/**
+ * PURPOSE: {{purpose}} - Coordinates multiple seams to fulfill complex business workflows.
+ * DATA FLOW: BOTH - Receives high-level requests and orchestrates calls to various agents.
+ * INTEGRATION POINTS: Client applications, API Gateways, {{seamManagerClassName}}. {{#each directDependencies}} {{this.name}} {{/each}}
+ * FAILURE MODES: Seam execution failure, Invalid request, Data transformation error, Transaction rollback failure, Timeout.
+ * RATIONALE: Centralizes complex workflow logic, decouples clients from individual seam details, and manages cross-seam operations.
+ * EXAMPLES: Orchestrating user onboarding (registration, email verification, profile setup).
+ * CONTRACT VERSION: 1.0.0
+ */
+
+import { ContractResult } from '{{contractResultImportPath}}';
+import { NotImplementedError } from '{{notImplementedErrorImportPath}}';
+import { {{seamManagerClassName}} } from '{{seamManagerImportPath}}.js';
+{{#if baseAgentInterfaceImportPath}}
+import { {{baseAgentInterfaceName}} } from '{{baseAgentInterfaceImportPath}}';
+{{/if}}
+{{#each additionalImports}}
+import { {{this.identifiers}} } from '{{this.path}}.js';
+{{/each}}
+
+// Consider using a proper logger library
+const logger = {
+  info: (message: string, ...args: any[]) => console.log(`[INFO][{{pascalCaseName}}Agent] ${message}`, ...args),
+  error: (message: string, ...args: any[]) => console.error(`[ERROR][{{pascalCaseName}}Agent] ${message}`, ...args),
+  warn: (message: string, ...args: any[]) => console.warn(`[WARN][{{pascalCaseName}}Agent] ${message}`, ...args),
+};
+
+{{#if generateCorrelationId}}
+// Using a simple UUID generator; replace with a robust library if needed
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+{{/if}}
+
+// Define input/output types for orchestrator methods
+{{#each exposedMethods}}
+export interface {{../pascalCaseName}}{{this.pascalCaseName}}Input {
+  {{#each this.inputFields}}
+  {{this.name}}{{#if this.optional}}?{{/if}}: {{this.type}}; // {{this.description}}
+  {{/each}}
+  {{#if ../generateCorrelationId}}
+  correlationId?: string; // Optional: For tracing requests across multiple services
+  {{/if}}
+}
+
+export interface {{../pascalCaseName}}{{this.pascalCaseName}}Output {
+  {{#each this.outputFields}}
+  {{this.name}}{{#if this.optional}}?{{/if}}: {{this.type}}; // {{this.description}}
+  {{/each}}
+  {{#if ../generateCorrelationId}}
+  correlationId: string;
+  {{/if}}
+}
+
+{{/each}}
+export class {{pascalCaseName}}Agent {{#if baseAgentInterfaceName}}implements {{baseAgentInterfaceName}}{{/if}} {
+  public readonly agentId: string = '{{agentId}}';
+  private seamManager: {{seamManagerClassName}};
+  {{#each directDependencies}}
+  private {{this.camelCaseName}}: {{this.type}};
+  {{/each}}
+
+  /**
+   * PURPOSE: Constructor for the {{pascalCaseName}}Agent.
+   * DATA FLOW: IN - Dependencies like SeamManager.
+   * INTEGRATION POINTS: System initialization.
+   * FAILURE MODES: Missing dependencies.
+   * RATIONALE: Initializes the orchestrator with necessary services.
+   * EXAMPLES: `new {{pascalCaseName}}Agent(seamManagerInstance)`
+   * CONTRACT VERSION: 1.0.0
+   */
+  constructor(
+    seamManager: {{seamManagerClassName}}{{#each directDependencies}}, {{this.name}}: {{this.type}}{{/each}}
+  ) {
+    // 🛡️ DEFENSIVE: Validate dependencies
+    if (!seamManager) {
+      throw new Error("{{pascalCaseName}}Agent: SeamManager dependency is required.");
+    }
+    this.seamManager = seamManager;
+    {{#each directDependencies}}
+    if (!{{this.name}}) {
+      throw new Error("{{../pascalCaseName}}Agent: {{this.type}} dependency '{{this.name}}' is required.");
+    }
+    this.{{this.camelCaseName}} = {{this.name}};
+    {{/each}}
+    logger.info(`{{pascalCaseName}}Agent initialized. Agent ID: ${this.agentId}`);
+  }
+
+  /**
+   * PURPOSE: Provides a health check for the orchestrator agent.
+   * DATA FLOW: OUT - Returns the health status.
+   * INTEGRATION POINTS: SeamManager, Monitoring systems.
+   * FAILURE MODES: Internal state corruption (if any).
+   * RATIONALE: Allows monitoring of the orchestrator itself.
+   * EXAMPLES: `orchestratorAgent.healthCheck()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async healthCheck(): Promise<ContractResult<{ status: string; details?: any }>> {
+    // 🔨 HARD_WORK: Add checks for critical dependencies or internal state if necessary.
+    logger.info('Health check requested.');
+    return {
+      success: true,
+      data: { status: 'healthy', checks: ['dependencies_initialized'] },
+      agentId: this.agentId,
+    };
+  }
+
+  {{#each exposedMethods}}
+  /**
+   * PURPOSE: {{this.methodDescription}}
+   * DATA FLOW: BOTH
+   * INTEGRATION POINTS: {{#if this.integrationPoints}}{{this.integrationPoints}}{{else}}Clients, API Gateway{{/if}}
+   * FAILURE MODES: {{#if this.failureModes}}{{this.failureModes}}{{else}}Input validation failed, Downstream seam failure ({{#each this.involvedSeams}}{{this.seamName}}{{#unless @last}}, {{/unless}}{{/each}}), Data processing error{{/if}}
+   * RATIONALE: {{#if this.rationale}}{{this.rationale}}{{else}}Orchestrates the '{{this.methodName}}' workflow by coordinating multiple seams.{{/if}}
+   * EXAMPLES: `await orchestrator.{{this.methodName}}({ {{#each this.inputFields}}{{this.name}}: 'sample'{{#unless @last}}, {{/unless}}{{/each}} })`
+   * CONTRACT VERSION: {{this.contractVersion}}
+   */
+  public async {{this.methodName}}(
+    request: {{../pascalCaseName}}{{this.pascalCaseName}}Input
+  ): Promise<ContractResult<{{../pascalCaseName}}{{this.pascalCaseName}}Output>> {
+    const startTime = Date.now();
+    {{#if ../generateCorrelationId}}
+    const correlationId = request.correlationId || generateUUID();
+    logger.info(`Executing {{this.methodName}}`, { correlationId, request });
+    {{else}}
+    logger.info(`Executing {{this.methodName}}`, { request });
+    {{/if}}
+
+    // 🛡️ DEFENSIVE: Input validation
+    if (!request) {
+      const errorMsg = "Invalid input for {{this.methodName}} - request is null or undefined.";
+      logger.error(errorMsg{{#if ../generateCorrelationId}}, { correlationId }{{/if}});
+      return { success: false, error: errorMsg, agentId: this.agentId{{#if ../generateCorrelationId}}, metadata: { correlationId }{{/if}} };
+    }
+    {{#each this.inputFields}}
+    {{#if this.required}}
+    if (request.{{this.name}} === undefined || request.{{this.name}} === null) {
+      const errorMsg = "Invalid input for {{../this.methodName}}: '{{this.name}}' is required.";
+      logger.error(errorMsg{{#if ../../generateCorrelationId}}, { correlationId }{{/if}});
+      return { success: false, error: errorMsg, agentId: this.agentId{{#if ../../generateCorrelationId}}, metadata: { correlationId }{{/if}} };
+    }
+    {{/if}}
+    {{/each}}
+
+    let transactionSuccessful = true;
+    const intermediateResults: Record<string, any> = {};
+
+    try {
+      // 🔨 HARD_WORK: Implement the orchestration logic.
+      {{#each this.involvedSeams}}
+      // --- Calling Seam: {{this.seamName}}.{{this.methodToCall}} ---
+      logger.info(`{{../../methodName}}: Calling seam '{{this.seamName}}' method '{{this.methodToCall}}'`{{#if ../../../generateCorrelationId}}, { correlationId }{{/if}});
+      
+      // 🛡️ DEFENSIVE: Prepare request payload for {{this.seamName}}.{{this.methodToCall}}
+      const {{this.camelCaseSeamName}}RequestPayload = {
+        {{#each this.inputMapping}}
+        {{this.targetField}}: {{this.sourceFieldExpression}}, // e.g., request.userId or intermediateResults.somePreviousStep.data.id
+        {{/each}}
+        {{#if ../../../generateCorrelationId}}
+        correlationId, // Pass correlation ID to downstream services
+        {{/if}}
+      };
+      
+      let {{this.camelCaseSeamName}}Result: ContractResult<any>;
+      
+      {{#if this.retryConfig}}
+      // 🎯 CRITICAL: Retry logic for critical seams
+      let attempt = 0;
+      const maxAttempts = {{this.retryConfig.attempts}};
+      const delayMs = {{this.retryConfig.delayMs}};
+      let lastError: string | undefined;
+
+      while(attempt < maxAttempts) {
+        attempt++;
+        logger.info(`{{../../methodName}}: Attempt ${attempt}/${maxAttempts} for seam '{{this.seamName}}' method '{{this.methodToCall}}'`{{#if ../../../generateCorrelationId}}, { correlationId }{{/if}});
+        {{this.camelCaseSeamName}}Result = await this.seamManager.executeSeam(
+          '{{this.seamName}}',
+          '{{this.methodToCall}}',
+          {{this.camelCaseSeamName}}RequestPayload
+        );
+
+        if ({{this.camelCaseSeamName}}Result.success) {
+          lastError = undefined;
+          break;
+        }
+        lastError = {{this.camelCaseSeamName}}Result.error || 'Unknown error from {{this.seamName}}';
+        logger.warn(`{{../../methodName}}: Seam '{{this.seamName}}' method '{{this.methodToCall}}' failed (attempt ${attempt}/${maxAttempts}): ${lastError}`{{#if ../../../generateCorrelationId}}, { correlationId }{{/if}});
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+      if (lastError) {
+         {{this.camelCaseSeamName}}Result = { success: false, error: `Retry exhausted for {{this.seamName}}.{{this.methodToCall}}: ${lastError}`, agentId: this.agentId };
+      }
+      {{else}}
+      {{this.camelCaseSeamName}}Result = await this.seamManager.executeSeam(
+        '{{this.seamName}}',
+        '{{this.methodToCall}}',
+        {{this.camelCaseSeamName}}RequestPayload
+      );
+      {{/if}}
+
+      if (!{{this.camelCaseSeamName}}Result.success) {
+        const errorMsg = `{{../../methodName}}: Failed to execute '{{this.seamName}}.{{this.methodToCall}}'. Error: ${ {{this.camelCaseSeamName}}Result.error}`;
+        logger.error(errorMsg, { details: {{this.camelCaseSeamName}}Result{{#if ../../../generateCorrelationId}}, correlationId{{/if}} });
+        {{#if this.isCritical}}
+        transactionSuccessful = false;
+        // 🔨 HARD_WORK: Implement compensation/rollback logic if needed for critical failures
+        logger.error(`{{../../methodName}}: Critical seam '{{this.seamName}}' failed. Halting workflow.`{{#if ../../../generateCorrelationId}}, { correlationId }{{/if}});
+        {{/if}}
+        return {
+          success: false,
+          error: errorMsg,
+          agentId: this.agentId,
+          metadata: { 
+            failedSeam: '{{this.seamName}}', 
+            failedMethod: '{{this.methodToCall}}',
+            {{#if ../../../generateCorrelationId}}correlationId,{{/if}}
+            downstreamError: {{this.camelCaseSeamName}}Result.error
+          }
+        };
+      }
+
+      intermediateResults['{{this.resultKey}}'] = {{this.camelCaseSeamName}}Result.data;
+      logger.info(`{{../../methodName}}: Seam '{{this.seamName}}' method '{{this.methodToCall}}' succeeded.`, { data: {{this.camelCaseSeamName}}Result.data{{#if ../../../generateCorrelationId}}, correlationId{{/if}} });
+
+      {{/each}}
+
+      // 🎯 CRITICAL: Transaction Management / Finalization
+      if (!transactionSuccessful) {
+        const errorMsg = "{{this.methodName}}: Workflow could not be completed due to earlier critical failures.";
+        logger.error(errorMsg{{#if ../generateCorrelationId}}, { correlationId }{{/if}});
+        return { success: false, error: errorMsg, agentId: this.agentId{{#if ../generateCorrelationId}}, metadata: { correlationId }{{/if}} };
+      }
+
+      // 💰 HIGH_ROI: Transform intermediateResults into the final output structure
+      const responseData: {{../pascalCaseName}}{{this.pascalCaseName}}Output = {
+        {{#each this.outputMapping}}
+        {{this.targetField}}: {{this.sourceFieldExpression}}, // e.g., intermediateResults.userProfile.name
+        {{/each}}
+        {{#if ../generateCorrelationId}}
+        correlationId,
+        {{/if}}
+      };
+
+      const duration = Date.now() - startTime;
+      logger.info(`{{this.methodName}} executed successfully. Duration: ${duration}ms`, { responseData{{#if ../generateCorrelationId}}, correlationId{{/if}} });
+
+      return {
+        success: true,
+        data: responseData,
+        agentId: this.agentId,
+        metadata: { durationMs: duration{{#if ../generateCorrelationId}}, correlationId{{/if}} }
+      };
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const duration = Date.now() - startTime;
+      logger.error(`{{this.methodName}}: Unhandled exception during orchestration: ${errorMessage}`, { 
+        stack: (error instanceof Error) ? error.stack : undefined, 
+        {{#if ../generateCorrelationId}}correlationId,{{/if}}
+        durationMs: duration 
+      });
+      return {
+        success: false,
+        error: `Orchestration error in {{this.methodName}}: ${errorMessage}`,
+        agentId: this.agentId,
+        metadata: { durationMs: duration{{#if ../generateCorrelationId}}, correlationId{{/if}} }
+      };
+    }
+  }
+
+  {{/each}}
+
+  // 🔨 HARD_WORK: Add any private helper methods for data transformation, compensation logic, etc.
+}

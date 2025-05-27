@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sdd-mcp-server": {
+      "command": "node",
+      "args": ["C:\\Users\\thump\\SkepticalWombat\\dist\\index.js"],
+      "env": {
+        "NODE_ENV": "production"
+      }
+    }
+  }
+}
