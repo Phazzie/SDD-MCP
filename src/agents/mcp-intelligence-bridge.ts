@@ -6,16 +6,12 @@
  */
 
 import type {
-  IEnhancedSeamAnalyzer,
-  SeamAnalysisInput,
-  EnhancedSeamAnalysis,
-  InteractionMatrixInput,
-  InteractionMatrix,
-  DataFlowAnalysisInput,
-  DataFlowAnalysis,
-  SeamValidationInput,
-  SeamValidationResult,
   ContractResult,
+  DataFlowAnalysisInput,
+  IEnhancedSeamAnalyzer,
+  InteractionMatrixInput,
+  SeamAnalysisInput,
+  SeamValidationInput,
 } from "../contracts.js";
 import { EnhancedSeamAnalyzer } from "./enhanced-seam-analyzer.js";
 
@@ -120,7 +116,9 @@ export class MCPIntelligenceBridge implements IMCPIntelligenceBridge {
         success: false,
         error: {
           category: "ProcessingError",
-          message: `Bridge initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+          message: `Bridge initialization failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           agentId: this.agentId,
           seamName: "initialize",
           timestamp: new Date().toISOString(),
@@ -135,13 +133,14 @@ export class MCPIntelligenceBridge implements IMCPIntelligenceBridge {
   async checkAnalyzerHealth(): Promise<ContractResult<AnalyzerHealthStatus>> {
     try {
       const startTime = Date.now();
-      
+
       // Test basic analyzer availability by checking if methods exist
-      const hasRequiredMethods = 
-        typeof this.enhancedAnalyzer.analyzeRequirementsEnhanced === 'function' &&
-        typeof this.enhancedAnalyzer.generateInteractionMatrix === 'function' &&
-        typeof this.enhancedAnalyzer.analyzeDataFlows === 'function' &&
-        typeof this.enhancedAnalyzer.validateSeamReadiness === 'function';
+      const hasRequiredMethods =
+        typeof this.enhancedAnalyzer.analyzeRequirementsEnhanced ===
+          "function" &&
+        typeof this.enhancedAnalyzer.generateInteractionMatrix === "function" &&
+        typeof this.enhancedAnalyzer.analyzeDataFlows === "function" &&
+        typeof this.enhancedAnalyzer.validateSeamReadiness === "function";
 
       const responseTime = Date.now() - startTime;
 
@@ -151,9 +150,9 @@ export class MCPIntelligenceBridge implements IMCPIntelligenceBridge {
         version: "1.0.0",
         capabilities: [
           "enhanced_seam_analysis",
-          "interaction_matrix_generation", 
+          "interaction_matrix_generation",
           "data_flow_analysis",
-          "seam_validation"
+          "seam_validation",
         ],
       };
 
@@ -172,7 +171,9 @@ export class MCPIntelligenceBridge implements IMCPIntelligenceBridge {
         success: false,
         error: {
           category: "ProcessingError",
-          message: `Health check failed: ${error instanceof Error ? error.message : String(error)}`,
+          message: `Health check failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           agentId: this.agentId,
           seamName: "checkAnalyzerHealth",
           timestamp: new Date().toISOString(),
@@ -237,7 +238,15 @@ export class MCPIntelligenceBridge implements IMCPIntelligenceBridge {
               agentId: this.agentId,
               seamName: "routeToEnhancedAnalyzer",
               timestamp: new Date().toISOString(),
-              details: { method, availableMethods: ["analyzeRequirementsEnhanced", "generateInteractionMatrix", "analyzeDataFlows", "validateSeamReadiness"] },
+              details: {
+                method,
+                availableMethods: [
+                  "analyzeRequirementsEnhanced",
+                  "generateInteractionMatrix",
+                  "analyzeDataFlows",
+                  "validateSeamReadiness",
+                ],
+              },
             },
           };
       }
@@ -254,7 +263,9 @@ export class MCPIntelligenceBridge implements IMCPIntelligenceBridge {
         success: false,
         error: {
           category: "ProcessingError",
-          message: `Routing to ${String(method)} failed: ${error instanceof Error ? error.message : String(error)}`,
+          message: `Routing to ${String(method)} failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
           agentId: this.agentId,
           seamName: "routeToEnhancedAnalyzer",
           timestamp: new Date().toISOString(),

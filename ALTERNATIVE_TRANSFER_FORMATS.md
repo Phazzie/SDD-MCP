@@ -3,8 +3,9 @@
 ## FORMAT OPTION 1: Individual Method Files
 
 Create 4 separate files:
+
 - `gemini-analyze-requirements-enhanced.ts`
-- `gemini-generate-interaction-matrix.ts` 
+- `gemini-generate-interaction-matrix.ts`
 - `gemini-analyze-data-flows.ts`
 - `gemini-validate-seam-readiness.ts`
 
@@ -22,7 +23,7 @@ Each containing just the method implementation.
     },
     "generateInteractionMatrix": {
       "imports": ["// any new imports"],
-      "code": "// method implementation", 
+      "code": "// method implementation",
       "dependencies": ["// any new packages needed"]
     },
     "analyzeDataFlows": {
@@ -31,7 +32,7 @@ Each containing just the method implementation.
       "dependencies": ["// any new packages needed"]
     },
     "validateSeamReadiness": {
-      "imports": ["// any new imports"], 
+      "imports": ["// any new imports"],
       "code": "// method implementation",
       "dependencies": ["// any new packages needed"]
     }

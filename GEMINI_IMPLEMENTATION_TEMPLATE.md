@@ -5,7 +5,7 @@
 The MCP infrastructure is 100% complete. We need Gemini to replace 4 NotImplementedError stubs in `src/agents/enhanced-seam-analyzer.ts`:
 
 - [ ] `analyzeRequirementsEnhanced()` - Advanced NLP-based pattern recognition
-- [ ] `generateInteractionMatrix()` - Systematic component relationship mapping  
+- [ ] `generateInteractionMatrix()` - Systematic component relationship mapping
 - [ ] `analyzeDataFlows()` - Data transformation chain analysis with bottleneck detection
 - [ ] `validateSeamReadiness()` - Comprehensive validation framework
 
@@ -13,16 +13,19 @@ The MCP infrastructure is 100% complete. We need Gemini to replace 4 NotImplemen
 
 Please provide implementations in this exact structure:
 
-```markdown
+````markdown
 # GEMINI ENHANCED SEAM ANALYZER IMPLEMENTATION
 
 ## IMPORTS AND DEPENDENCIES
+
 ```typescript
 // Any new imports/dependencies needed beyond what's already in enhanced-seam-analyzer.ts
 // Current imports: ContractResult, Enhanced interfaces, Zod schemas, errorHandler
 ```
+````
 
 ## METHOD 1: analyzeRequirementsEnhanced
+
 ```typescript
 async analyzeRequirementsEnhanced(input: SeamAnalysisInput): Promise<ContractResult<EnhancedSeamAnalysisResult>> {
   try {
@@ -33,7 +36,7 @@ async analyzeRequirementsEnhanced(input: SeamAnalysisInput): Promise<ContractRes
 
     // GEMINI IMPLEMENTATION GOES HERE
     // Replace the NotImplementedError with actual AI logic
-    
+
     return {
       success: true,
       data: {
@@ -51,6 +54,7 @@ async analyzeRequirementsEnhanced(input: SeamAnalysisInput): Promise<ContractRes
 ```
 
 ## METHOD 2: generateInteractionMatrix
+
 ```typescript
 async generateInteractionMatrix(input: InteractionMatrixInput): Promise<ContractResult<InteractionMatrixResult>> {
   try {
@@ -60,7 +64,7 @@ async generateInteractionMatrix(input: InteractionMatrixInput): Promise<Contract
     }
 
     // GEMINI IMPLEMENTATION GOES HERE
-    
+
     return {
       success: true,
       data: {
@@ -78,6 +82,7 @@ async generateInteractionMatrix(input: InteractionMatrixInput): Promise<Contract
 ```
 
 ## METHOD 3: analyzeDataFlows
+
 ```typescript
 async analyzeDataFlows(input: DataFlowAnalysisInput): Promise<ContractResult<DataFlowAnalysisResult>> {
   try {
@@ -87,7 +92,7 @@ async analyzeDataFlows(input: DataFlowAnalysisInput): Promise<ContractResult<Dat
     }
 
     // GEMINI IMPLEMENTATION GOES HERE
-    
+
     return {
       success: true,
       data: {
@@ -105,6 +110,7 @@ async analyzeDataFlows(input: DataFlowAnalysisInput): Promise<ContractResult<Dat
 ```
 
 ## METHOD 4: validateSeamReadiness
+
 ```typescript
 async validateSeamReadiness(input: SeamReadinessInput): Promise<ContractResult<SeamReadinessResult>> {
   try {
@@ -114,7 +120,7 @@ async validateSeamReadiness(input: SeamReadinessInput): Promise<ContractResult<S
     }
 
     // GEMINI IMPLEMENTATION GOES HERE
-    
+
     return {
       success: true,
       data: {
@@ -130,7 +136,8 @@ async validateSeamReadiness(input: SeamReadinessInput): Promise<ContractResult<S
   }
 }
 ```
-```
+
+````
 
 ## 📚 **REFERENCE INFORMATION**
 
@@ -147,14 +154,15 @@ interface InteractionMatrixInput { components: ComponentInfo[]; relationships?: 
 interface DataFlowAnalysisInput { dataFlows: DataFlowInfo[]; components?: ComponentInfo[]; }
 interface SeamReadinessInput { seams: SeamInfo[]; requirements?: string[]; }
 
-// Output Types  
+// Output Types
 interface EnhancedSeamAnalysisResult { identifiedSeams: SeamInfo[]; patterns: SeamPattern[]; recommendations: string[]; }
 interface InteractionMatrixResult { matrix: ComponentInteraction[][]; criticalPaths: string[]; bottlenecks: string[]; }
 interface DataFlowAnalysisResult { flows: ProcessedDataFlow[]; bottlenecks: string[]; optimizations: string[]; }
 interface SeamReadinessResult { readinessScores: SeamReadiness[]; blockers: string[]; recommendations: string[]; }
-```
+````
 
 ### Existing Infrastructure
+
 - ✅ MCP Tools (4/4 complete)
 - ✅ Intelligence Bridge (routing)
 - ✅ Tool Registration (MCP server)
@@ -163,8 +171,9 @@ interface SeamReadinessResult { readinessScores: SeamReadiness[]; blockers: stri
 - ✅ ContractResult<T> patterns
 
 ### SDD Compliance Requirements
+
 - 🎯 **Fail Fast**: Return errors immediately for invalid inputs
-- 🛡️ **Defensive**: Handle all edge cases gracefully  
+- 🛡️ **Defensive**: Handle all edge cases gracefully
 - 💰 **HIGH_ROI**: Leverage existing validation and error handling
 - 📊 **Rich Metadata**: Include analysis metrics in metadata field
 

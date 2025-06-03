@@ -25,23 +25,23 @@ import {
 import { TemplateProcessor } from "./template-processor.js";
 
 // 🔌 INTEGRATION: Import Enhanced MCP Tools
-import { 
-  ENHANCED_SEAM_ANALYSIS_TOOL_DEFINITION,
-  handleEnhancedSeamAnalysis 
-} from "./tools/enhanced-seam-analysis-tool.js";
-import { 
-  GENERATE_INTERACTION_MATRIX_TOOL_DEFINITION,
-  handleGenerateInteractionMatrix 
-} from "./tools/generate-interaction-matrix-tool.js";
-import { 
-  ANALYZE_DATA_FLOWS_TOOL_DEFINITION,
-  handleAnalyzeDataFlows 
-} from "./tools/analyze-data-flows-tool.js";
-import { 
-  VALIDATE_SEAM_READINESS_TOOL_DEFINITION,
-  handleValidateSeamReadiness 
-} from "./tools/validate-seam-readiness-tool.js";
 import { mcpIntelligenceBridge } from "./agents/mcp-intelligence-bridge.js";
+import {
+  ANALYZE_DATA_FLOWS_TOOL_DEFINITION,
+  handleAnalyzeDataFlows,
+} from "./tools/analyze-data-flows-tool.js";
+import {
+  ENHANCED_SEAM_ANALYSIS_TOOL_DEFINITION,
+  handleEnhancedSeamAnalysis,
+} from "./tools/enhanced-seam-analysis-tool.js";
+import {
+  GENERATE_INTERACTION_MATRIX_TOOL_DEFINITION,
+  handleGenerateInteractionMatrix,
+} from "./tools/generate-interaction-matrix-tool.js";
+import {
+  VALIDATE_SEAM_READINESS_TOOL_DEFINITION,
+  handleValidateSeamReadiness,
+} from "./tools/validate-seam-readiness-tool.js";
 
 // Initialize SDD Foundation Agents
 const configManager = new ConfigManagerStub();
@@ -398,7 +398,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
               enum: ["basic", "comprehensive", "critical-only"],
               description: "Level of validation to perform",
             },
-          },          required: ["seamDefinitions"],
+          },
+          required: ["seamDefinitions"],
         },
       },
       // 🔌 INTEGRATION: Enhanced Seam Analysis Tools
@@ -436,7 +437,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "sdd_visualize_architecture":
         return await visualizeArchitecture(
           args as { seams: SeamDefinition[]; projectName: string }
-        );      case "sdd_validate_compliance":
+        );
+      case "sdd_validate_compliance":
         return await validateCompliance(
           args as { projectPath: string; strictMode?: boolean }
         );
@@ -1529,7 +1531,8 @@ async function performComplianceChecks(
           "Implement ContractResult pattern consistently",
           "Add integration tests for all seams",
           "Enable TypeScript strict mode",
-        ],  };
+        ],
+  };
 }
 
 // 🔌 INTEGRATION: Enhanced MCP Tool Wrapper Functions
@@ -1543,9 +1546,12 @@ async function handleEnhancedSeamAnalysisWrapper(args: unknown) {
   try {
     // Initialize bridge if needed
     await mcpIntelligenceBridge.initialize();
-    
-    const result = await handleEnhancedSeamAnalysis(args, mcpIntelligenceBridge);
-    
+
+    const result = await handleEnhancedSeamAnalysis(
+      args,
+      mcpIntelligenceBridge
+    );
+
     if (result.success && result.data) {
       return {
         content: [
@@ -1553,15 +1559,21 @@ async function handleEnhancedSeamAnalysisWrapper(args: unknown) {
             type: "text",
             text: `## 🧠 Enhanced Seam Analysis Complete
 
-**Identified ${result.data.identifiedSeams.length} seams using advanced pattern recognition:**
+**Identified ${
+              result.data.identifiedSeams.length
+            } seams using advanced pattern recognition:**
 
-${result.data.identifiedSeams.map((seam, i) => `
+${result.data.identifiedSeams
+  .map(
+    (seam, i) => `
 ### ${i + 1}. ${seam.name}
 - **Purpose**: ${seam.purpose}
 - **Participants**: ${seam.participants.join(", ")}
 - **Data Flow**: ${seam.dataFlow}
 - **Confidence**: ${seam.confidence || "N/A"}
-`).join("\n")}
+`
+  )
+  .join("\n")}
 
 **Analysis Quality Metrics:**
 - Confidence Score: ${result.data.confidenceScore}
@@ -1577,7 +1589,9 @@ ${result.data.identifiedSeams.map((seam, i) => `
         content: [
           {
             type: "text",
-            text: `❌ Enhanced seam analysis failed: ${result.error?.message || "Unknown error"}`,
+            text: `❌ Enhanced seam analysis failed: ${
+              result.error?.message || "Unknown error"
+            }`,
           },
         ],
         isError: true,
@@ -1588,7 +1602,9 @@ ${result.data.identifiedSeams.map((seam, i) => `
       content: [
         {
           type: "text",
-          text: `❌ Enhanced seam analysis error: ${error instanceof Error ? error.message : String(error)}`,
+          text: `❌ Enhanced seam analysis error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         },
       ],
       isError: true,
@@ -1602,8 +1618,11 @@ ${result.data.identifiedSeams.map((seam, i) => `
 async function handleGenerateInteractionMatrixWrapper(args: unknown) {
   try {
     await mcpIntelligenceBridge.initialize();
-    const result = await handleGenerateInteractionMatrix(args, mcpIntelligenceBridge);
-    
+    const result = await handleGenerateInteractionMatrix(
+      args,
+      mcpIntelligenceBridge
+    );
+
     if (result.success && result.data) {
       return {
         content: [
@@ -1614,15 +1633,22 @@ async function handleGenerateInteractionMatrixWrapper(args: unknown) {
 **Matrix Generated for ${result.data.components.length} components:**
 
 ### Component Interactions:
-${result.data.interactions.map(interaction => `
+${result.data.interactions
+  .map(
+    (interaction) => `
 - **${interaction.source} → ${interaction.target}**
   - Type: ${interaction.type}
   - Frequency: ${interaction.frequency || "N/A"}
   - Complexity: ${interaction.complexity || "N/A"}
-`).join("\n")}
+`
+  )
+  .join("\n")}
 
 ### Critical Paths:
-${result.data.criticalPaths?.map(path => `- ${path}`).join("\n") || "None identified"}
+${
+  result.data.criticalPaths?.map((path) => `- ${path}`).join("\n") ||
+  "None identified"
+}
 
 **Processing Time**: ${result.metadata?.processingTimeMs}ms`,
           },
@@ -1633,7 +1659,9 @@ ${result.data.criticalPaths?.map(path => `- ${path}`).join("\n") || "None identi
         content: [
           {
             type: "text",
-            text: `❌ Interaction matrix generation failed: ${result.error?.message || "Unknown error"}`,
+            text: `❌ Interaction matrix generation failed: ${
+              result.error?.message || "Unknown error"
+            }`,
           },
         ],
         isError: true,
@@ -1644,7 +1672,9 @@ ${result.data.criticalPaths?.map(path => `- ${path}`).join("\n") || "None identi
       content: [
         {
           type: "text",
-          text: `❌ Interaction matrix error: ${error instanceof Error ? error.message : String(error)}`,
+          text: `❌ Interaction matrix error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         },
       ],
       isError: true,
@@ -1659,7 +1689,7 @@ async function handleAnalyzeDataFlowsWrapper(args: unknown) {
   try {
     await mcpIntelligenceBridge.initialize();
     const result = await handleAnalyzeDataFlows(args, mcpIntelligenceBridge);
-    
+
     if (result.success && result.data) {
       return {
         content: [
@@ -1670,22 +1700,36 @@ async function handleAnalyzeDataFlowsWrapper(args: unknown) {
 **Analyzed ${result.data.dataFlows.length} data flows:**
 
 ### Data Transformations:
-${result.data.dataFlows.map(flow => `
+${result.data.dataFlows
+  .map(
+    (flow) => `
 - **${flow.source} → ${flow.target}**
   - Input: ${flow.inputType}
   - Output: ${flow.outputType}
   - Transformation: ${flow.transformationLogic || "Direct"}
-`).join("\n")}
+`
+  )
+  .join("\n")}
 
 ### Potential Bottlenecks:
-${result.data.bottlenecks?.map(bottleneck => `
+${
+  result.data.bottlenecks
+    ?.map(
+      (bottleneck) => `
 - **${bottleneck.location}**: ${bottleneck.reason}
   - Severity: ${bottleneck.severity}
   - Impact: ${bottleneck.impact}
-`).join("\n") || "None identified"}
+`
+    )
+    .join("\n") || "None identified"
+}
 
 ### Optimization Recommendations:
-${result.data.optimizationRecommendations?.map(rec => `- ${rec}`).join("\n") || "No recommendations"}
+${
+  result.data.optimizationRecommendations
+    ?.map((rec) => `- ${rec}`)
+    .join("\n") || "No recommendations"
+}
 
 **Processing Time**: ${result.metadata?.processingTimeMs}ms`,
           },
@@ -1696,7 +1740,9 @@ ${result.data.optimizationRecommendations?.map(rec => `- ${rec}`).join("\n") || 
         content: [
           {
             type: "text",
-            text: `❌ Data flow analysis failed: ${result.error?.message || "Unknown error"}`,
+            text: `❌ Data flow analysis failed: ${
+              result.error?.message || "Unknown error"
+            }`,
           },
         ],
         isError: true,
@@ -1707,7 +1753,9 @@ ${result.data.optimizationRecommendations?.map(rec => `- ${rec}`).join("\n") || 
       content: [
         {
           type: "text",
-          text: `❌ Data flow analysis error: ${error instanceof Error ? error.message : String(error)}`,
+          text: `❌ Data flow analysis error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         },
       ],
       isError: true,
@@ -1721,8 +1769,11 @@ ${result.data.optimizationRecommendations?.map(rec => `- ${rec}`).join("\n") || 
 async function handleValidateSeamReadinessWrapper(args: unknown) {
   try {
     await mcpIntelligenceBridge.initialize();
-    const result = await handleValidateSeamReadiness(args, mcpIntelligenceBridge);
-    
+    const result = await handleValidateSeamReadiness(
+      args,
+      mcpIntelligenceBridge
+    );
+
     if (result.success && result.data) {
       return {
         content: [
@@ -1733,19 +1784,28 @@ async function handleValidateSeamReadinessWrapper(args: unknown) {
 **Validated ${result.data.validatedSeams.length} seams:**
 
 ### Validation Results:
-${result.data.validatedSeams.map(seam => `
+${result.data.validatedSeams
+  .map(
+    (seam) => `
 - **${seam.name}**: ${seam.isReady ? "✅ Ready" : "❌ Not Ready"}
   - Score: ${seam.readinessScore}/100
   - Issues: ${seam.issues?.join(", ") || "None"}
-`).join("\n")}
+`
+  )
+  .join("\n")}
 
 ### Overall Readiness: ${result.data.overallReadiness}%
 
 ### Missing Requirements:
-${result.data.missingRequirements?.map(req => `- ${req}`).join("\n") || "None"}
+${
+  result.data.missingRequirements?.map((req) => `- ${req}`).join("\n") || "None"
+}
 
 ### Recommendations:
-${result.data.recommendations?.map(rec => `- ${rec}`).join("\n") || "No recommendations"}
+${
+  result.data.recommendations?.map((rec) => `- ${rec}`).join("\n") ||
+  "No recommendations"
+}
 
 **Processing Time**: ${result.metadata?.processingTimeMs}ms`,
           },
@@ -1756,7 +1816,9 @@ ${result.data.recommendations?.map(rec => `- ${rec}`).join("\n") || "No recommen
         content: [
           {
             type: "text",
-            text: `❌ Seam readiness validation failed: ${result.error?.message || "Unknown error"}`,
+            text: `❌ Seam readiness validation failed: ${
+              result.error?.message || "Unknown error"
+            }`,
           },
         ],
         isError: true,
@@ -1767,7 +1829,9 @@ ${result.data.recommendations?.map(rec => `- ${rec}`).join("\n") || "No recommen
       content: [
         {
           type: "text",
-          text: `❌ Seam readiness validation error: ${error instanceof Error ? error.message : String(error)}`,
+          text: `❌ Seam readiness validation error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
         },
       ],
       isError: true,

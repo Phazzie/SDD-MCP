@@ -4,13 +4,9 @@
  * PURPOSE: Analyze data transformations and identify optimization opportunities
  */
 
-import type {
-  DataFlowAnalysisInput,
-  DataFlowAnalysis,
-  ContractResult,
-} from "../contracts.js";
-import { validateSeamInput } from "../contracts.js";
 import { z } from "zod";
+import type { ContractResult, DataFlowAnalysis } from "../contracts.js";
+import { validateSeamInput } from "../contracts.js";
 
 export interface AnalyzeDataFlowsTool {
   name: "analyze_data_flows";
@@ -37,9 +33,18 @@ export interface AnalyzeDataFlowsTool {
       performanceRequirements: {
         type: "object";
         properties: {
-          maxLatency: { type: "number"; description: "Maximum acceptable latency in ms" };
-          minThroughput: { type: "number"; description: "Minimum required throughput" };
-          memoryConstraints: { type: "string"; description: "Memory usage constraints" };
+          maxLatency: {
+            type: "number";
+            description: "Maximum acceptable latency in ms";
+          };
+          minThroughput: {
+            type: "number";
+            description: "Minimum required throughput";
+          };
+          memoryConstraints: {
+            type: "string";
+            description: "Memory usage constraints";
+          };
         };
         description: "Performance requirements and constraints";
       };
@@ -58,19 +63,25 @@ export interface AnalyzeDataFlowsTool {
 
 // 🛡️ DEFENSIVE: Input validation schema
 const DataFlowAnalysisInputSchema = z.object({
-  seamDefinitions: z.array(z.object({
-    name: z.string().min(1, "Seam name is required"),
-    source: z.string().min(1, "Source component is required"),
-    target: z.string().min(1, "Target component is required"),
-    dataFlow: z.enum(["IN", "OUT", "BOTH"]),
-    inputType: z.string().optional(),
-    outputType: z.string().optional(),
-  })).min(1, "At least one seam definition is required"),
-  performanceRequirements: z.object({
-    maxLatency: z.number().positive().optional(),
-    minThroughput: z.number().positive().optional(),
-    memoryConstraints: z.string().optional(),
-  }).optional(),
+  seamDefinitions: z
+    .array(
+      z.object({
+        name: z.string().min(1, "Seam name is required"),
+        source: z.string().min(1, "Source component is required"),
+        target: z.string().min(1, "Target component is required"),
+        dataFlow: z.enum(["IN", "OUT", "BOTH"]),
+        inputType: z.string().optional(),
+        outputType: z.string().optional(),
+      })
+    )
+    .min(1, "At least one seam definition is required"),
+  performanceRequirements: z
+    .object({
+      maxLatency: z.number().positive().optional(),
+      minThroughput: z.number().positive().optional(),
+      memoryConstraints: z.string().optional(),
+    })
+    .optional(),
   includeOptimizations: z.boolean().default(true),
   analyzeBottlenecks: z.boolean().default(true),
 });
@@ -108,7 +119,9 @@ export async function handleAnalyzeDataFlows(
       success: false,
       error: {
         category: "ProcessingError",
-        message: `Data flow analysis failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Data flow analysis failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         agentId: "AnalyzeDataFlowsTool",
         seamName: "analyze_data_flows",
         timestamp: new Date().toISOString(),
@@ -124,7 +137,8 @@ export async function handleAnalyzeDataFlows(
 
 export const ANALYZE_DATA_FLOWS_TOOL_DEFINITION: AnalyzeDataFlowsTool = {
   name: "analyze_data_flows",
-  description: "Analyze data flows between components and identify potential bottlenecks",
+  description:
+    "Analyze data flows between components and identify potential bottlenecks",
   inputSchema: {
     type: "object",
     properties: {
@@ -147,9 +161,18 @@ export const ANALYZE_DATA_FLOWS_TOOL_DEFINITION: AnalyzeDataFlowsTool = {
       performanceRequirements: {
         type: "object",
         properties: {
-          maxLatency: { type: "number", description: "Maximum acceptable latency in ms" },
-          minThroughput: { type: "number", description: "Minimum required throughput" },
-          memoryConstraints: { type: "string", description: "Memory usage constraints" },
+          maxLatency: {
+            type: "number",
+            description: "Maximum acceptable latency in ms",
+          },
+          minThroughput: {
+            type: "number",
+            description: "Minimum required throughput",
+          },
+          memoryConstraints: {
+            type: "string",
+            description: "Memory usage constraints",
+          },
         },
         description: "Performance requirements and constraints",
       },

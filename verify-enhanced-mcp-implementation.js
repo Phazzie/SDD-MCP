@@ -57,7 +57,9 @@ console.log("✅ Tool Handlers Connected to Bridge");
 console.log("✅ TypeScript Compilation Successful (0 errors)");
 console.log("✅ All files compiled to dist/ directory");
 
-console.log("\n🔌 MCP Tool → Intelligence Bridge → Enhanced Analyzer SEAM: OPERATIONAL");
+console.log(
+  "\n🔌 MCP Tool → Intelligence Bridge → Enhanced Analyzer SEAM: OPERATIONAL"
+);
 
 console.log("\n📡 Available Enhanced Tools:");
 console.log("1. enhanced_seam_analysis - AI-powered seam identification");
@@ -65,4 +67,6 @@ console.log("2. generate_interaction_matrix - Component relationship mapping");
 console.log("3. analyze_data_flows - Data transformation analysis");
 console.log("4. validate_seam_readiness - Implementation readiness validation");
 
-console.log("\n🚀 SDD MCP Server with Enhanced Seam Analysis: READY FOR DEPLOYMENT!");
+console.log(
+  "\n🚀 SDD MCP Server with Enhanced Seam Analysis: READY FOR DEPLOYMENT!"
+);

@@ -4,13 +4,9 @@
  * PURPOSE: Expose enhanced seam analysis capabilities through MCP interface
  */
 
-import type {
-  SeamAnalysisInput,
-  EnhancedSeamAnalysis,
-  ContractResult,
-} from "../contracts.js";
-import { validateSeamInput } from "../contracts.js";
 import { z } from "zod";
+import type { ContractResult, EnhancedSeamAnalysis } from "../contracts.js";
+import { validateSeamInput } from "../contracts.js";
 
 export interface EnhancedSeamAnalysisTool {
   name: "enhanced_seam_analysis";
@@ -18,18 +14,29 @@ export interface EnhancedSeamAnalysisTool {
   inputSchema: {
     type: "object";
     properties: {
-      requirementsText: { type: "string"; description: "Requirements or PRD text to analyze" };
-      designNotes?: { type: "string"; description: "Optional design notes or constraints" };
-      analysisDepth: { 
-        type: "string"; 
+      requirementsText: {
+        type: "string";
+        description: "Requirements or PRD text to analyze";
+      };
+      designNotes?: {
+        type: "string";
+        description: "Optional design notes or constraints";
+      };
+      analysisDepth: {
+        type: "string";
         enum: ["basic", "detailed", "comprehensive"];
-        description: "Depth of analysis to perform" 
+        description: "Depth of analysis to perform";
       };
       focusAreas: {
         type: "array";
         items: {
           type: "string";
-          enum: ["data_flows", "integrations", "dependencies", "cross_cutting_concerns"];
+          enum: [
+            "data_flows",
+            "integrations",
+            "dependencies",
+            "cross_cutting_concerns"
+          ];
         };
         description: "Areas to focus analysis on";
       };
@@ -40,10 +47,23 @@ export interface EnhancedSeamAnalysisTool {
 
 // 🛡️ DEFENSIVE: Input validation schema
 const SeamAnalysisInputSchema = z.object({
-  requirementsText: z.string().min(10, "Requirements text must be at least 10 characters"),
+  requirementsText: z
+    .string()
+    .min(10, "Requirements text must be at least 10 characters"),
   designNotes: z.string().optional(),
-  analysisDepth: z.enum(["basic", "detailed", "comprehensive"]).default("detailed"),
-  focusAreas: z.array(z.enum(["data_flows", "integrations", "dependencies", "cross_cutting_concerns"])).optional(),
+  analysisDepth: z
+    .enum(["basic", "detailed", "comprehensive"])
+    .default("detailed"),
+  focusAreas: z
+    .array(
+      z.enum([
+        "data_flows",
+        "integrations",
+        "dependencies",
+        "cross_cutting_concerns",
+      ])
+    )
+    .optional(),
 });
 
 /**
@@ -79,7 +99,9 @@ export async function handleEnhancedSeamAnalysis(
       success: false,
       error: {
         category: "ProcessingError",
-        message: `Enhanced seam analysis failed: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Enhanced seam analysis failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
         agentId: "EnhancedSeamAnalysisTool",
         seamName: "enhanced_seam_analysis",
         timestamp: new Date().toISOString(),
@@ -93,34 +115,41 @@ export async function handleEnhancedSeamAnalysis(
   }
 }
 
-export const ENHANCED_SEAM_ANALYSIS_TOOL_DEFINITION: EnhancedSeamAnalysisTool = {
-  name: "enhanced_seam_analysis",
-  description: "Analyze requirements using enhanced pattern recognition and AI-powered seam identification",
-  inputSchema: {
-    type: "object",
-    properties: {
-      requirementsText: { 
-        type: "string", 
-        description: "Requirements or PRD text to analyze" 
-      },
-      designNotes: { 
-        type: "string", 
-        description: "Optional design notes or constraints" 
-      },
-      analysisDepth: { 
-        type: "string", 
-        enum: ["basic", "detailed", "comprehensive"],
-        description: "Depth of analysis to perform" 
-      },
-      focusAreas: {
-        type: "array",
-        items: {
+export const ENHANCED_SEAM_ANALYSIS_TOOL_DEFINITION: EnhancedSeamAnalysisTool =
+  {
+    name: "enhanced_seam_analysis",
+    description:
+      "Analyze requirements using enhanced pattern recognition and AI-powered seam identification",
+    inputSchema: {
+      type: "object",
+      properties: {
+        requirementsText: {
           type: "string",
-          enum: ["data_flows", "integrations", "dependencies", "cross_cutting_concerns"],
+          description: "Requirements or PRD text to analyze",
         },
-        description: "Areas to focus analysis on",
+        designNotes: {
+          type: "string",
+          description: "Optional design notes or constraints",
+        },
+        analysisDepth: {
+          type: "string",
+          enum: ["basic", "detailed", "comprehensive"],
+          description: "Depth of analysis to perform",
+        },
+        focusAreas: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: [
+              "data_flows",
+              "integrations",
+              "dependencies",
+              "cross_cutting_concerns",
+            ],
+          },
+          description: "Areas to focus analysis on",
+        },
       },
+      required: ["requirementsText"],
     },
-    required: ["requirementsText"],
-  },
-};
+  };
