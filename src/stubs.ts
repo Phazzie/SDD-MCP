@@ -1082,7 +1082,8 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
         this.agentId,
         `Calculated flow complexity: ${flowComplexity}.`,
         { flowComplexity }
-      );      const result: DataFlowAnalysis = {
+      );
+      const result: DataFlowAnalysis = {
         dataTypes: identifiedDataTypes,
         flows,
         transformations,
@@ -1133,7 +1134,7 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
   /**
    * 🎯 Helper for Data Flow Mapping (Phase 6.3.4)
    * Identifies data flows between components based on requirements.
-   */  private mapDataFlows(
+   */ private mapDataFlows(
     requirements: string,
     components: string[],
     identifiedDataTypes: DataTypeDefinition[]
@@ -1142,21 +1143,24 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
     const reqLower = requirements.toLowerCase();
 
     // 💰 HIGH_ROI: Improved flow detection with flexible component matching
-    
+
     // Helper function to create component name variations for matching
     const getComponentVariations = (compName: string): string[] => {
       const variations: string[] = [];
       variations.push(compName.toLowerCase());
-      
+
       // Handle "Component A" -> "A" style shortening
       const words = compName.split(/\s+/);
       if (words.length > 1) {
         variations.push(words[words.length - 1].toLowerCase()); // Last word
         variations.push(words[0].toLowerCase()); // First word
       }
-      
+
       // Handle camelCase/PascalCase -> separate words
-      const separated = compName.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+      const separated = compName
+        .replace(/([A-Z])/g, " $1")
+        .trim()
+        .toLowerCase();
       if (separated !== compName.toLowerCase()) {
         variations.push(separated);
         const separatedWords = separated.split(/\s+/);
@@ -1164,7 +1168,7 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
           variations.push(separatedWords[separatedWords.length - 1]); // Last word
         }
       }
-      
+
       return [...new Set(variations)]; // Remove duplicates
     };
 
@@ -1175,15 +1179,15 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
 
         const sourceVariations = getComponentVariations(sourceComp);
         const targetVariations = getComponentVariations(targetComp);
-        
+
         let flowDetected = false;
-        let detectedPattern = '';
-        
+        let detectedPattern = "";
+
         // Check all source-target variation combinations
         for (const sourceVar of sourceVariations) {
           for (const targetVar of targetVariations) {
             if (flowDetected) break;
-              // Pattern 1: "X sends/passes/provides to Y"
+            // Pattern 1: "X sends/passes/provides to Y"
             const flowPatterns = [
               `\\b${sourceVar}\\b.*(?:sends?|passes?|provides?|transfers?).*(?:to|into).*\\b${targetVar}\\b`,
               `\\b${sourceVar}\\b.*(?:to|into).*\\b${targetVar}\\b`,
@@ -1199,7 +1203,7 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
             ];
 
             for (const pattern of flowPatterns) {
-              const regex = new RegExp(pattern, 'i');
+              const regex = new RegExp(pattern, "i");
               if (reqLower.match(regex)) {
                 flowDetected = true;
                 detectedPattern = pattern;
@@ -1209,19 +1213,27 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
           }
           if (flowDetected) break;
         }
-        
+
         if (flowDetected) {
           // Determine the data type being transferred
           let dataType = "Data"; // Default data type
-          
+
           // Try to match against identified data types
           if (identifiedDataTypes.length > 0) {
-            dataType = identifiedDataTypes[0].name.trim();          } else {
+            dataType = identifiedDataTypes[0].name.trim();
+          } else {
             // Infer from context - look for common data terms near the flow
-            const contextWords = ["profile", "user", "notification", "sensor", "report"];
+            const contextWords = [
+              "profile",
+              "user",
+              "notification",
+              "sensor",
+              "report",
+            ];
             for (const word of contextWords) {
               if (reqLower.includes(word)) {
-                dataType = word.charAt(0).toUpperCase() + word.slice(1) + "Data";
+                dataType =
+                  word.charAt(0).toUpperCase() + word.slice(1) + "Data";
                 break;
               }
             }
@@ -1232,7 +1244,7 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
             target: targetComp,
             dataType: dataType,
             direction: "OUT", // Source sends to target
-            volume: "medium" // Default heuristic
+            volume: "medium", // Default heuristic
           });
         }
       });
@@ -1245,10 +1257,10 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
       components.forEach((sourceComp) => {
         components.forEach((targetComp) => {
           if (sourceComp.toLowerCase() === targetComp.toLowerCase()) return;
-          
+
           const sourceVar = sourceComp.toLowerCase();
           const targetVar = targetComp.toLowerCase();
-          
+
           // Check for implicit patterns where only target is mentioned
           const implicitPatterns = [
             `(?:send|submit|pass|provide).*(?:data|information|profile).*(?:to|into).*\\b${targetVar}\\b`,
@@ -1258,30 +1270,38 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
             `(?:user|users?).*(?:send|submit|provide|enter).*(?:to|into).*\\b${targetVar}\\b`,
             `(?:user|users?).*(?:want to|can).*(?:send|submit|provide).*\\b${targetVar}\\b`,
           ];
-          
+
           for (const pattern of implicitPatterns) {
-            const regex = new RegExp(pattern, 'i');
+            const regex = new RegExp(pattern, "i");
             if (reqLower.match(regex)) {
               let dataType = "Data";
               // Enhance data type detection
               if (identifiedDataTypes.length > 0) {
                 dataType = identifiedDataTypes[0].name.trim();
               } else {
-                const contextWords = ["profile", "user", "notification", "sensor", "report", "data"];
+                const contextWords = [
+                  "profile",
+                  "user",
+                  "notification",
+                  "sensor",
+                  "report",
+                  "data",
+                ];
                 for (const word of contextWords) {
                   if (reqLower.includes(word)) {
-                    dataType = word.charAt(0).toUpperCase() + word.slice(1) + "Data";
+                    dataType =
+                      word.charAt(0).toUpperCase() + word.slice(1) + "Data";
                     break;
                   }
                 }
               }
-              
+
               flows.push({
                 source: sourceComp,
                 target: targetComp,
                 dataType: dataType,
                 direction: "OUT",
-                volume: "medium"
+                volume: "medium",
               });
               return; // Found a flow, no need to check more patterns for this pair
             }
@@ -1303,7 +1323,7 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
   /**
    * 🎯 Helper for Data Transformation Identification (Phase 6.3.5)
    * Identifies data transformations mentioned in requirements.
-   */  private identifyDataTransformations(
+   */ private identifyDataTransformations(
     requirements: string,
     identifiedDataTypes: DataTypeDefinition[]
   ): DataTransformation[] {
@@ -1329,45 +1349,59 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
     // Pattern 1: "system transforms X into Y", "data is converted to Z"
     const patterns = [
       // Basic transformation patterns
-      `(?:system|component|service)\\s+(?:${transformationKeywords.join('|')})\\s+([\\w\\s]+?)\\s+(?:into|to)\\s+([\\w\\s]+?)(?:\\.|$|,)`,
-      `([\\w\\s]+?)\\s+(?:is|are)\\s+(?:${transformationKeywords.join('|')})\\s+(?:into|to)\\s+([\\w\\s]+?)(?:\\.|$|,)`,
-      `(?:${transformationKeywords.join('|')})\\s+([\\w\\s]+?)\\s+(?:into|to)\\s+([\\w\\s]+?)(?:\\.|$|,)`,
+      `(?:system|component|service)\\s+(?:${transformationKeywords.join(
+        "|"
+      )})\\s+([\\w\\s]+?)\\s+(?:into|to)\\s+([\\w\\s]+?)(?:\\.|$|,)`,
+      `([\\w\\s]+?)\\s+(?:is|are)\\s+(?:${transformationKeywords.join(
+        "|"
+      )})\\s+(?:into|to)\\s+([\\w\\s]+?)(?:\\.|$|,)`,
+      `(?:${transformationKeywords.join(
+        "|"
+      )})\\s+([\\w\\s]+?)\\s+(?:into|to)\\s+([\\w\\s]+?)(?:\\.|$|,)`,
       // Specific format patterns
-      `([\\w\\s]+?)\\s+\\(([\\w]+?)\\)\\s+(?:is|are)\\s+(?:${transformationKeywords.join('|')})\\s+(?:to|into)\\s+(?:a|an)?\\s*([\\w\\s]+?)(?:\\.|$|,)`,
+      `([\\w\\s]+?)\\s+\\(([\\w]+?)\\)\\s+(?:is|are)\\s+(?:${transformationKeywords.join(
+        "|"
+      )})\\s+(?:to|into)\\s+(?:a|an)?\\s*([\\w\\s]+?)(?:\\.|$|,)`,
     ];
 
     for (const patternStr of patterns) {
-      const pattern = new RegExp(patternStr, 'gi');
+      const pattern = new RegExp(patternStr, "gi");
       let match;
-      
+
       while ((match = pattern.exec(requirements)) !== null) {
         let inputType = match[1]?.trim();
         let outputType = match[2]?.trim();
-        
+
         // For patterns with 3 groups, the format might be different
         if (match[3]) {
           outputType = match[3]?.trim();
         }
-        
+
         if (inputType && outputType) {
           // Clean up the types
           inputType = this.cleanDataType(inputType);
           outputType = this.cleanDataType(outputType);
-          
+
           // Skip if input and output are the same
           if (inputType.toLowerCase() === outputType.toLowerCase()) continue;
-          
+
           // Find a transformation verb from the match
           const fullMatch = match[0].toLowerCase();
-          const transformationVerb = transformationKeywords.find(keyword => 
-            fullMatch.includes(keyword.replace('?', ''))
-          ) || 'transforms';
-          
+          const transformationVerb =
+            transformationKeywords.find((keyword) =>
+              fullMatch.includes(keyword.replace("?", ""))
+            ) || "transforms";
+
           transformations.push({
-            name: `Transform${this.capitalizeFirstLetter(inputType)}To${this.capitalizeFirstLetter(outputType)}`,
+            name: `Transform${this.capitalizeFirstLetter(
+              inputType
+            )}To${this.capitalizeFirstLetter(outputType)}`,
             input: inputType,
             output: outputType,
-            logic: `Transformation from ${inputType} to ${outputType} using ${transformationVerb.replace('?', '')}`,
+            logic: `Transformation from ${inputType} to ${outputType} using ${transformationVerb.replace(
+              "?",
+              ""
+            )}`,
             complexity: "moderate",
           });
         }
@@ -1387,12 +1421,12 @@ export class EnhancedSeamAnalyzerStub implements IEnhancedSeamAnalyzer {
    */
   private cleanDataType(type: string): string {
     return type
-      .replace(/^(raw|the|a|an)\s+/i, '') // Remove articles and "raw"
-      .replace(/\s+(data|information|info)$/i, '') // Remove common suffixes
+      .replace(/^(raw|the|a|an)\s+/i, "") // Remove articles and "raw"
+      .replace(/\s+(data|information|info)$/i, "") // Remove common suffixes
       .trim()
       .split(/\s+/)
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join('');
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join("");
   }
 
   /**
