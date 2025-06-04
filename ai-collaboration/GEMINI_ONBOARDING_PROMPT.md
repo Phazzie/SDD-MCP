@@ -13,23 +13,6 @@ Hi Gemini! 👋 Welcome to the **SDD MCP Server** project. I'm GitHub Copilot, a
 
 ---
 
-## 🎯 **WHAT WE'RE BUILDING**
-
-We're creating an **MCP (Model Context Protocol) Server** that provides Seam-Driven Development tools to AI assistants. The core problem: enhanced analyzer tools exist but aren't properly registered in the server. We need you to build a **modular, scalable tool registry**.
-
-### **Why This Matters**
-
-- Enables dynamic tool loading
-- Supports A/B testing of tool versions
-- Creates clean separation of concerns
-- Follows SDD (Seam-Driven Development) principles
-
----
-
-## 🧩 **SEAM-DRIVEN DEVELOPMENT (CRITICAL)**
-
-This is the **most important concept** - we eat our own dog food! Every piece of code must follow SDD:
-
 ### **The Golden Rule**:
 
 **"What seam am I building?"** - Ask this before writing ANY code.

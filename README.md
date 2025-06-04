@@ -1,8 +1,9 @@
 # SDD MCP Server - READY FOR DEPLOYMENT ✅
 
-**Status**: 🎉 **COMPLETE** - Ready for Claude Desktop integration and production use!
+**Status**: 🎉 **COMPLETE** - Ready for Claude Desktop integration and production use!  
+**NEW**: 🤝 **Multi-AI Collaboration Framework** & 🔧 **Modular Tool Registry**
 
-A Model Context Protocol (MCP) server that provides AI assistants with Seam-Driven Development (SDD) tools for structured software development.
+A Model Context Protocol (MCP) server that provides AI assistants with Seam-Driven Development (SDD) tools for structured software development. Now featuring advanced multi-AI collaboration between GitHub Copilot and Google Gemini.
 
 ## 🚀 Quick Start
 
@@ -11,6 +12,7 @@ A Model Context Protocol (MCP) server that provides AI assistants with Seam-Driv
 ```bash
 npm run build
 node test-mcp-tools.js  # Validate tools work correctly
+node test-tool-registry-integration.js  # Test new registry system
 ```
 
 ### 2. Configure Claude Desktop
@@ -30,6 +32,30 @@ Ask Claude: _"Can you help me analyze requirements using SDD methodology?"_
 - ✅ **Template System**: Handlebars templates for code generation
 - ✅ **Documentation**: Installation and usage guides
 - ✅ **Configuration**: Claude Desktop integration ready
+- ✅ **🆕 Multi-AI Framework**: Copilot/Gemini collaboration protocols
+- ✅ **🆕 Tool Registry**: Modular, scalable tool management system
+- ✅ **🆕 Legacy Adapter**: Backward compatibility for existing tools
+
+## 🤖 Multi-AI Collaboration
+
+**NEW**: This project demonstrates advanced AI collaboration using complementary strengths:
+
+- **GitHub Copilot**: Strategic planning, architecture design, integration oversight
+- **Google Gemini**: Implementation details, coding, template development  
+- **Coordination Framework**: `ai-collaboration/` folder with handoff protocols
+- **Status Tracking**: Real-time collaboration logs and decision tracking
+
+See `ai-collaboration/README.md` for complete collaboration protocols.
+
+## 🔧 Modular Tool Registry
+
+**NEW**: Scalable tool management system:
+
+- **Version-Aware**: Multiple tool versions with automatic selection
+- **A/B Testing**: Built-in support for feature flags and testing
+- **Type-Safe**: Full TypeScript support with ContractResult<T>
+- **Legacy Support**: Seamless integration with existing tools
+- **Hot Registration**: Dynamic tool loading and unloading
 
 ## Overview
 

@@ -5,415 +5,299 @@
 
 import { z } from "zod";
 
-// Blueprint: Agent identification for seam tracking
-export type AgentId = string;
-
-// Blueprint: Enhanced SDD result pattern with fail-fast validation
+// Blueprint: Core SDD result pattern with type safety
 export type ContractResult<T> = {
   success: boolean;
   data?: T;
-  error?: SDDError;
-  metadata?: {
-    agentId: string;
-    timestamp: string;
-    requestId?: string;
-    processingTimeMs?: number;
-    seamName?: string; // Track which seam handled the request
-    [key: string]: any; // Allow additional properties
-  };
+  error?: string;
+  metadata?: Record<string, any>;
 };
 
-// Blueprint: Structured error handling per SDD manifesto
-export type SDDError = {
-  category:
-    | "ValidationError"
-    | "BusinessRuleViolation"
-    | "DependencyError"
-    | "ProcessingError"
-    | "NotImplementedError";
-  message: string;
-  details?: Record<string, any>;
-  agentId: string;
-  seamName?: string;
-  timestamp: string;
-  // Enhanced error guidance
-  suggestions?: string[];
-  context?: Record<string, any>;
-  severity?: "low" | "medium" | "high" | "critical";
-  // For debugging and seam boundary validation
-  inputValidation?: {
-    field: string;
-    expectedType: string;
-    actualValue: any;
-    validationRule: string;
-  };
-};
+// === GEMINI INTEGRATION: Additional Error Classes ===
+// Blueprint: Base error class for SDD specific errors
+export class SDDError extends Error {
+  public readonly context?: Record<string, any>;
+  public readonly errorCode?: string;
 
-// Blueprint: Fail-fast input validation helper
-export function createSDDError(
-  agentId: string,
-  category: SDDError["category"],
-  message: string,
-  details?: Record<string, any>,
-  seamName?: string
-): SDDError {
-  return {
-    category,
-    message,
-    details,
-    agentId,
-    seamName,
-    timestamp: new Date().toISOString(),
-  };
-}
-
-// Blueprint: Enhanced error creation with actionable suggestions
-export function createDetailedError(
-  agentId: string,
-  category: SDDError["category"],
-  message: string,
-  suggestions: string[],
-  context?: Record<string, any>,
-  details?: Record<string, any>,
-  seamName?: string,
-  severity: "low" | "medium" | "high" | "critical" = "medium"
-): SDDError {
-  return {
-    category,
-    message,
-    suggestions,
-    context,
-    details,
-    agentId,
-    seamName,
-    severity,
-    timestamp: new Date().toISOString(),
-  };
-}
-
-// Blueprint: Validation error with specific guidance
-export function createValidationError(
-  agentId: string,
-  fieldName: string,
-  expectedType: string,
-  actualValue: any,
-  seamName?: string
-): SDDError {
-  const suggestions = [
-    `Ensure '${fieldName}' is of type '${expectedType}'`,
-    `Check the input data structure before calling this seam`,
-    `Refer to the contract interface for expected data format`,
-  ];
-
-  // Add specific suggestions based on common validation issues
-  if (actualValue === null || actualValue === undefined) {
-    suggestions.unshift(
-      `Provide a valid value for '${fieldName}' - it cannot be null or undefined`
-    );
-  } else if (expectedType === "string" && typeof actualValue !== "string") {
-    suggestions.unshift(
-      `Convert '${fieldName}' to a string before passing to this seam`
-    );
-  } else if (expectedType === "array" && !Array.isArray(actualValue)) {
-    suggestions.unshift(
-      `'${fieldName}' should be an array, got ${typeof actualValue}`
-    );
-  }
-
-  return createDetailedError(
-    agentId,
-    "ValidationError",
-    `Validation failed for field '${fieldName}': expected ${expectedType}, got ${typeof actualValue}`,
-    suggestions,
-    {
-      field: fieldName,
-      expectedType,
-      actualType: typeof actualValue,
-      actualValue: actualValue?.toString?.() || String(actualValue),
-    },
-    {
-      inputValidation: {
-        field: fieldName,
-        expectedType,
-        actualValue,
-        validationRule: `must be of type ${expectedType}`,
-      },
-    },
-    seamName,
-    "high"
-  );
-}
-
-// Blueprint: Business rule violation with recovery guidance
-export function createBusinessRuleError(
-  agentId: string,
-  ruleName: string,
-  ruleDescription: string,
-  currentValue: any,
-  seamName?: string
-): SDDError {
-  const suggestions = [
-    `Review the business rule: ${ruleDescription}`,
-    `Adjust the input to comply with ${ruleName}`,
-    `Contact the system administrator if this rule seems incorrect`,
-  ];
-
-  return createDetailedError(
-    agentId,
-    "BusinessRuleViolation",
-    `Business rule violation: ${ruleName}`,
-    suggestions,
-    {
-      ruleName,
-      ruleDescription,
-      currentValue,
-      complianceCheck: "failed",
-    },
-    {
-      businessRule: {
-        name: ruleName,
-        description: ruleDescription,
-        violatedBy: currentValue,
-      },
-    },
-    seamName,
-    "high"
-  );
-}
-
-// Blueprint: Dependency error with troubleshooting steps
-export function createDependencyError(
-  agentId: string,
-  dependencyName: string,
-  issue: string,
-  seamName?: string
-): SDDError {
-  const suggestions = [
-    `Check if ${dependencyName} is properly initialized`,
-    `Verify network connectivity if ${dependencyName} is external`,
-    `Review configuration for ${dependencyName} settings`,
-    `Check system logs for more details about ${dependencyName} failure`,
-  ];
-
-  return createDetailedError(
-    agentId,
-    "DependencyError",
-    `Dependency failure: ${dependencyName} - ${issue}`,
-    suggestions,
-    {
-      dependencyName,
-      issue,
-      systemStatus: "degraded",
-    },
-    {
-      dependency: {
-        name: dependencyName,
-        status: "failed",
-        issue,
-        lastCheck: new Date().toISOString(),
-      },
-    },
-    seamName,
-    "critical"
-  );
-}
-
-// Blueprint: Seam boundary validation (fail-fast principle)
-export function validateSeamInput<T>(
-  input: unknown,
-  schema: z.ZodSchema<T>,
-  agentId: string,
-  seamName: string
-): ContractResult<T> {
-  try {
-    const validated = schema.parse(input);
-    return {
-      success: true,
-      data: validated,
-      metadata: {
-        agentId,
-        seamName,
-        timestamp: new Date().toISOString(),
-      },
-    };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return {
-        success: false,
-        error: createSDDError(
-          agentId,
-          "ValidationError",
-          `Input validation failed for seam ${seamName}`,
-          {
-            validationErrors: error.errors,
-            receivedInput: input,
-          },
-          seamName
-        ),
-      };
-    }
-    return {
-      success: false,
-      error: createSDDError(
-        agentId,
-        "ProcessingError",
-        `Unexpected validation error in seam ${seamName}`,
-        {
-          originalError: error instanceof Error ? error.message : String(error),
-        },
-        seamName
-      ),
-    };
+  constructor(
+    message: string,
+    errorCode?: string,
+    context?: Record<string, any>
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+    this.errorCode = errorCode;
+    this.context = context;
   }
 }
 
-// Definitions that were causing "Cannot find name" errors - ensuring they are defined before use.
-export const ToolDefinitionSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  inputSchema: z.object({
-    type: z.literal("object"),
-    properties: z.record(z.any()),
-    required: z.array(z.string()).optional(),
-  }),
-});
-export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
+export class NotImplementedError extends SDDError {
+  constructor(
+    methodName: string,
+    blueprintDetails: string = "Not yet implemented."
+  ) {
+    super(
+      `Method ${methodName} is not implemented. Blueprint: ${blueprintDetails}`,
+      "ERR_NOT_IMPLEMENTED"
+    );
+  }
+}
 
-export type ServerHealth = {
-  status: "healthy" | "degraded" | "unhealthy";
-  uptime: number;
-  toolsAvailable: number;
-  lastError?: string;
-};
+export class InvalidInputError extends SDDError {
+  constructor(message: string, context?: Record<string, any>) {
+    super(message, "ERR_INVALID_INPUT", context);
+  }
+}
 
-export const SeamDefinitionSchema = z.object({
-  name: z.string(),
-  participants: z.array(z.string()),
-  dataFlow: z.enum(["IN", "OUT", "BOTH"]),
-  purpose: z.string(),
-  contractInterface: z.string(), // Added this as it's often part of SeamDefinition
-});
-export type SeamDefinition = z.infer<typeof SeamDefinitionSchema>;
+export class ToolNotFoundError extends SDDError {
+  constructor(toolName: string, version?: string) {
+    const message = version
+      ? `Tool '${toolName}' version '${version}' not found.`
+      : `Tool '${toolName}' not found.`;
+    super(message, "ERR_TOOL_NOT_FOUND", { toolName, version });
+  }
+}
 
-export type TemplateData = Record<string, any>;
+export class ToolVersionNotFoundError extends SDDError {
+  constructor(toolName: string, version: string) {
+    super(
+      `Tool '${toolName}' version '${version}' not found.`,
+      "ERR_TOOL_VERSION_NOT_FOUND",
+      { toolName, version }
+    );
+  }
+}
 
-export type ComplianceReport = {
-  isCompliant: boolean;
-  issues: string[];
-  suggestions: string[];
-  score: number; // 0-100
-};
+export class ToolRegistrationError extends SDDError {
+  constructor(message: string, context?: Record<string, any>) {
+    super(message, "ERR_TOOL_REGISTRATION", context);
+  }
+}
 
-export type HealthReport = {
-  overall: "healthy" | "warning" | "error";
-  seams: Array<{
-    name: string;
-    status: "implemented" | "stubbed" | "missing";
-    issues: string[];
-  }>;
-  readinessScore: number; // 0-100
-};
+// === GEMINI INTEGRATION: Tool Registry Type Definitions ===
 
-export type PatternReport = {
-  patternsFound: string[];
-  patternsMissing: string[];
-  recommendations: string[];
-  confidence: number; // 0-100
-};
+/**
+ * @interface ToolDefinition
+ * @description Defines the static properties and schema of a tool.
+ * This information is used for discovery, documentation, and UI generation.
+ */
+export interface ToolDefinition {
+  name: string;
+  description: string;
+  inputSchema: Record<string, any>;
+  outputSchema: Record<string, any>;
+}
 
-export type ErrorContext = {
-  agentId: AgentId;
-  operation: string;
-  timestamp: string;
-  additionalInfo?: Record<string, any>;
-};
-
-export type DiagnosticInfo = {
-  errorCount: number;
-  recentErrors: string[];
-  systemHealth: "good" | "degraded" | "critical";
-  recommendations: string[];
-};
-
-export type ServerConfig = {
-  server: {
+// Blueprint: Tool Module Contract - Defines the interface for all tool modules.
+export interface ToolModuleContract {
+  definition: ToolDefinition;
+  handler: (args: any) => Promise<ContractResult<any>>;
+  metadata: {
     name: string;
     version: string;
-    debug: boolean;
+    dependencies?: string[];
+    author?: string;
+    tags?: string[];
   };
-  templates: {
-    contractPath: string;
-    stubPath: string;
-    seamPath: string;
-  };
-  validation: {
-    strictMode: boolean;
-    requiredPatterns: string[];
-  };
-  features: {
-    templateHotReload: boolean;
-    diagnostics: boolean;
-    extendedLogging: boolean;
-  };
+}
+
+/**
+ * Optional configuration for tool execution, allowing for features like A/B testing or version pinning.
+ */
+export interface ToolExecutionConfig {
+  /** Specific version of the tool to execute. If not provided, registry decides (e.g., latest stable). */
+  version?: string;
+  /** Flags or context for A/B testing or feature flagging within the tool or registry. */
+  abTestContext?: Record<string, any>;
+  /** Timeout for the tool execution in milliseconds. */
+  timeoutMs?: number;
+}
+
+// Minimal interface for the ErrorHandler dependency (as per prompt context)
+export interface ErrorHandler {
+  logError(error: any, context?: Record<string, any>): Promise<void>;
+}
+
+// Placeholder for actual ErrorHandler instance (as per prompt context)
+// This would typically be injected or managed by a dependency injection system
+export const errorHandler: ErrorHandler = {
+  async logError(error: any, context?: Record<string, any>): Promise<void> {
+    console.error("ErrorHandler Log:", error, context);
+    // TODO: Integrate with actual ErrorHandler foundation component
+  },
 };
 
-export interface ComponentCandidate {
-  name: string;
-  purpose?: string; // Made optional
-  type: "ui" | "service" | "integration" | "data" | "utility" | string;
-  interactions?: PotentialInteraction[]; // Kept optional
-  confidenceScore: number; // Changed from confidence, non-optional
-  extractedFrom: string[]; // Added
-  relatedRequirements?: number[]; // Added, optional
-  suggestedInterfaces?: string[]; // Added, optional
-  estimatedComplexity?: "low" | "medium" | "high" | string; // Added, optional
+/**
+ * @interface ToolRegistryContract
+ * @description Defines the contract for managing tool modules within the MCP server.
+ * All methods must be asynchronous and return a ContractResult.
+ */
+export interface ToolRegistryContract {
+  /**
+   * Registers a new tool module with the registry.
+   * @param module The tool module to register.
+   * @returns A ContractResult indicating success (void) or failure.
+   * Blueprint: Implementation should handle versioning (e.g., allow multiple versions of a tool,
+   * prevent duplicate registration of the same version).
+   * Input validation: Ensure the provided module conforms to ToolModuleContract.
+   */
+  registerTool(module: ToolModuleContract): Promise<ContractResult<void>>;
+
+  /**
+   * Retrieves a list of definitions for all registered tools.
+   * @returns A Promise resolving to a ContractResult containing an array of ToolDefinition objects.
+   * Blueprint: This allows clients to discover available tools and their capabilities.
+   * Could support filtering or pagination in future enhancements.
+   */
+  getTools(): Promise<ContractResult<ToolDefinition[]>>;
+
+  /**
+   * Executes a registered tool by its name.
+   * @param name The unique name of the tool to execute (must match ToolModuleContract.metadata.name).
+   * @param args The arguments to pass to the tool's handler.
+   * @param config Optional configuration for this specific execution (e.g., version, A/B testing flags).
+   * @returns A Promise resolving to a ContractResult containing the tool's output or an error.
+   * Blueprint: Implementation will locate the appropriate tool (and version, if specified or determined by A/B logic),
+   * validate args against the tool's inputSchema (or delegate to the tool), and invoke its handler.
+   * Must handle cases where the tool is not found or the specified version is unavailable.
+   */
+  executeTool(
+    name: string,
+    args: any,
+    config?: ToolExecutionConfig
+  ): Promise<ContractResult<any>>;
+
+  /**
+   * Unregisters a tool module or a specific version of a tool module.
+   * @param name The name of the tool to unregister.
+   * @param version Optional. If provided, unregisters only this specific version. Otherwise, unregisters all versions.
+   * @returns A Promise resolving to a ContractResult indicating success (void) or failure.
+   * Blueprint: Important for dynamic environments or when tools are deprecated.
+   */
+  unregisterTool?(
+    name: string,
+    version?: string
+  ): Promise<ContractResult<void>>;
+
+  /**
+   * Retrieves a specific tool module (or its definition).
+   * @param name The name of the tool.
+   * @param version Optional. The specific version to retrieve.
+   * @returns A Promise resolving to a ContractResult containing the ToolModuleContract or ToolDefinition.
+   * Blueprint: Useful for introspection or advanced scenarios.
+   */
+  getTool?(
+    name: string,
+    version?: string
+  ): Promise<ContractResult<ToolModuleContract | ToolDefinition>>;
 }
 
-export interface PotentialInteraction {
-  sourceComponent: string; // Added
-  targetComponent: string;
-  interactionType: "sync" | "async" | "event" | "data"; // Specific internal type
-  confidence: number; // Added
-  reasoning: string; // Added
-  dataExchanged: string[]; // Added
-  frequency: "high" | "medium" | "low"; // Added
-  patternDetected?: string; // Added
-  // Removed original: description, dataFlow, dataType as they are not directly produced by identifyInteractionPatterns
+// ================================
+// Tool Registry Contracts (SDD Modular Architecture)
+// Generated from Gemini's Phase 1 Analysis
+// ================================
+
+/**
+ * Base error class for SDD specific errors.
+ * Implementations should throw specific errors inheriting from this or a similar base.
+ */
+export class SDDErrorClass extends Error {
+  public readonly context?: Record<string, any>;
+  public readonly errorCode?: string;
+
+  constructor(
+    message: string,
+    errorCode?: string,
+    context?: Record<string, any>
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+    this.errorCode = errorCode;
+    this.context = context;
+  }
 }
 
-export interface SeamRecommendation {
-  id: string; // Added
-  description: string; // Added
-  severity: "low" | "medium" | "high" | "critical" | string; // Added
-  category: string; // Added
-  seamName?: string; // Kept, optional
-  sourceComponent?: string; // Kept, optional
-  targetComponent?: string; // Kept, optional
-  purpose?: string; // Kept, optional
-  dataFlow?: "IN" | "OUT" | "BOTH"; // Kept, optional
-  confidenceScore?: number; // Kept
-  reasoning?: string; // Kept, optional
-  potentialIssues?: string[]; // Kept, optional
+export class InvalidInputError extends SDDErrorClass {
+  constructor(message: string, context?: Record<string, any>) {
+    super(message, "ERR_INVALID_INPUT", context);
+  }
 }
 
-export interface ValidatedInteraction {
-  sourceComponent: string; // Added
-  targetComponent: string; // Added
-  interactionType: "sync" | "async" | "event" | "data"; // Added, matches PotentialInteraction's type
-  contractRequired: boolean; // Added
-  errorHandling: string[]; // Added
-  performanceConsiderations: string[]; // Added
-  securityRequirements: string[]; // Added
-  isValid: boolean; // Added
-  patternDetected?: string; // Added
-  validationNotes?: string; // Kept optional
-  // Removed original 'interaction: PotentialInteraction' wrapper
+/**
+ * @class ToolNotFoundError
+ * @description Thrown when a requested tool is not found in the registry
+ */
+export class ToolNotFoundError extends SDDErrorClass {
+  constructor(toolName: string, version?: string) {
+    const message = version
+      ? `Tool '${toolName}' version '${version}' not found.`
+      : `Tool '${toolName}' not found.`;
+    super(message, "ERR_TOOL_NOT_FOUND", { toolName, version });
+  }
 }
 
-export interface IMCPToolRegistry {
-  registerTool(tool: any): Promise<ContractResult<boolean>>;
-  getTool(toolName: string): Promise<ContractResult<any>>;
-  listTools(): Promise<ContractResult<string[]>>;
+/**
+ * @class ToolVersionNotFoundError
+ * @description Thrown when a specific version of a tool is not found
+ */
+export class ToolVersionNotFoundError extends SDDErrorClass {
+  constructor(toolName: string, version: string) {
+    super(
+      `Tool '${toolName}' version '${version}' not found.`,
+      "ERR_TOOL_VERSION_NOT_FOUND",
+      { toolName, version }
+    );
+  }
+}
+
+/**
+ * @class ToolRegistrationError
+ * @description Thrown when tool registration fails
+ */
+export class ToolRegistrationError extends SDDErrorClass {
+  constructor(message: string, context?: Record<string, any>) {
+    super(message, "ERR_TOOL_REGISTRATION", context);
+  }
+}
+
+/**
+ * @interface ToolModuleContract
+ * @description Blueprint: Contract for all tool modules in the SDD-compliant modular architecture.
+ * Each tool must implement this interface to be compatible with the ToolRegistry.
+ */
+export interface ToolModuleContract {
+  definition: ToolDefinition;
+  handler: (args: any) => Promise<ContractResult<any>>;
+  metadata: {
+    name: string;
+    version: string;
+    dependencies?: string[];
+    author?: string;
+    tags?: string[];
+  };
+}
+
+/**
+ * @interface ToolRegistryContract
+ * @description Blueprint: Contract for the tool registry system that manages tool registration,
+ * discovery, and execution in a modular, version-aware manner with A/B testing support.
+ */
+export interface ToolRegistryContract {
+  registerTool(module: ToolModuleContract): Promise<ContractResult<void>>;
+  getTools(): Promise<ContractResult<ToolDefinition[]>>;
+  executeTool(
+    name: string,
+    args: any,
+    config?: ToolExecutionConfig
+  ): Promise<ContractResult<any>>;
+  unregisterTool?(
+    name: string,
+    version?: string
+  ): Promise<ContractResult<void>>;
+  getTool?(
+    name: string,
+    version?: string
+  ): Promise<ContractResult<ToolModuleContract | ToolDefinition>>;
 }
 
 // ================================
@@ -977,22 +861,6 @@ export interface IEnhancedSeamAnalyzer {
   validateSeamReadiness(
     input: SeamValidationInput
   ): Promise<ContractResult<SeamValidationResult>>;
-}
-
-// ADDED: NotImplementedError class
-export class NotImplementedError extends Error {
-  public readonly blueprint?: string;
-  constructor(methodName: string, blueprint?: string) {
-    super(
-      `Method '${methodName}' is not implemented.${
-        blueprint ? ` Blueprint: ${blueprint}` : ""
-      }`
-    );
-    this.name = "NotImplementedError";
-    this.blueprint = blueprint;
-    // Set the prototype explicitly for proper instanceof checks.
-    Object.setPrototypeOf(this, NotImplementedError.prototype);
-  }
 }
 
 // ADDED: Define and export AnalysisDepth from schema enum values
