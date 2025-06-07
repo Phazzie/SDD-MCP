@@ -5,8 +5,11 @@
  */
 
 import { z } from "zod";
-import type { ContractResult, InteractionMatrix } from "../contracts.js";
-import { validateSeamInput } from "../contracts.js";
+import type {
+  ContractResult,
+  InteractionMatrix,
+  ToolModuleContract,
+} from "../contracts.js";
 
 export interface GenerateInteractionMatrixTool {
   name: "generate_interaction_matrix";
@@ -85,6 +88,31 @@ const InteractionMatrixInputSchema = z.object({
   includeMetrics: z.boolean().default(false),
 });
 
+// 🛡️ DEFENSIVE: Input validation function
+function validateSeamInput(
+  args: unknown,
+  schema: z.ZodSchema,
+  toolName: string,
+  seamName: string
+): ContractResult<any> {
+  try {
+    const data = schema.parse(args);
+    return { success: true, data };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Validation failed for ${toolName}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      metadata: {
+        toolName,
+        seamName,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+}
+
 /**
  * 🎯 CRITICAL: Generate interaction matrix tool handler
  * SEAM: MCP Tool Layer → Intelligence Bridge → Enhanced Seam Analyzer
@@ -116,15 +144,9 @@ export async function handleGenerateInteractionMatrix(
   } catch (error) {
     return {
       success: false,
-      error: {
-        category: "ProcessingError",
-        message: `Interaction matrix generation failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        agentId: "GenerateInteractionMatrixTool",
-        seamName: "generate_interaction_matrix",
-        timestamp: new Date().toISOString(),
-      },
+      error: `Interaction matrix generation failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
       metadata: {
         agentId: "GenerateInteractionMatrixTool",
         seamName: "generate_interaction_matrix",
@@ -183,3 +205,87 @@ export const GENERATE_INTERACTION_MATRIX_TOOL_DEFINITION: GenerateInteractionMat
       required: ["components"],
     },
   };
+
+// 🔌 INTEGRATION: Tool Registry Contract Export
+export const TOOL_MODULE_CONTRACT: ToolModuleContract = {
+  definition: {
+    name: "generate_interaction_matrix",
+    description:
+      "Generate component interaction matrix for architecture analysis",
+    inputSchema: {
+      type: "object",
+      properties: {
+        components: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              type: { type: "string" },
+              purpose: { type: "string" },
+              dependencies: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+            required: ["name", "type", "purpose"],
+          },
+          description: "Components to analyze for interactions",
+        },
+        seamDefinitions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              participants: {
+                type: "array",
+                items: { type: "string" },
+              },
+              dataFlow: { type: "string", enum: ["IN", "OUT", "BOTH"] },
+              purpose: { type: "string" },
+            },
+            required: ["name", "participants", "dataFlow", "purpose"],
+          },
+          description: "Existing seam definitions to include in matrix",
+        },
+        analysisScope: {
+          type: "string",
+          enum: ["full", "critical-path", "integration-points"],
+          description: "Scope of interaction analysis",
+        },
+        includeMetrics: {
+          type: "boolean",
+          description: "Include complexity and coupling metrics",
+        },
+      },
+      required: ["components"],
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        data: {
+          type: "object",
+          description: "Component interaction matrix results",
+        },
+        error: { type: "string" },
+        metadata: { type: "object" },
+      },
+      required: ["success"],
+    },
+  },
+  handler: async (args: any): Promise<ContractResult<any>> => {
+    // � INTEGRATION: Use real intelligence bridge instead of mock
+    const { mcpIntelligenceBridge } = await import(
+      "../agents/mcp-intelligence-bridge.js"
+    );
+    return handleGenerateInteractionMatrix(args, mcpIntelligenceBridge);
+  },
+  metadata: {
+    name: "generate-interaction-matrix-tool",
+    version: "1.0.0",
+    dependencies: ["intelligence-bridge"],
+    tags: ["interaction-matrix", "component-analysis", "architecture"],
+  },
+};

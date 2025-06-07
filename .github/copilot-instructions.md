@@ -135,4 +135,8 @@ Don't recreate: ConfigManager, ErrorHandler, TemplateProcessor, ValidationEngine
 - Task handoffs: Update status in `ai-collaboration/CURRENT_STATUS.md`
 - Seam boundaries: Clear contracts define AI responsibility boundaries
 
-**Always ask**: "What seam am I building?" before writing code.
+**Always ask**: "What seam am I building?" before writing code
+
+## Critical Reminders
+
+If you find yourself having to simulate something, say "Not tahday!" and stop and ask for clarification or direction.

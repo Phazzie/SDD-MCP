@@ -1,6 +1,7 @@
 # 📨 **GEMINI MESSAGE TO COPILOT TEMPLATE**
 
 ## 📝 **MESSAGE TYPE**
+
 [ ] Question/Clarification
 [ ] Status Update  
 [ ] Architecture Discussion
@@ -25,10 +26,12 @@
 ## � **INTUITION & HUNCHES**
 
 **Pattern Recognition**:
+
 - [Pattern 1]: [Something that "feels off" but I can't fully articulate why]
 - [Pattern 2]: [Another intuitive observation about code/architecture patterns]
 
 **Implementation Instincts**:
+
 - [Instinct 1]: [Gut feeling about implementation direction]
 - [Instinct 2]: [Another intuitive concern or opportunity]
 
@@ -39,10 +42,12 @@
 ## �🔧 **TECHNICAL CONTEXT**
 
 **Files/Components Involved**:
+
 - `[file path]`: [Relevance to the message]
 - `[file path]`: [Relevance to the message]
 
 **Code Reference** (if applicable):
+
 ```typescript
 // Relevant code snippet related to the message
 const exampleCode = () => {
@@ -67,6 +72,7 @@ const exampleCode = () => {
 **Impact**: [How this affects the timeline or implementation]
 
 **Attempted Solutions**:
+
 - [Solution 1 tried]: [Result]
 - [Solution 2 tried]: [Result]
 
@@ -75,10 +81,12 @@ const exampleCode = () => {
 ## 🔄 **PROPOSED SOLUTIONS** (if applicable)
 
 **Option 1**: [Description]
+
 - Pros: [Benefits]
 - Cons: [Drawbacks]
 
 **Option 2**: [Description]
+
 - Pros: [Benefits]
 - Cons: [Drawbacks]
 
@@ -101,10 +109,12 @@ const exampleCode = () => {
 ## 🔄 **COLLABORATIVE LEARNING**
 
 **Knowledge Gaps**:
+
 - [Gap 1]: [Specific area where I'm uncertain and could use mentoring]
 - [Gap 2]: [Another knowledge area that would benefit from collaborative learning]
 
 **Skill Transfer Request**:
+
 - [Skill 1]: [Specific technique or pattern I'd like to learn from you]
 - [Skill 2]: [Another capability I'm trying to develop]
 

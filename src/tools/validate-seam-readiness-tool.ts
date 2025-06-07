@@ -5,8 +5,12 @@
  */
 
 import { z } from "zod";
-import type { ContractResult, SeamValidationResult } from "../contracts.js";
-import { validateSeamInput } from "../contracts.js";
+import type {
+  ContractResult,
+  SeamValidationResult,
+  ToolModuleContract,
+} from "../contracts.js";
+import { SDDError } from "../contracts.js";
 
 export interface ValidateSeamReadinessTool {
   name: "validate_seam_readiness";
@@ -77,6 +81,39 @@ const SeamValidationInputSchema = z.object({
   strictMode: z.boolean().default(false),
   checkDependencies: z.boolean().default(true),
 });
+type SeamValidationInput = z.infer<typeof SeamValidationInputSchema>;
+
+// 🛡️ DEFENSIVE: Input validation function
+function validateSeamInput(
+  args: unknown,
+  schema: z.ZodSchema<SeamValidationInput>,
+  toolName: string,
+  seamName: string
+): ContractResult<SeamValidationInput> {
+  try {
+    const data = schema.parse(args);
+    return { success: true, data };
+  } catch (error) {
+    return {
+      success: false,
+      error: new SDDError(
+        `Validation failed for ${toolName}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        {
+          toolName,
+          seamName,
+          timestamp: new Date().toISOString(),
+        }
+      ).message,
+      metadata: {
+        toolName,
+        seamName,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+}
 
 /**
  * ⚡ QUICK_WIN: Validate seam readiness tool handler
@@ -109,15 +146,9 @@ export async function handleValidateSeamReadiness(
   } catch (error) {
     return {
       success: false,
-      error: {
-        category: "ProcessingError",
-        message: `Seam readiness validation failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        agentId: "ValidateSeamReadinessTool",
-        seamName: "validate_seam_readiness",
-        timestamp: new Date().toISOString(),
-      },
+      error: `Seam readiness validation failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
       metadata: {
         agentId: "ValidateSeamReadinessTool",
         seamName: "validate_seam_readiness",
@@ -173,3 +204,81 @@ export const VALIDATE_SEAM_READINESS_TOOL_DEFINITION: ValidateSeamReadinessTool 
       required: ["seamDefinitions"],
     },
   };
+
+// 🔌 INTEGRATION: Tool Registry Contract Export
+export const TOOL_MODULE_CONTRACT: ToolModuleContract = {
+  definition: {
+    name: "validate_seam_readiness",
+    description: "Validate seam definitions for contract generation readiness",
+    inputSchema: {
+      type: "object",
+      properties: {
+        seamDefinitions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              description: { type: "string" },
+              sourceComponent: { type: "string" },
+              targetComponent: { type: "string" },
+              inputType: { type: "string" },
+              outputType: { type: "string" },
+              errorScenarios: {
+                type: "array",
+                items: { type: "string" },
+              },
+            },
+            required: [
+              "name",
+              "description",
+              "sourceComponent",
+              "targetComponent",
+            ],
+          },
+          description: "Seam definitions to validate for readiness",
+        },
+        validationLevel: {
+          type: "string",
+          enum: ["basic", "comprehensive", "critical-only"],
+          description: "Level of validation to perform",
+        },
+        strictMode: {
+          type: "boolean",
+          description: "Enable strict validation requiring all optional fields",
+        },
+        checkDependencies: {
+          type: "boolean",
+          description: "Validate seam dependencies and prerequisites",
+        },
+      },
+      required: ["seamDefinitions"],
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        data: {
+          type: "object",
+          description: "Seam validation results",
+        },
+        error: { type: "string" },
+        metadata: { type: "object" },
+      },
+      required: ["success"],
+    },
+  },
+  handler: async (args: any): Promise<ContractResult<any>> => {
+    // � INTEGRATION: Use real intelligence bridge instead of mock
+    const { mcpIntelligenceBridge } = await import(
+      "../agents/mcp-intelligence-bridge.js"
+    );
+    return handleValidateSeamReadiness(args, mcpIntelligenceBridge);
+  },
+  metadata: {
+    name: "validate-seam-readiness-tool",
+    version: "1.0.0",
+    dependencies: ["intelligence-bridge"],
+    tags: ["seam-validation", "readiness-check", "sdd-validation"],
+  },
+};

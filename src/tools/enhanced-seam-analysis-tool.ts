@@ -5,8 +5,11 @@
  */
 
 import { z } from "zod";
-import type { ContractResult, EnhancedSeamAnalysis } from "../contracts.js";
-import { validateSeamInput } from "../contracts.js";
+import type {
+  ContractResult,
+  EnhancedSeamAnalysis,
+  ToolModuleContract,
+} from "../contracts.js";
 
 export interface EnhancedSeamAnalysisTool {
   name: "enhanced_seam_analysis";
@@ -66,6 +69,31 @@ const SeamAnalysisInputSchema = z.object({
     .optional(),
 });
 
+// 🛡️ DEFENSIVE: Input validation function
+function validateSeamInput(
+  args: unknown,
+  schema: z.ZodSchema,
+  toolName: string,
+  seamName: string
+): ContractResult<any> {
+  try {
+    const data = schema.parse(args);
+    return { success: true, data };
+  } catch (error) {
+    return {
+      success: false,
+      error: `Validation failed for ${toolName}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      metadata: {
+        toolName,
+        seamName,
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+}
+
 /**
  * 🎯 CRITICAL: Enhanced seam analysis tool handler
  * SEAM: MCP Tool Layer → Intelligence Bridge → Enhanced Seam Analyzer
@@ -95,17 +123,19 @@ export async function handleEnhancedSeamAnalysis(
       input
     );
   } catch (error) {
+    // 🛡️ DEFENSIVE: Standardized error object using SDDError
     return {
       success: false,
-      error: {
-        category: "ProcessingError",
-        message: `Enhanced seam analysis failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        agentId: "EnhancedSeamAnalysisTool",
-        seamName: "enhanced_seam_analysis",
-        timestamp: new Date().toISOString(),
-      },
+      error: new SDDError(
+        "EnhancedSeamAnalysisTool",
+        "enhanced_seam_analysis",
+        error instanceof Error ? error.message : String(error),
+        {
+          agentId: "EnhancedSeamAnalysisTool",
+          seamName: "enhanced_seam_analysis",
+          timestamp: new Date().toISOString(),
+        }
+      ).toString(),
       metadata: {
         agentId: "EnhancedSeamAnalysisTool",
         seamName: "enhanced_seam_analysis",
@@ -153,3 +183,70 @@ export const ENHANCED_SEAM_ANALYSIS_TOOL_DEFINITION: EnhancedSeamAnalysisTool =
       required: ["requirementsText"],
     },
   };
+
+// 🔌 INTEGRATION: Tool Registry Contract Export - Using simplified adapter pattern for compatibility
+export const TOOL_MODULE_CONTRACT: ToolModuleContract = {
+  definition: {
+    name: "enhanced_seam_analysis",
+    description:
+      "Analyze requirements using enhanced pattern recognition and AI-powered seam identification",
+    inputSchema: {
+      type: "object",
+      properties: {
+        requirementsText: {
+          type: "string",
+          description: "Requirements or PRD text to analyze",
+        },
+        designNotes: {
+          type: "string",
+          description: "Optional design notes or constraints",
+        },
+        analysisDepth: {
+          type: "string",
+          enum: ["basic", "detailed", "comprehensive"],
+          description: "Depth of analysis to perform",
+        },
+        focusAreas: {
+          type: "array",
+          items: {
+            type: "string",
+            enum: [
+              "data_flows",
+              "integrations",
+              "dependencies",
+              "cross_cutting_concerns",
+            ],
+          },
+          description: "Areas to focus analysis on",
+        },
+      },
+      required: ["requirementsText"],
+    },
+    outputSchema: {
+      type: "object",
+      properties: {
+        success: { type: "boolean" },
+        data: {
+          type: "object",
+          description: "Enhanced seam analysis results",
+        },
+        error: { type: "string" },
+        metadata: { type: "object" },
+      },
+      required: ["success"],
+    },
+  },
+  handler: async (args: any): Promise<ContractResult<any>> => {
+    // � INTEGRATION: Use real intelligence bridge instead of mock
+    const { mcpIntelligenceBridge } = await import(
+      "../agents/mcp-intelligence-bridge.js"
+    );
+    return handleEnhancedSeamAnalysis(args, mcpIntelligenceBridge);
+  },
+  metadata: {
+    name: "enhanced-seam-analysis-tool",
+    version: "1.0.0",
+    dependencies: ["intelligence-bridge"],
+    tags: ["seam-analysis", "ai-enhanced", "pattern-recognition"],
+  },
+};

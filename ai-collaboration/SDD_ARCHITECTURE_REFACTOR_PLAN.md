@@ -84,10 +84,10 @@ interface ToolDiscovery {
 
 **Files**: `src/tools/*.ts`
 
-- [ ] Convert `enhanced-seam-analysis-tool.ts` to module format
-- [ ] Convert `analyze-data-flows-tool.ts` to module format
-- [ ] Convert `generate-interaction-matrix-tool.ts` to module format
-- [ ] Convert `validate-seam-readiness-tool.ts` to module format
+- [x] Convert `enhanced-seam-analysis-tool.ts` to module format
+- [x] Convert `analyze-data-flows-tool.ts` to module format
+- [x] Convert `generate-interaction-matrix-tool.ts` to module format
+- [x] Convert `validate-seam-readiness-tool.ts` to module format
 
 ### Step 3: MCP Server Integration (Copilot)
 
