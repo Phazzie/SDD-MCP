@@ -31,6 +31,23 @@
 
 ### Core Contracts
 
+## 🧩 Validation & Extensibility Requirements (NEW)
+
+- Validation engine and all core tools must:
+  - Support loading rules/configuration from external files or plugins (not just hardcoded)
+  - Allow user customization and extension of rulesets
+  - Provide a comprehensive, production-ready ruleset (contracts, stubs, tests, naming, blueprint comments, etc.)
+  - Use robust, generalized AST traversal for code analysis (not brittle structure-specific checks)
+  - Leverage project context (related files, configs) for contextual validation
+  - Allow configuration of severity levels and compliance thresholds (strict/lenient modes)
+  - Optimize for performance on large codebases (AST caching, targeted traversal)
+  - Output results in standard formats (e.g., SARIF) for CI/CD and IDE integration
+  - Support auto-fix suggestions and, eventually, auto-application of fixes
+  - Require and validate blueprint comment density and documentation quality
+  - Support meta-validation (validate SDD tools themselves, not just user code)
+  - Encourage developer experience and “Surprise & Delight” features in reporting
+  - Provide a blueprint/example for rule/validator structure and registration
+
 #### ToolModule Contract
 
 ```typescript
@@ -79,6 +96,11 @@ interface ToolDiscovery {
 - [ ] Implement ToolRegistry class with SDD patterns
 - [ ] Add error handling and validation
 - [ ] Include DevUtilities integration
+- [ ] Implement validation engine with extensible, configurable ruleset (external config/plugin support)
+- [ ] Ensure AST traversal is robust and generalized
+- [ ] Add support for auto-fix suggestions in validation output
+- [ ] Output validation results in standard formats (e.g., SARIF)
+- [ ] Provide blueprint/example for rule/validator structure
 
 ### Step 2: Tool Module Refactoring (Gemini)
 
@@ -88,15 +110,16 @@ interface ToolDiscovery {
 - [x] Convert `analyze-data-flows-tool.ts` to module format
 - [x] Convert `generate-interaction-matrix-tool.ts` to module format
 - [x] Convert `validate-seam-readiness-tool.ts` to module format
+- [ ] Refactor tools to support meta-validation and contextual validation
+- [ ] Ensure all tools provide developer-friendly feedback and “Surprise & Delight” features
 
 ### Step 3: MCP Server Integration (Copilot)
-
-**Files**: `src/index.ts`
 
 - [ ] Initialize ToolRegistry in server startup
 - [ ] Replace hardcoded tools array with registry.getTools()
 - [ ] Replace switch statement with registry.executeTool()
 - [ ] Maintain backward compatibility
+- [ ] Integrate validation engine and reporting into CI/CD pipeline
 
 ### Step 4: Testing & Validation (Copilot)
 
@@ -106,6 +129,10 @@ interface ToolDiscovery {
 - [ ] Test tool execution end-to-end
 - [ ] Validate backward compatibility
 - [ ] Performance testing
+- [ ] Create and maintain a diverse set of positive/negative test cases for validation engine and tools
+- [ ] Test auto-fix and reporting features
+- [ ] Validate blueprint comment density and documentation quality
+- [ ] Test meta-validation and toolchain health reporting
 
 ---
 
@@ -119,6 +146,12 @@ interface ToolDiscovery {
 - [ ] ✅ TypeScript compilation successful
 - [ ] ✅ Existing functionality unaffected
 - [ ] ✅ Auto-discovery of future tools works
+- [ ] ✅ Validation engine supports extensible, configurable rulesets
+- [ ] ✅ Validation output is granular, actionable, and standard-compliant (e.g., SARIF)
+- [ ] ✅ Auto-fix suggestions available for common violations
+- [ ] ✅ Meta-validation and toolchain health reporting implemented
+- [ ] ✅ Blueprint comment and documentation density validated
+- [ ] ✅ Developer experience and “Surprise & Delight” features present
 
 ### Quality Criteria
 
@@ -127,6 +160,7 @@ interface ToolDiscovery {
 - [ ] 📊 Logging and metrics properly integrated
 - [ ] 🔄 Architecture scales for future tools
 - [ ] 🧪 Integration tests validate all pathways
+- [ ] 🦄 Developer feedback and encouragement present in validation output
 
 ---
 
@@ -156,13 +190,15 @@ interface ToolDiscovery {
 1. **Template Integration**: Connect enhanced analyzer to template system
 2. **Error Standardization**: Implement consistent SDDError patterns
 3. **DevUtilities Integration**: Standardize logging across all components
+4. **Plugin System**: Hot-loading of new tools and rulesets (move from long-term to immediate)
+5. **Auto-Fix and Quick-Fix**: Begin implementing auto-fix and quick-fix support in validation engine
+6. **Blueprint for Rule/Validator Structure**: Document and implement a clear pattern for rule/validator registration and configuration
 
 ### Long-term Architecture Goals
 
-1. **Plugin System**: Hot-loading of new tools
-2. **Tool Versioning**: Support multiple versions of same tool
-3. **Tool Dependencies**: Manage tool interdependencies
-4. **Tool Marketplace**: Framework for community-contributed tools
+1. **Tool Versioning**: Support multiple versions of same tool
+2. **Tool Dependencies**: Manage tool interdependencies
+3. **Tool Marketplace**: Framework for community-contributed tools
 
 ---
 

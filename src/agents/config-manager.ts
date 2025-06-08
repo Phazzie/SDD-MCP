@@ -221,7 +221,7 @@ export class ConfigManager implements ConfigContract {
         // this.config is set by loadConfig if successful
       }
 
-      let templatePath: string;
+      let templatePath: string | undefined;
       switch (templateType.toLowerCase()) {
         case "contract":
           templatePath = this.config!.templates.contractPath;
@@ -241,6 +241,20 @@ export class ConfigManager implements ConfigContract {
               additionalInfo: { templateType },
             }
           );
+      }
+
+      // 🛡️ DEFENSIVE: Check for missing or invalid templatePath before fs.access
+      if (typeof templatePath !== "string" || !templatePath.trim()) {
+        return this.errorHandler.createTypedErrorResult<string>(
+          new Error(
+            `Template path for type '${templateType}' is missing or invalid in configuration.`
+          ),
+          {
+            agentId: this.agentId,
+            operation: "getTemplatePath.invalidPath",
+            additionalInfo: { templateType, templatePath },
+          }
+        );
       }
 
       try {

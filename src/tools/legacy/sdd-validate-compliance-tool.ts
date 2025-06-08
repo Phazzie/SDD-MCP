@@ -1,385 +1,503 @@
 /**
- * SDD Validate Compliance Tool
+ * SDD Orchestrate Full Workflow Tool
  *
- * 🎯 SEAM: SDD compliance validation and quality assurance
- * 📋 PURPOSE: Validate SDD compliance - contract completeness, blueprint comments, ContractResult usage, test coverage
- * 🔗 CONNECTS: Project structure → Compliance reports and validation metrics
+ * 🎯 SEAM: Complete SDD workflow orchestration
+ * 📋 PURPOSE: Execute full PRD → Seams → Contracts → Stubs → Tests → Ready for Implementation
+ * 🔗 CONNECTS: External PRD → Complete SDD project structure
  *
- * This tool ensures SDD methodology compliance across the entire project:
- * - Contract interface validation (ContractResult<T> pattern usage)
- * - Blueprint comment coverage (NotImplementedError with blueprints)
- * - Seam boundary adherence (Proper seam communication patterns)
- * - Test coverage analysis (Contract test completeness)
- * - Documentation compliance (SDD pattern documentation)
+ * This tool orchestrates the complete SDD workflow by coordinating multiple seams:
+ * - Requirement analysis seam (PRD → Seam definitions)
+ * - Contract generation seam (Seams → TypeScript contracts)
+ * - Stub creation seam (Contracts → Implementation stubs)
+ * - Test generation seam (Contracts → Test cases)
+ * - Project structure seam (Components → File organization)
  *
  * SEAM BOUNDARIES:
- * - INPUT: Project directory path + validation configuration
- * - OUTPUT: Compliance report with scores, violations, and recommendations
- * - ERROR HANDLING: Validates project structure, fails fast on access issues
- * - DEPENDENCIES: Requires file system access, TypeScript AST parsing, test runners
+ * - INPUT: Raw PRD text + project metadata
+ * - OUTPUT: Complete project structure with contracts, stubs, tests
+ * - ERROR HANDLING: Validates each workflow stage, fails fast on issues
+ * - DEPENDENCIES: Requires seamManager, all individual SDD tools
  */
 
 import { z } from "zod";
 import {
   ContractResult,
-  NotImplementedError,
   ToolModuleContract,
-} from "../../contracts.js";
+  fail,
+  succeed,
+} from "../../contracts/contract-result.js";
+import { seamManager } from "../../seams.js";
+import { SDDError } from "../../utils/sdd-error.js";
 
 // Zod schemas for type safety and validation
-const ValidateComplianceInput = z.object({
-  projectPath: z
+const OrchestrateWorkflowInput = z.object({
+  prdText: z
     .string()
-    .min(1)
-    .describe("Path to the project directory to validate"),
-  strictMode: z
-    .boolean()
+    .min(10, "PRD text must be at least 10 characters.")
+    .describe("The Product Requirements Document or project description"),
+  projectName: z
+    .string()
+    .min(1, "Project name cannot be empty.")
+    .describe("Name of the project being built"),
+  designNotes: z
+    .string()
     .optional()
-    .default(false)
-    .describe("Enable strict validation mode (default: false)"),
-  validationRules: z
-    .object({
-      requireContractResult: z.boolean().optional().default(true),
-      requireBlueprintComments: z.boolean().optional().default(true),
-      requireSeamDocumentation: z.boolean().optional().default(true),
-      requireTestCoverage: z.boolean().optional().default(true),
-      minimumCoveragePercent: z.number().min(0).max(100).optional().default(80),
-    })
-    .optional(),
-  outputFormat: z
-    .enum(["detailed", "summary", "json", "markdown"])
-    .optional()
-    .default("detailed"),
+    .describe("Optional design notes or constraints"),
 });
 
-const ComplianceViolation = z.object({
-  type: z.enum(["contract", "blueprint", "seam", "test", "documentation"]),
-  severity: z.enum(["error", "warning", "info"]),
-  file: z.string(),
-  line: z.number().optional(),
-  message: z.string(),
-  suggestion: z.string().optional(),
+const WorkflowStageResult = z.object({
+  stage: z.string(),
+  success: z.boolean(),
+  output: z.any().optional(), // Output from the specific tool/seam
+  error: z.string().optional(), // Error message if the stage failed
+  duration: z.number().optional(),
 });
 
-const ComplianceMetrics = z.object({
-  contractResultUsage: z.number().min(0).max(100),
-  blueprintCoverage: z.number().min(0).max(100),
-  seamDocumentation: z.number().min(0).max(100),
-  testCoverage: z.number().min(0).max(100),
-  overallScore: z.number().min(0).max(100),
-});
-
-const ValidateComplianceOutput = z.object({
-  isCompliant: z.boolean(),
-  overallScore: z.number().min(0).max(100),
-  metrics: ComplianceMetrics,
-  violations: z.array(ComplianceViolation),
-  recommendations: z.array(z.string()),
-  summary: z.object({
-    totalFiles: z.number(),
-    violationCount: z.number(),
-    errorCount: z.number(),
-    warningCount: z.number(),
+const OrchestrateWorkflowOutput = z.object({
+  projectStructure: z.object({
+    contracts: z
+      .array(z.string())
+      .describe("Paths or code snippets of generated contracts."),
+    stubs: z
+      .array(z.string())
+      .describe("Paths or code snippets of generated stubs."),
+    tests: z
+      .array(z.string())
+      .describe("Paths or code snippets of generated tests."),
+    documentation: z
+      .array(z.string())
+      .describe("Paths to documentation files."),
   }),
-  detailedReport: z.string().optional(),
+  workflowStages: z
+    .array(WorkflowStageResult)
+    .describe("Detailed results of each workflow stage."),
+  seamDefinitions: z
+    .array(z.any())
+    .describe("Seam definitions extracted from requirements analysis."), // Consider a more specific Zod schema for SeamDefinition if available
+  totalDuration: z
+    .number()
+    .describe("Total duration of the workflow in milliseconds."),
+  readyForImplementation: z
+    .boolean()
+    .describe(
+      "Flag indicating if all core artifacts were generated successfully."
+    ),
 });
 
-type ValidateComplianceInput = z.infer<typeof ValidateComplianceInput>;
-type ValidateComplianceOutput = z.infer<typeof ValidateComplianceOutput>;
+type OrchestrateWorkflowInput = z.infer<typeof OrchestrateWorkflowInput>;
+type OrchestrateWorkflowOutput = z.infer<typeof OrchestrateWorkflowOutput>;
 
 /**
- * SDD Validate Compliance Tool Implementation
+ * SDD Orchestrate Full Workflow Tool Implementation
  *
- * Performs comprehensive SDD compliance validation through these stages:
- * 1. Project Structure Analysis (Directory layout, file organization)
- * 2. Contract Pattern Validation (ContractResult<T> usage verification)
- * 3. Blueprint Comment Analysis (NotImplementedError pattern checking)
- * 4. Seam Documentation Review (Seam boundary documentation)
- * 5. Test Coverage Assessment (Contract test completeness)
- * 6. Report Generation (Detailed compliance findings)
+ * Coordinates the complete SDD workflow through defined seam boundaries:
+ * 1. Analyze requirements (PRD → Seam definitions)
+ * 2. Generate contracts (Seams → TypeScript interfaces)
+ * 3. Create implementation stubs (Contracts → Skeleton code)
+ * 4. Generate test cases (Contracts → Test suite)
+ * 5. Organize project structure (Components → File system)
  *
- * Supports multiple validation modes and generates actionable recommendations.
+ * Each stage validates its inputs and outputs, ensuring seam contracts are honored.
  */
-class SDDValidateComplianceTool {
-  readonly name = "sdd_validate_compliance";
+class SDDOrchestrateWorkflowTool {
+  readonly name = "sdd_orchestrate_full_workflow";
   readonly description =
-    "Validate SDD compliance: contract completeness, blueprint comments, ContractResult usage, test coverage";
-  readonly inputSchema = ValidateComplianceInput;
-  readonly outputSchema = ValidateComplianceOutput;
+    "Complete SDD workflow: PRD → Seams → Contracts → Stubs → Tests → Ready for Implementation";
+  readonly inputSchema = OrchestrateWorkflowInput;
+  readonly outputSchema = OrchestrateWorkflowOutput;
 
   async execute(
-    input: ValidateComplianceInput
-  ): Promise<ContractResult<ValidateComplianceOutput>> {
-    // 🛡️ DEFENSIVE: Validate inputs early
-    if (!input.projectPath?.trim()) {
-      return {
-        success: false,
-        error: "Project path is required - failing fast",
-        metadata: { stage: "input_validation" },
-      };
-    }
+    input: OrchestrateWorkflowInput
+  ): Promise<ContractResult<OrchestrateWorkflowOutput>> {
+    // Blueprint: Initialize workflow state and timers.
+    const startTime = Date.now();
+    const workflowStages: WorkflowStageResult[] = [];
+    let seamDefinitions: any[] = []; // Consider defining a more specific type or Zod schema for SeamDefinition
+    let contracts: string[] = [];
+    let stubs: string[] = [];
+    let tests: string[] = [];
+    let documentation: string[] = []; // Placeholder, could be dynamically generated
+    let readyForImplementation = false;
 
     try {
-      // 🎯 BLUEPRINT: Comprehensive SDD compliance validation
-      // Stage 1: Project structure analysis and file discovery
-      throw new NotImplementedError(
-        "SDDValidateComplianceTool.execute",
-        `Blueprint: Complete SDD compliance validation system
-        
-        IMPLEMENTATION PLAN:
-        1. Project Structure Analysis Stage:
-           - Scan directory structure for SDD conventions
-           - Validate file naming patterns (contracts.ts, seams.ts, etc.)
-           - Check for required directories (src/agents/, src/contracts/, etc.)
-           - Verify package.json dependencies for SDD tools
-        
-        2. Contract Pattern Validation Stage:
-           - Parse TypeScript files for ContractResult<T> usage
-           - Validate async function signatures
-           - Check interface definitions follow SDD patterns
-           - Ensure proper error handling patterns
-        
-        3. Blueprint Comment Analysis Stage:
-           - Scan for NotImplementedError instances
-           - Validate blueprint comment completeness
-           - Check implementation stub patterns
-           - Verify TODO comments follow SDD format
-        
-        4. Seam Documentation Review Stage:
-           - Validate seam boundary documentation
-           - Check seam communication patterns
-           - Verify seamManager usage consistency
-           - Assess seam contract adherence
-        
-        5. Test Coverage Assessment Stage:
-           - Analyze test file coverage for contracts
-           - Validate test patterns (happy path, error cases)
-           - Check mock usage for seam testing
-           - Calculate coverage percentages
-        
-        6. Report Generation Stage:
-           - Compile violation reports with line numbers
-           - Generate actionable recommendations
-           - Create compliance scorecards
-           - Export in requested format
-        
-        VALIDATION RULES:
-        ContractResult Usage:
-        - All async public methods return Promise<ContractResult<T>>
-        - Error cases use { success: false, error: string }
-        - Success cases use { success: true, data: T }
-        
-        Blueprint Comments:
-        - NotImplementedError includes method name
-        - Blueprint details describe implementation plan
-        - TODO comments link to seam definitions
-        
-        Seam Documentation:
-        - Each seam has purpose, participants, dataFlow
-        - Seam boundaries are clearly defined
-        - Communication patterns are documented
-        
-        Test Coverage:
-        - Each contract has corresponding test file
-        - Happy path and error scenarios covered
-        - Seam mocking for isolated testing
-        
-        ERROR HANDLING:
-        - File access permission validation
-        - TypeScript parsing error recovery
-        - Missing dependency graceful handling
-        - Report generation fallback options
-        
-        SCORING ALGORITHM:
-        - Contract Result Usage: (compliant_methods / total_methods) * 100
-        - Blueprint Coverage: (methods_with_blueprints / stub_methods) * 100
-        - Seam Documentation: (documented_seams / total_seams) * 100
-        - Test Coverage: (tested_contracts / total_contracts) * 100
-        - Overall Score: weighted_average(all_metrics)
-        
-        OUTPUT STRUCTURE:
+      // Blueprint: Stage 1 - Analyze requirements (PRD → Seam definitions)
+      // Assumes 'sdd_analyze_requirements' tool is registered with seamManager.
+      // Expected output: { seamDefinitions: Array<{ name: string, interfaceName?: string, implementingComponentName?: string, ... }> }
+      const reqStart = Date.now();
+      const reqResult = await seamManager.executeSeam(
+        "sdd_analyze_requirements",
         {
-          isCompliant: true,
-          overallScore: 87.5,
-          metrics: {
-            contractResultUsage: 95.0,
-            blueprintCoverage: 80.0,
-            seamDocumentation: 90.0,
-            testCoverage: 85.0,
-            overallScore: 87.5
-          },
-          violations: [
-            {
-              type: "contract",
-              severity: "error",
-              file: "src/agents/user-agent.ts",
-              line: 42,
-              message: "Method authenticate() does not return ContractResult<T>",
-              suggestion: "Change return type to Promise<ContractResult<AuthResult>>"
-            },
-            {
-              type: "blueprint", 
-              severity: "warning",
-              file: "src/stubs.ts",
-              line: 15,
-              message: "NotImplementedError missing blueprint details",
-              suggestion: "Add detailed implementation plan in blueprint comment"
-            }
-          ],
-          recommendations: [
-            "Update 3 methods to use ContractResult pattern in user-agent.ts",
-            "Add blueprint comments to 5 stub methods",
-            "Create test files for ProfileService and NotificationAgent"
-          ],
-          summary: {
-            totalFiles: 28,
-            violationCount: 12,
-            errorCount: 3,
-            warningCount: 9
-          }
-        }`
+          prdText: input.prdText,
+          projectName: input.projectName,
+          designNotes: input.designNotes || "",
+        }
       );
-    } catch (error: any) {
-      return {
-        success: false,
-        error: `Compliance validation failed: ${
-          error?.message || "Unknown error"
-        }`,
-        metadata: {
-          error_type: error?.constructor?.name || "UnknownError",
-          project_path: input.projectPath,
-          strict_mode: input.strictMode,
+      workflowStages.push({
+        stage: "analyze_requirements",
+        success: reqResult.success,
+        output: reqResult.data, // Store the full data for potential later use
+        error: reqResult.success ? undefined : reqResult.error?.message,
+        duration: Date.now() - reqStart,
+      });
+
+      if (!reqResult.success) {
+        return fail(
+          reqResult.error || // Use the error from the tool if available
+            new SDDError(
+              "RequirementAnalysisFailed",
+              "Requirement analysis failed to produce valid output."
+            )
+        );
+      }
+      if (
+        !reqResult.data?.seamDefinitions ||
+        !Array.isArray(reqResult.data.seamDefinitions)
+      ) {
+        return fail(
+          new SDDError(
+            "RequirementAnalysisFailed",
+            "Requirement analysis did not return seamDefinitions array."
+          )
+        );
+      }
+      seamDefinitions = reqResult.data.seamDefinitions;
+
+      // Blueprint: Stage 2 - Generate contracts for each seam definition
+      // Assumes 'sdd_generate_contract' tool is registered.
+      // Expected input: { seamDefinition: object, projectName: string }
+      // Expected output: { filePath?: string, contractCode?: string, structuredContractDefinition: { interfaceName: string, componentName: string, methods: any[], ... } }
+      for (const seamDef of seamDefinitions) {
+        const stageStartTime = Date.now();
+        const stageName = `contract_generation:${
+          seamDef.name || seamDef.interfaceName || "unknown_seam"
+        }`;
+        if (!seamDef.name && !seamDef.interfaceName) {
+          workflowStages.push({
+            stage: stageName,
+            success: false,
+            error: "Seam definition lacks a name or interfaceName.",
+            duration: Date.now() - stageStartTime,
+          });
+          return fail(
+            new SDDError(
+              "ContractGenerationSkipped",
+              `Seam definition for contract generation is missing a name or interfaceName.`
+            )
+          );
+        }
+
+        const contractResult = await seamManager.executeSeam(
+          "sdd_generate_contract",
+          {
+            seamDefinition: seamDef, // Pass the full seam definition
+            projectName: input.projectName,
+          }
+        );
+        workflowStages.push({
+          stage: stageName,
+          success: contractResult.success,
+          output: contractResult.data,
+          error: contractResult.success
+            ? undefined
+            : contractResult.error?.message,
+          duration: Date.now() - stageStartTime,
+        });
+
+        if (!contractResult.success) {
+          return fail(
+            contractResult.error ||
+              new SDDError(
+                "ContractGenerationFailed",
+                `Contract generation failed for seam '${stageName}'.`
+              )
+          );
+        }
+        // Store path or code of the generated contract
+        if (contractResult.data?.filePath)
+          contracts.push(contractResult.data.filePath);
+        else if (contractResult.data?.contractCode)
+          contracts.push(contractResult.data.contractCode);
+        else {
+          return fail(
+            new SDDError(
+              "ContractGenerationOutputError",
+              `Contract generation for '${stageName}' did not provide a filePath or contractCode.`
+            )
+          );
+        }
+        if (!contractResult.data?.structuredContractDefinition) {
+          return fail(
+            new SDDError(
+              "ContractGenerationOutputError",
+              `Contract generation for '${stageName}' did not provide a structuredContractDefinition needed for subsequent steps.`
+            )
+          );
+        }
+      }
+
+      // Blueprint: Stage 3 - Create stubs for each generated contract
+      // Assumes 'sdd_create_stub' tool is registered.
+      // Expected input: The 'structuredContractDefinition' from the contract generation stage's output.
+      // Expected output: { filePathSuggestion?: string, stubCode?: string }
+      for (const contractStageData of workflowStages.filter(
+        (s) => s.stage.startsWith("contract_generation:") && s.success
+      )) {
+        const stageStartTime = Date.now();
+        const structuredDef =
+          contractStageData.output?.structuredContractDefinition;
+
+        if (
+          !structuredDef ||
+          !structuredDef.interfaceName ||
+          !structuredDef.componentName
+        ) {
+          const missingName = !structuredDef
+            ? "structuredDefinition"
+            : !structuredDef.interfaceName
+            ? "interfaceName"
+            : "componentName";
+          workflowStages.push({
+            stage: `stub_creation_skipped:${
+              contractStageData.stage.split(":")[1]
+            }`,
+            success: false,
+            error: `Missing ${missingName} for stub generation.`,
+            duration: Date.now() - stageStartTime,
+          });
+          return fail(
+            new SDDError(
+              "StubGenerationSkipped",
+              `Cannot generate stub for ${
+                contractStageData.stage.split(":")[1]
+              } due to missing ${missingName}.`
+            )
+          );
+        }
+        const stageName = `stub_creation:${structuredDef.interfaceName}`;
+
+        const stubResult = await seamManager.executeSeam(
+          "sdd_create_stub",
+          structuredDef // Pass the whole structured definition object
+        );
+        workflowStages.push({
+          stage: stageName,
+          success: stubResult.success,
+          output: stubResult.data,
+          error: stubResult.success ? undefined : stubResult.error?.message,
+          duration: Date.now() - stageStartTime,
+        });
+
+        if (!stubResult.success) {
+          return fail(
+            stubResult.error ||
+              new SDDError(
+                "StubGenerationFailed",
+                `Stub generation failed for interface '${structuredDef.interfaceName}'.`
+              )
+          );
+        }
+        if (stubResult.data?.filePathSuggestion)
+          stubs.push(stubResult.data.filePathSuggestion);
+        else if (stubResult.data?.stubCode)
+          stubs.push(stubResult.data.stubCode);
+        else {
+          return fail(
+            new SDDError(
+              "StubGenerationOutputError",
+              `Stub generation for '${structuredDef.interfaceName}' did not provide a filePathSuggestion or stubCode.`
+            )
+          );
+        }
+      }
+
+      // Blueprint: Stage 4 - Generate tests for each contract
+      // Assumes 'sdd_generate_test' tool is registered.
+      // Expected input: The 'structuredContractDefinition' from the contract generation stage's output.
+      // Expected output: { testFilePath?: string, testCode?: string }
+      for (const contractStageData of workflowStages.filter(
+        (s) => s.stage.startsWith("contract_generation:") && s.success
+      )) {
+        const stageStartTime = Date.now();
+        const structuredDef =
+          contractStageData.output?.structuredContractDefinition;
+
+        if (!structuredDef || !structuredDef.interfaceName) {
+          workflowStages.push({
+            stage: `test_generation_skipped:${
+              contractStageData.stage.split(":")[1]
+            }`,
+            success: false,
+            error:
+              "Missing structuredContractDefinition or interfaceName for test generation.",
+            duration: Date.now() - stageStartTime,
+          });
+          return fail(
+            new SDDError(
+              "TestGenerationSkipped",
+              `Cannot generate tests for ${
+                contractStageData.stage.split(":")[1]
+              } due to missing structuredContractDefinition or interfaceName.`
+            )
+          );
+        }
+        const stageName = `test_generation:${structuredDef.interfaceName}`;
+
+        const testResult = await seamManager.executeSeam(
+          "sdd_generate_test",
+          structuredDef // Pass the whole structured definition object
+        );
+        workflowStages.push({
+          stage: stageName,
+          success: testResult.success,
+          output: testResult.data,
+          error: testResult.success ? undefined : testResult.error?.message,
+          duration: Date.now() - stageStartTime,
+        });
+
+        if (!testResult.success) {
+          return fail(
+            testResult.error ||
+              new SDDError(
+                "TestGenerationFailed",
+                `Test generation failed for interface '${structuredDef.interfaceName}'.`
+              )
+          );
+        }
+        if (testResult.data?.testFilePath)
+          tests.push(testResult.data.testFilePath);
+        else if (testResult.data?.testCode)
+          tests.push(testResult.data.testCode);
+        else {
+          return fail(
+            new SDDError(
+              "TestGenerationOutputError",
+              `Test generation for '${structuredDef.interfaceName}' did not provide a testFilePath or testCode.`
+            )
+          );
+        }
+      }
+
+      // Blueprint: Stage 5 - Finalize and report successful completion.
+      documentation = ["docs/README.md", "docs/ARCHITECTURE.md"]; // Example paths
+      readyForImplementation = true; // Set if all critical stages succeeded
+      const totalDuration = Date.now() - startTime;
+
+      return succeed({
+        projectStructure: {
+          contracts,
+          stubs,
+          tests,
+          documentation,
         },
-      };
+        workflowStages,
+        seamDefinitions,
+        totalDuration,
+        readyForImplementation,
+      });
+    } catch (error: any) {
+      // Blueprint: Catch-all for unexpected errors during orchestration.
+      return fail(
+        new SDDError(
+          "OrchestrationError",
+          `Workflow orchestration encountered an unexpected error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          error // Preserve original error for context
+        )
+      );
     }
   }
 }
 
 // Export tool instance and ToolModuleContract
-export const sddValidateComplianceTool = new SDDValidateComplianceTool();
+export const sddOrchestrateWorkflowTool = new SDDOrchestrateWorkflowTool();
 
 // ToolModuleContract compliant export
-export const TOOL_MODULE_CONTRACT: ToolModuleContract = {
+export const TOOL_MODULE_CONTRACT: ToolModuleContract<
+  typeof OrchestrateWorkflowInput,
+  typeof OrchestrateWorkflowOutput
+> = {
   definition: {
-    name: "sdd_validate_compliance",
+    name: "sdd_orchestrate_full_workflow",
     description:
-      "Validate SDD compliance: contract completeness, blueprint comments, ContractResult usage, test coverage",
-    inputSchema: ValidateComplianceInput,
-    outputSchema: ValidateComplianceOutput,
+      "Complete SDD workflow: PRD → Seams → Contracts → Stubs → Tests → Ready for Implementation",
+    inputSchema: OrchestrateWorkflowInput,
+    outputSchema: OrchestrateWorkflowOutput,
   },
-  handler: async (args: any) => {
-    return await sddValidateComplianceTool.execute(args);
+  handler: async (args: OrchestrateWorkflowInput) => {
+    // Input validation is handled by Zod schema in ToolRegistry or by the tool itself.
+    return await sddOrchestrateWorkflowTool.execute(args);
   },
   metadata: {
-    name: "sdd_validate_compliance",
-    version: "1.0.0",
-    author: "SDD MCP Server",
-    tags: [
-      "sdd",
-      "validation",
-      "compliance",
-      "quality-assurance",
-      "seam-driven",
+    name: "sdd_orchestrate_full_workflow",
+    version: "1.1.0", // Incremented version
+    author: "SDD MCP Server (Gemini)",
+    tags: ["sdd", "workflow", "orchestration", "seam-driven", "full-cycle"],
+    dependencies: [
+      "seamManager",
+      "sdd_analyze_requirements", // Specific tool names
+      "sdd_generate_contract",
+      "sdd_create_stub",
+      "sdd_generate_test",
     ],
-    dependencies: ["typescript", "ast-parser", "test-coverage-analyzer"],
   },
 };
 
 /**
  * USAGE EXAMPLES:
  *
- * // Basic compliance validation
- * const result = await sddValidateComplianceTool.execute({
- *   projectPath: "/path/to/sdd-project",
- *   strictMode: false
+ * // Complete workflow execution
+ * const result = await sddOrchestrateWorkflowTool.execute({
+ *   prdText: "Build a user authentication system with login, registration, and profile management...",
+ *   projectName: "AuthSystem",
+ *   designNotes: "Must integrate with existing OAuth providers"
  * });
  *
- * // Strict validation with custom rules
- * const strictResult = await sddValidateComplianceTool.execute({
- *   projectPath: "/path/to/project",
- *   strictMode: true,
- *   validationRules: {
- *     requireContractResult: true,
- *     requireBlueprintComments: true,
- *     requireSeamDocumentation: true,
- *     requireTestCoverage: true,
- *     minimumCoveragePercent: 90
- *   },
- *   outputFormat: "detailed"
- * });
+ * if (result.success) {
+ *   console.log(`Project structure for ${input.projectName} is ready for implementation.`);
+ *   console.log(`Contracts: ${result.data.projectStructure.contracts.join(', ')}`);
+ *   console.log(`Stubs: ${result.data.projectStructure.stubs.join(', ')}`);
+ *   console.log(`Tests: ${result.data.projectStructure.tests.join(', ')}`);
+ *   console.log(`Workflow completed in ${result.data.totalDuration}ms`);
+ *   result.data.workflowStages.forEach(stage => {
+ *     console.log(`  ${stage.stage}: ${stage.success ? 'SUCCESS' : 'FAILED'} (${stage.duration}ms)${stage.error ? ` - Error: ${stage.error}` : ''}`);
+ *   });
+ * } else {
+ *   console.error(`Workflow failed: ${result.error.message}`);
+ *   if (result.error.details) console.error(`Details: ${JSON.stringify(result.error.details)}`);
+ * }
  *
- * // Quick compliance check
- * const quickCheck = await sddValidateComplianceTool.execute({
- *   projectPath: process.cwd(),
- *   outputFormat: "summary"
- * });
- *
- * // Integration with seam manager
- * const validateSeam = await seamManager.executeSeam('validate_compliance', {
- *   projectPath: projectRoot,
- *   strictMode: true
- * });
+ * // Example of how it might be called via seamManager (assuming registered as 'sdd_orchestrate_full_workflow')
+ * // const orchestrateResult = await seamManager.executeSeam('sdd_orchestrate_full_workflow', {
+ * //   prdText: "Some PRD content...",
+ * //   projectName: "MyNewProject"
+ * // });
  */
 
 /**
- * SEAM CONTRACTS VALIDATED BY THIS TOOL:
+ * SEAM CONTRACTS VALIDATED BY THIS TOOL (Implicitly, by orchestrating them):
  *
- * 1. File System Access Seam:
- *    - Input: Project directory path
- *    - Output: File list with metadata
- *    - Validation: Directory exists and is readable
+ * This tool relies on the individual SDD tools it orchestrates to honor their respective contracts.
+ * The orchestrator's primary role is to manage the flow and data handoff between these tools.
  *
- * 2. TypeScript Analysis Seam:
- *    - Input: TypeScript source files
- *    - Output: AST analysis results
- *    - Validation: Files parse correctly, type information available
+ * 1. Requirements Analysis Seam (e.g., sdd_analyze_requirements):
+ *    - Input: PRD text, project name, design notes.
+ *    - Output: { seamDefinitions: Array<SeamDefinition> }, where SeamDefinition includes at least name,
+ *              and ideally hints for interfaceName and implementingComponentName.
  *
- * 3. Pattern Recognition Seam:
- *    - Input: AST nodes and source code
- *    - Output: SDD pattern usage analysis
- *    - Validation: Patterns conform to SDD specifications
+ * 2. Contract Generation Seam (e.g., sdd_generate_contract):
+ *    - Input: A single SeamDefinition object, projectName.
+ *    - Output: { filePath?: string, contractCode?: string, structuredContractDefinition: StructuredContract },
+ *              where StructuredContract contains interfaceName, componentName, methods, etc.
  *
- * 4. Test Coverage Analysis Seam:
- *    - Input: Source and test file mappings
- *    - Output: Coverage metrics and missing tests
- *    - Validation: Test files exist and cover contract methods
+ * 3. Stub Creation Seam (e.g., sdd_create_stub):
+ *    - Input: A StructuredContract object.
+ *    - Output: { filePathSuggestion?: string, stubCode?: string }.
  *
- * 5. Report Generation Seam:
- *    - Input: Validation results and format preferences
- *    - Output: Formatted compliance report
- *    - Validation: Report format is valid and complete
- */
-
-/**
- * COMPLIANCE VALIDATION CHECKLIST:
+ * 4. Test Generation Seam (e.g., sdd_generate_test):
+ *    - Input: A StructuredContract object.
+ *    - Output: { testFilePath?: string, testCode?: string }.
  *
- * ✅ Contract Pattern Compliance:
- * - [ ] All public async methods return Promise<ContractResult<T>>
- * - [ ] Error handling uses { success: false, error: string }
- * - [ ] Success responses use { success: true, data: T }
- * - [ ] Type safety with proper generic usage
- *
- * ✅ Blueprint Comment Requirements:
- * - [ ] NotImplementedError includes method name
- * - [ ] Blueprint describes implementation approach
- * - [ ] Seam integration points documented
- * - [ ] Error handling strategy outlined
- *
- * ✅ Seam Documentation Standards:
- * - [ ] Each seam has clear purpose statement
- * - [ ] Participants explicitly listed
- * - [ ] Data flow direction specified (IN/OUT/BOTH)
- * - [ ] Integration points documented
- *
- * ✅ Test Coverage Requirements:
- * - [ ] Each contract has corresponding test file
- * - [ ] Happy path scenarios covered
- * - [ ] Error scenarios tested
- * - [ ] Seam boundaries mocked appropriately
- *
- * ✅ File Organization Standards:
- * - [ ] contracts.ts contains all interfaces
- * - [ ] seams.ts defines communication pathways
- * - [ ] stubs.ts provides implementation skeletons
- * - [ ] Proper import/export patterns
+ * The orchestrator ensures that if a stage fails, the workflow stops and reports the failure.
+ * Successful completion implies all orchestrated tools produced their expected outputs.
  */
