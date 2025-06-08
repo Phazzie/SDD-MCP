@@ -11,7 +11,6 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 
 // Import SDD Foundation Agents
@@ -24,12 +23,26 @@ import {
 } from "./stubs.js";
 import { TemplateProcessor } from "./template-processor.js";
 
+// 🔌 INTEGRATION: Import Tool Registry for modular tool management
+import { setupToolRegistry } from "./tool-registry-setup.js";
+import { ToolRegistry } from "./tool-registry.js";
+
+// 🔌 INTEGRATION: Import Enhanced MCP Tools
+import { mcpIntelligenceBridge } from "./agents/mcp-intelligence-bridge.js";
+import { handleAnalyzeDataFlows } from "./tools/analyze-data-flows-tool.js";
+import { handleEnhancedSeamAnalysis } from "./tools/enhanced-seam-analysis-tool.js";
+import { handleGenerateInteractionMatrix } from "./tools/generate-interaction-matrix-tool.js";
+import { handleValidateSeamReadiness } from "./tools/validate-seam-readiness-tool.js";
+
 // Initialize SDD Foundation Agents
 const configManager = new ConfigManagerStub();
 const errorHandler = new ErrorHandlerStub();
 const templateProcessor = new TemplateProcessor("./templates");
 const validationEngine = new ValidationEngineStub();
 const sddAnalyzer = new SDDAnalyzerStub();
+
+// 🎯 CRITICAL: Initialize Tool Registry for modular tool management
+let toolRegistry: ToolRegistry;
 
 // Server configuration
 const SERVER_INFO = {
@@ -69,329 +82,42 @@ interface ProjectStructure {
   readinessScore: number;
 }
 
-// Tool 1: Analyze Requirements and Identify Seams
+// 🎯 CRITICAL: Registry-based tool discovery (replaces hardcoded tool definitions)
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: "sdd_analyze_requirements",
-        description:
-          "Analyze PRD/requirements and identify all component seams for SDD implementation",
-        inputSchema: {
-          type: "object",
-          properties: {
-            prdText: {
-              type: "string",
-              description:
-                "The Product Requirements Document or project description text",
-            },
-            designNotes: {
-              type: "string",
-              description: "Optional additional design notes or constraints",
-            },
-          },
-          required: ["prdText"],
-        },
-      },
-      {
-        name: "sdd_generate_contract",
-        description:
-          "Generate a single contract using proven SDD patterns (ContractResult<T>, blueprint comments)",
-        inputSchema: {
-          type: "object",
-          properties: {
-            seam: {
-              type: "object",
-              description:
-                "Seam definition containing name, participants, dataFlow, purpose",
-              properties: {
-                name: { type: "string" },
-                participants: { type: "array", items: { type: "string" } },
-                dataFlow: { type: "string", enum: ["IN", "OUT", "BOTH"] },
-                purpose: { type: "string" },
-                contractInterface: { type: "string" },
-              },
-              required: ["name", "participants", "dataFlow", "purpose"],
-            },
-          },
-          required: ["seam"],
-        },
-      },
-      {
-        name: "sdd_create_stub",
-        description:
-          "Create implementation stub with blueprint comments and NotImplementedError patterns",
-        inputSchema: {
-          type: "object",
-          properties: {
-            contractCode: {
-              type: "string",
-              description: "The contract interface code to create a stub for",
-            },
-            componentName: {
-              type: "string",
-              description: "Name of the component (e.g., UserAgent, AuthAgent)",
-            },
-          },
-          required: ["contractCode", "componentName"],
-        },
-      },
-      {
-        name: "sdd_orchestrate_full_workflow",
-        description:
-          "Complete SDD workflow: PRD → Seams → Contracts → Stubs → Tests → Ready for Implementation",
-        inputSchema: {
-          type: "object",
-          properties: {
-            prdText: {
-              type: "string",
-              description:
-                "The Product Requirements Document or project description",
-            },
-            designNotes: {
-              type: "string",
-              description: "Optional design notes or constraints",
-            },
-            projectName: {
-              type: "string",
-              description: "Name of the project being built",
-            },
-          },
-          required: ["prdText", "projectName"],
-        },
-      },
-      {
-        name: "sdd_visualize_architecture",
-        description:
-          "Generate Mermaid diagrams showing seam connections with color-coded implementation status",
-        inputSchema: {
-          type: "object",
-          properties: {
-            seams: {
-              type: "array",
-              description: "Array of seam definitions to visualize",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  participants: { type: "array", items: { type: "string" } },
-                  dataFlow: { type: "string", enum: ["IN", "OUT", "BOTH"] },
-                  purpose: { type: "string" },
-                  status: {
-                    type: "string",
-                    enum: ["stub", "partial", "complete"],
-                  },
-                },
-              },
-            },
-            projectName: {
-              type: "string",
-              description: "Name of the project for the diagram title",
-            },
-          },
-          required: ["seams", "projectName"],
-        },
-      },
-      {
-        name: "sdd_validate_compliance",
-        description:
-          "Validate SDD compliance: contract completeness, blueprint comments, ContractResult usage, test coverage",
-        inputSchema: {
-          type: "object",
-          properties: {
-            projectPath: {
-              type: "string",
-              description: "Path to the project directory to validate",
-            },
-            strictMode: {
-              type: "boolean",
-              description: "Enable strict validation mode (default: false)",
-            },
-          },
-          required: ["projectPath"],
-        },
-      },
-      {
-        name: "sdd_analyze_test_failures",
-        description:
-          "Analyze failing contract tests and suggest de novo vs incremental fix strategy based on learnings",
-        inputSchema: {
-          type: "object",
-          properties: {
-            testResults: {
-              type: "array",
-              description: "Array of failing test results",
-              items: {
-                type: "object",
-                properties: {
-                  testName: { type: "string" },
-                  errorMessage: { type: "string" },
-                  expectedOutput: { type: "string" },
-                  actualOutput: { type: "string" },
-                  componentName: { type: "string" },
-                },
-              },
-            },
-            implementationComplexity: {
-              type: "number",
-              description: "Lines of code in current implementation (optional)",
-            },
-          },
-          required: ["testResults"],
-        },
-      },
-      {
-        name: "sdd_generate_manual_tests",
-        description:
-          "Generate manual test procedures for contract validation when automated testing fails",
-        inputSchema: {
-          type: "object",
-          properties: {
-            contractCode: {
-              type: "string",
-              description:
-                "The contract interface code to create manual tests for",
-            },
-            componentName: {
-              type: "string",
-              description: "Name of the component being tested",
-            },
-          },
-          required: ["contractCode", "componentName"],
-        },
-      },
-      {
-        name: "sdd_enhance_templates",
-        description:
-          "Enhance templates with exact pattern matching for PascalCase, naming conventions, and precise transformations",
-        inputSchema: {
-          type: "object",
-          properties: {
-            templateType: {
-              type: "string",
-              enum: ["contract", "stub", "test"],
-              description: "Type of template to enhance",
-            },
-            transformationRules: {
-              type: "array",
-              description:
-                "Specific transformation rules (e.g., 'authorName -> AuthorName')",
-              items: { type: "string" },
-            },
-          },
-          required: ["templateType"],
-        },
-      },
-      {
-        name: "sdd_generate_interaction_matrix",
-        description:
-          "Generate comprehensive seam interaction matrix for component analysis and architecture visualization",
-        inputSchema: {
-          type: "object",
-          properties: {
-            prdText: {
-              type: "string",
-              description:
-                "Product Requirements Document or project description",
-            },
-            existingComponents: {
-              type: "array",
-              description: "List of existing components to analyze",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  type: { type: "string" },
-                  purpose: { type: "string" },
-                  dependencies: { type: "array", items: { type: "string" } },
-                },
-              },
-            },
-            analysisScope: {
-              type: "string",
-              enum: ["full", "critical-path", "integration-points"],
-              description: "Scope of analysis to perform",
-            },
-          },
-          required: ["prdText"],
-        },
-      },
-      {
-        name: "sdd_analyze_data_flows",
-        description:
-          "Analyze data transformation chains and identify optimization opportunities in seam architecture",
-        inputSchema: {
-          type: "object",
-          properties: {
-            seamDefinitions: {
-              type: "array",
-              description: "Array of seam definitions to analyze",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  source: { type: "string" },
-                  target: { type: "string" },
-                  dataFlow: { type: "string" },
-                  inputType: { type: "string" },
-                  outputType: { type: "string" },
-                },
-              },
-            },
-            performanceRequirements: {
-              type: "object",
-              description: "Performance SLAs and requirements",
-              properties: {
-                maxLatency: { type: "number" },
-                minThroughput: { type: "number" },
-                memoryConstraints: { type: "string" },
-              },
-            },
-          },
-          required: ["seamDefinitions"],
-        },
-      },
-      {
-        name: "sdd_validate_seam_readiness",
-        description:
-          "Validate seam definitions for contract generation readiness using comprehensive checklist",
-        inputSchema: {
-          type: "object",
-          properties: {
-            seamDefinitions: {
-              type: "array",
-              description: "Seam definitions to validate",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  description: { type: "string" },
-                  sourceComponent: { type: "string" },
-                  targetComponent: { type: "string" },
-                  inputType: { type: "string" },
-                  outputType: { type: "string" },
-                  errorScenarios: { type: "array", items: { type: "string" } },
-                },
-              },
-            },
-            validationLevel: {
-              type: "string",
-              enum: ["basic", "comprehensive", "critical-only"],
-              description: "Level of validation to perform",
-            },
-          },
-          required: ["seamDefinitions"],
-        },
-      },
-    ] as Tool[],
-  };
+  try {
+    const result = await toolRegistry.getTools();
+    if (!result.success) {
+      throw new Error(result.error || "Failed to get tools from registry");
+    }
+    return { tools: result.data || [] };
+  } catch (error) {
+    console.error("❌ Tool discovery failed:", error);
+    throw error;
+  }
 });
 
-// Tool implementations
+// 🎯 CRITICAL: Registry-based tool execution (replaces hardcoded switch-case)
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
+    // Enhanced tools now handled via registry
+    if (
+      [
+        "enhanced_seam_analysis",
+        "generate_interaction_matrix",
+        "analyze_data_flows",
+        "validate_seam_readiness",
+      ].includes(name)
+    ) {
+      const result = await toolRegistry.executeTool(name, args);
+      if (!result.success) {
+        throw new Error(result.error || `Tool execution failed: ${name}`);
+      }
+      return result.data;
+    }
+
+    // Legacy SDD tools (to be migrated to registry in future phases)
     switch (name) {
       case "sdd_analyze_requirements":
         return await analyzeRequirements(
@@ -414,7 +140,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return await visualizeArchitecture(
           args as { seams: SeamDefinition[]; projectName: string }
         );
-
       case "sdd_validate_compliance":
         return await validateCompliance(
           args as { projectPath: string; strictMode?: boolean }
@@ -1499,8 +1224,317 @@ async function performComplianceChecks(
   };
 }
 
+// 🔌 INTEGRATION: Enhanced MCP Tool Wrapper Functions
+// PURPOSE: Convert ContractResult<T> to MCP response format
+
+/**
+ * 🎯 CRITICAL: Enhanced seam analysis wrapper
+ * SEAM: MCP Server → Enhanced Tool Handler → Intelligence Bridge → Enhanced Analyzer
+ */
+async function handleEnhancedSeamAnalysisWrapper(args: unknown) {
+  try {
+    // Initialize bridge if needed
+    await mcpIntelligenceBridge.initialize();
+
+    const result = await handleEnhancedSeamAnalysis(
+      args,
+      mcpIntelligenceBridge
+    );
+
+    if (result.success && result.data) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## 🧠 Enhanced Seam Analysis Complete
+
+**Identified ${
+              result.data.identifiedSeams.length
+            } seams using advanced pattern recognition:**
+
+${result.data.identifiedSeams
+  .map(
+    (seam, i) => `
+### ${i + 1}. ${seam.name}
+- **Purpose**: ${seam.purpose}
+- **Participants**: ${seam.participants.join(", ")}
+- **Data Flow**: ${seam.dataFlow}
+- **Confidence**: ${seam.confidence || "N/A"}
+`
+  )
+  .join("\n")}
+
+**Analysis Quality Metrics:**
+- Confidence Score: ${result.data.confidenceScore}
+- Pattern Matches: ${result.data.patternMatches?.length || 0}
+- Cross-cutting Concerns: ${result.data.crossCuttingConcerns?.length || 0}
+
+**Processing Time**: ${result.metadata?.processingTimeMs}ms`,
+          },
+        ],
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Enhanced seam analysis failed: ${
+              result.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ Enhanced seam analysis error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
+/**
+ * 🎯 CRITICAL: Interaction matrix generation wrapper
+ */
+async function handleGenerateInteractionMatrixWrapper(args: unknown) {
+  try {
+    await mcpIntelligenceBridge.initialize();
+    const result = await handleGenerateInteractionMatrix(
+      args,
+      mcpIntelligenceBridge
+    );
+
+    if (result.success && result.data) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## 🔗 Component Interaction Matrix
+
+**Matrix Generated for ${result.data.components.length} components:**
+
+### Component Interactions:
+${result.data.interactions
+  .map(
+    (interaction) => `
+- **${interaction.source} → ${interaction.target}**
+  - Type: ${interaction.type}
+  - Frequency: ${interaction.frequency || "N/A"}
+  - Complexity: ${interaction.complexity || "N/A"}
+`
+  )
+  .join("\n")}
+
+### Critical Paths:
+${
+  result.data.criticalPaths?.map((path) => `- ${path}`).join("\n") ||
+  "None identified"
+}
+
+**Processing Time**: ${result.metadata?.processingTimeMs}ms`,
+          },
+        ],
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Interaction matrix generation failed: ${
+              result.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ Interaction matrix error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
+/**
+ * 💰 HIGH_ROI: Data flow analysis wrapper
+ */
+async function handleAnalyzeDataFlowsWrapper(args: unknown) {
+  try {
+    await mcpIntelligenceBridge.initialize();
+    const result = await handleAnalyzeDataFlows(args, mcpIntelligenceBridge);
+
+    if (result.success && result.data) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## 📊 Data Flow Analysis
+
+**Analyzed ${result.data.dataFlows.length} data flows:**
+
+### Data Transformations:
+${result.data.dataFlows
+  .map(
+    (flow) => `
+- **${flow.source} → ${flow.target}**
+  - Input: ${flow.inputType}
+  - Output: ${flow.outputType}
+  - Transformation: ${flow.transformationLogic || "Direct"}
+`
+  )
+  .join("\n")}
+
+### Potential Bottlenecks:
+${
+  result.data.bottlenecks
+    ?.map(
+      (bottleneck) => `
+- **${bottleneck.location}**: ${bottleneck.reason}
+  - Severity: ${bottleneck.severity}
+  - Impact: ${bottleneck.impact}
+`
+    )
+    .join("\n") || "None identified"
+}
+
+### Optimization Recommendations:
+${
+  result.data.optimizationRecommendations
+    ?.map((rec) => `- ${rec}`)
+    .join("\n") || "No recommendations"
+}
+
+**Processing Time**: ${result.metadata?.processingTimeMs}ms`,
+          },
+        ],
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Data flow analysis failed: ${
+              result.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ Data flow analysis error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
+/**
+ * ⚡ QUICK_WIN: Seam readiness validation wrapper
+ */
+async function handleValidateSeamReadinessWrapper(args: unknown) {
+  try {
+    await mcpIntelligenceBridge.initialize();
+    const result = await handleValidateSeamReadiness(
+      args,
+      mcpIntelligenceBridge
+    );
+
+    if (result.success && result.data) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## ✅ Seam Readiness Validation
+
+**Validated ${result.data.validatedSeams.length} seams:**
+
+### Validation Results:
+${result.data.validatedSeams
+  .map(
+    (seam) => `
+- **${seam.name}**: ${seam.isReady ? "✅ Ready" : "❌ Not Ready"}
+  - Score: ${seam.readinessScore}/100
+  - Issues: ${seam.issues?.join(", ") || "None"}
+`
+  )
+  .join("\n")}
+
+### Overall Readiness: ${result.data.overallReadiness}%
+
+### Missing Requirements:
+${
+  result.data.missingRequirements?.map((req) => `- ${req}`).join("\n") || "None"
+}
+
+### Recommendations:
+${
+  result.data.recommendations?.map((rec) => `- ${rec}`).join("\n") ||
+  "No recommendations"
+}
+
+**Processing Time**: ${result.metadata?.processingTimeMs}ms`,
+          },
+        ],
+      };
+    } else {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Seam readiness validation failed: ${
+              result.error?.message || "Unknown error"
+            }`,
+          },
+        ],
+        isError: true,
+      };
+    }
+  } catch (error) {
+    return {
+      content: [
+        {
+          type: "text",
+          text: `❌ Seam readiness validation error: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        },
+      ],
+      isError: true,
+    };
+  }
+}
+
 // Start the server
 async function main() {
+  // 🎯 CRITICAL: Setup tool registry before server starts
+  console.error("🔧 Setting up tool registry...");
+  toolRegistry = await setupToolRegistry();
+  console.error("✅ Tool registry setup complete");
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("SDD MCP Server running on stdio");
