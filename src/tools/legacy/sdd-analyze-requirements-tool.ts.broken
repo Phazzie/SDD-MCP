@@ -1,0 +1,581 @@
+/**
+ * SDD Analyze Requirements Tool - Clean SDD Implementation
+ * 🎯 PURPOSE: Analyze PRD/requirements and identify component seams for SDD implementation
+ * 🔄 PATTERN: Built from proven sdd-create-stub-tool.ts template
+ * 📅 CREATED: June 10, 2025 - Clean Rewrite
+ */
+
+import type {
+  ContractResult,
+  RequirementsAnalysisInput,
+  RequirementsAnalysisOutput,
+  SeamDefinition,
+  ComponentDefinition,
+  ToolDefinition,
+  ToolModuleContract,
+} from "../../contracts.js";
+
+import {
+  LegacyToolModernizationContract,
+  NotImplementedError,
+} from "../../contracts.js";
+
+// 🔗 SEAM IDENTIFICATION
+// 1. Tool Execution Seam: ToolRegistry → Tool Module
+// 2. Input Processing Seam: Raw PRD → Validated Requirements
+// 3. Analysis Seam: Requirements → Seam Definitions
+// 4. Output Generation Seam: Analysis Results → Structured Output
+
+/**
+ * 🎯 SDD Analyze Requirements Tool Implementation
+ * DESIGN PATTERN: ToolModuleContract + LegacyToolModernizationContract
+ * PURPOSE: Transform PRD text into structured seam definitions for SDD workflow
+ */
+export class SDDAnalyzeRequirementsTool
+  implements LegacyToolModernizationContract
+{
+  originalTool: string = "legacy-requirements-analyzer";
+  modernizedTool: string = "sdd-analyze-requirements-tool";
+  migrationNotes: string[] = [
+    "Modernized to use SDD patterns",
+    "Added ContractResult support",
+    "Clean implementation with seam-first approach",
+  ];
+  agentId: string = "SDD-Requirements-Analyzer-001";
+  version: string = "1.0.0";
+
+  // 🎯 ANALYSIS RESULTS STORAGE
+  private analysisResults: RequirementsAnalysisOutput | null = null;
+
+  // 🛡️ DEFENSIVE: Tool Information
+  getToolInfo() {
+    return {
+      name: "sdd_analyze_requirements",
+      version: this.version,
+      description:
+        "Analyze PRD/requirements and identify component seams for SDD implementation",
+      category: "analyzer" as const,
+      compatibilityLevel: "enhanced" as const,
+    };
+  }
+
+  // 🔒 INPUT VALIDATION: Basic validation
+  validateInput(input: unknown): ContractResult<boolean> {
+    try {
+      const analysisInput = input as RequirementsAnalysisInput;
+      if (!analysisInput.prdText || analysisInput.prdText.trim().length < 10) {
+        return {
+          success: false,
+          error:
+            "Missing or insufficient PRD text (minimum 10 characters required)",
+        };
+      }
+      return {
+        success: true,
+        data: true,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "validateInput",
+          timestamp: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Input validation failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "validateInput",
+          timestamp: new Date().toISOString(),
+          validationErrors: error,
+        },
+      };
+    }
+  }
+
+  // 🎯 CORE EXECUTION: Main tool logic
+  async execute(
+    input: unknown
+  ): Promise<ContractResult<RequirementsAnalysisOutput>> {
+    const startTime = Date.now();
+
+    try {
+      // 🛡️ DEFENSIVE: Validate input first
+      const validationResult = this.validateInput(input);
+      if (!validationResult.success) {
+        return {
+          success: false,
+          error: validationResult.error,
+          metadata: {
+            agentId: this.agentId,
+            seamName: "execute",
+            timestamp: new Date().toISOString(),
+            processingTimeMs: Date.now() - startTime,
+          },
+        };
+      }
+
+      const analysisInput = input as RequirementsAnalysisInput;      // 🔗 SEAM: Requirements Processing
+      const processedRequirements = await this.processRequirements(
+        analysisInput
+      );
+      if (!processedRequirements.success) {
+        return {
+          success: false,
+          error: processedRequirements.error,
+          metadata: processedRequirements.metadata,
+        };
+      }
+
+      // 🎯 RETURN ANALYSIS RESULTS: Use the stored results from processRequirements
+      if (!this.analysisResults) {
+        return {
+          success: false,
+          error: "Analysis results not available - processing may have failed",
+          metadata: {
+            agentId: this.agentId,
+            seamName: "execute",
+            timestamp: new Date().toISOString(),
+          },
+        };
+      }
+
+      return {
+        success: true,
+        data: this.analysisResults,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "execute",
+          timestamp: new Date().toISOString(),
+          processingTimeMs: Date.now() - startTime,
+        },
+      };
+        data: result,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "execute",
+          timestamp: new Date().toISOString(),
+          processingTimeMs: Date.now() - startTime,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Requirements analysis failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "execute",
+          timestamp: new Date().toISOString(),
+          processingTimeMs: Date.now() - startTime,
+          errorDetails: error,
+        },
+      };
+    }
+  }
+  // 🔗 SEAM IMPLEMENTATION: Requirements Processing
+  private async processRequirements(
+    analysisInput: RequirementsAnalysisInput
+  ): Promise<ContractResult<void>> {
+    try {
+      // 💰 HIGH_ROI: Advanced PRD analysis with pattern recognition
+      
+      // 1. Extract components using multiple strategies
+      const extractedComponents = this.extractComponents(analysisInput.prdText);
+        // 2. Identify seams and interactions
+      const identifiedSeams = await this.identifySeamsAdvanced(analysisInput.prdText, extractedComponents);
+      
+      // 3. Analyze architecture patterns
+      const architectureAnalysis = this.analyzeArchitecture(
+        analysisInput.prdText, 
+        extractedComponents, 
+        identifiedSeams,
+        analysisInput.analysisDepth || "detailed"
+      );
+      
+      // 4. Generate recommendations
+      const recommendations = this.generateRecommendations(
+        extractedComponents, 
+        identifiedSeams, 
+        architectureAnalysis,
+        analysisInput.focusAreas
+      );
+
+      // Store results for main execute method to use
+      this.analysisResults = {
+        components: extractedComponents,
+        seams: identifiedSeams,
+        architecture: {
+          overview: architectureAnalysis.overview,
+          keyPatterns: architectureAnalysis.patterns,
+          risks: architectureAnalysis.risks,
+          recommendations: recommendations
+        }
+      };
+
+      return {
+        success: true,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "processRequirements",
+          timestamp: new Date().toISOString(),
+          componentCount: extractedComponents.length,
+          seamCount: identifiedSeams.length
+        },
+      };
+    } catch (error) {
+      if (error instanceof NotImplementedError) {
+        throw error;
+      }
+      return {
+        success: false,
+        error: `Requirements processing failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "processRequirements",
+          timestamp: new Date().toISOString(),
+        },
+      };
+    }
+  }
+
+  // 🔗 SEAM IMPLEMENTATION: Seam Identification
+  private async identifySeams(
+    analysisInput: RequirementsAnalysisInput
+  ): Promise<
+    ContractResult<{
+      seamDefinitions: any[];
+      components: any[];
+      dataFlowMappings: any[];
+      implementationOrder: string[];
+    }>
+  > {
+    try {
+      // SDD-BLUEPRINT: Identify component seams from requirements
+      // TODO IMPLEMENTATION:
+      // 1. Extract component names and responsibilities
+      // 2. Identify data flows between components
+      // 3. Define seam boundaries and contracts
+      // 4. Generate implementation priority order
+
+      throw new NotImplementedError(
+        "SDDAnalyzeRequirementsTool.identifySeams",
+        "Blueprint: TODO: Extract components, identify data flows, define seam boundaries"
+      );
+    } catch (error) {
+      if (error instanceof NotImplementedError) {
+        throw error;
+      }
+      return {
+        success: false,
+        error: `Seam identification failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "identifySeams",
+          timestamp: new Date().toISOString(),
+        },
+      };
+    }
+  }
+
+  // 💰 HIGH_ROI: Component extraction with advanced pattern recognition
+  private extractComponents(prdText: string): ComponentDefinition[] {
+    const components: ComponentDefinition[] = [];
+    
+    // Pattern 1: Explicit component mentions (class, service, interface, module)
+    const componentPatterns = [
+      { pattern: /(?:class|component)\s+(\w+)/gi, type: 'component' },
+      { pattern: /(?:service|api)\s+(\w+)/gi, type: 'service' },
+      { pattern: /(?:interface|contract)\s+(\w+)/gi, type: 'interface' },
+      { pattern: /(?:module|package)\s+(\w+)/gi, type: 'module' },
+      { pattern: /(\w+)(?:Service|Manager|Controller|Handler|Processor)/gi, type: 'service' },
+      { pattern: /(\w+)(?:Component|Widget|View|Screen)/gi, type: 'component' }
+    ];
+
+    componentPatterns.forEach(({ pattern, type }) => {
+      const matches = [...prdText.matchAll(pattern)];
+      matches.forEach(match => {
+        const name = match[1];
+        if (!components.find(c => c.name === name)) {
+          components.push({
+            name,
+            type,
+            purpose: this.extractPurpose(prdText, name),
+            dependencies: this.extractDependencies(prdText, name)
+          });
+        }
+      });
+    });
+
+    // Pattern 2: Functional requirements to components
+    const functionalPatterns = [
+      /(?:user|system|application)\s+(?:can|should|must|will)\s+([^.!?]+)/gi,
+      /(?:the system|application)\s+(?:handles|manages|processes|provides)\s+([^.!?]+)/gi
+    ];
+
+    functionalPatterns.forEach(pattern => {
+      const matches = [...prdText.matchAll(pattern)];
+      matches.forEach(match => {
+        const functionality = match[1].trim();
+        const componentName = this.deriveComponentName(functionality);
+        if (componentName && !components.find(c => c.name === componentName)) {
+          components.push({
+            name: componentName,
+            type: 'component',
+            purpose: functionality,
+            dependencies: []
+          });
+        }
+      });
+    });
+
+    return components;
+  }
+
+  private extractPurpose(prdText: string, componentName: string): string {
+    const sentences = prdText.split(/[.!?]+/);
+    const relevantSentences = sentences.filter(sentence => 
+      sentence.toLowerCase().includes(componentName.toLowerCase())
+    );
+    return relevantSentences.slice(0, 2).join('. ').trim() || `Manages ${componentName} functionality`;
+  }
+
+  private extractDependencies(prdText: string, componentName: string): string[] {
+    const dependencies: string[] = [];
+    const dependencyPatterns = [
+      new RegExp(`${componentName}.*(?:uses?|calls?|depends on|requires?)\\s+(\\w+)`, 'gi'),
+      new RegExp(`(\\w+).*(?:provides?|sends? to|notifies?)\\s+${componentName}`, 'gi')
+    ];
+
+    dependencyPatterns.forEach(pattern => {
+      const matches = [...prdText.matchAll(pattern)];
+      matches.forEach(match => {
+        const dep = match[1];
+        if (dep && dep !== componentName && !dependencies.includes(dep)) {
+          dependencies.push(dep);
+        }
+      });
+    });
+
+    return dependencies;
+  }
+
+  private deriveComponentName(functionality: string): string | null {
+    // Extract key nouns/actions to create component names
+    const words = functionality.toLowerCase().split(/\s+/);
+    const keyWords = words.filter(word => 
+      word.length > 3 && 
+      !['the', 'and', 'with', 'for', 'from', 'that', 'this', 'will', 'can', 'should'].includes(word)
+    );
+    
+    if (keyWords.length > 0) {
+      const baseName = keyWords[0].charAt(0).toUpperCase() + keyWords[0].slice(1);
+      return baseName + 'Service';
+    }
+    return null;
+  }
+
+  // 🔗 ADVANCED: Seam identification with interaction analysis
+  private async identifySeamsAdvanced(prdText: string, components: ComponentDefinition[]): Promise<SeamDefinition[]> {
+    const seams: SeamDefinition[] = [];
+    
+    // Pattern 1: Explicit interactions
+    const interactionPatterns = [
+      /(\w+)\s+(?:calls?|invokes?|uses?|sends? to)\s+(\w+)/gi,
+      /(\w+)\s+(?:receives? from|gets? from|listens? to)\s+(\w+)/gi,
+      /(\w+)\s+and\s+(\w+)\s+(?:communicate|interact|exchange)/gi
+    ];
+
+    interactionPatterns.forEach(pattern => {
+      const matches = [...prdText.matchAll(pattern)];
+      matches.forEach(match => {
+        const [, source, target] = match;
+        const sourceComp = components.find(c => c.name.toLowerCase().includes(source.toLowerCase()));
+        const targetComp = components.find(c => c.name.toLowerCase().includes(target.toLowerCase()));
+        
+        if (sourceComp && targetComp && sourceComp !== targetComp) {
+          seams.push({
+            name: `${sourceComp.name}To${targetComp.name}`,
+            participants: [sourceComp.name, targetComp.name],
+            dataFlow: "OUT",
+            purpose: `Communication pathway between ${sourceComp.name} and ${targetComp.name}`,
+            description: this.extractInteractionDescription(prdText, sourceComp.name, targetComp.name)
+          });
+        }
+      });
+    });
+
+    // Pattern 2: Data flow analysis
+    for (let i = 0; i < components.length; i++) {
+      for (let j = i + 1; j < components.length; j++) {
+        const comp1 = components[i];
+        const comp2 = components[j];
+        
+        if (this.hasDataFlow(prdText, comp1.name, comp2.name)) {
+          seams.push({
+            name: `${comp1.name}${comp2.name}DataFlow`,
+            participants: [comp1.name, comp2.name],
+            dataFlow: "BOTH",
+            purpose: `Data exchange between ${comp1.name} and ${comp2.name}`,
+            description: this.extractDataFlowDescription(prdText, comp1.name, comp2.name)
+          });
+        }
+      }
+    }
+
+    return seams;
+  }
+
+  private extractInteractionDescription(prdText: string, comp1: string, comp2: string): string {
+    const sentences = prdText.split(/[.!?]+/);
+    const relevantSentences = sentences.filter(sentence => 
+      sentence.toLowerCase().includes(comp1.toLowerCase()) && 
+      sentence.toLowerCase().includes(comp2.toLowerCase())
+    );
+    return relevantSentences[0]?.trim() || `Interaction between ${comp1} and ${comp2}`;
+  }
+
+  private hasDataFlow(prdText: string, comp1: string, comp2: string): boolean {
+    const dataFlowPatterns = [
+      new RegExp(`${comp1}.*(?:data|information|message).*${comp2}`, 'i'),
+      new RegExp(`${comp2}.*(?:data|information|message).*${comp1}`, 'i'),
+      new RegExp(`${comp1}.*(?:shares?|exchanges?|transfers?).*${comp2}`, 'i')
+    ];
+    
+    return dataFlowPatterns.some(pattern => pattern.test(prdText));
+  }
+
+  private extractDataFlowDescription(prdText: string, comp1: string, comp2: string): string {
+    return `Data flow pathway between ${comp1} and ${comp2} for information exchange`;
+  }
+
+  // 🎯 ARCHITECTURE ANALYSIS: Comprehensive system analysis
+  private analyzeArchitecture(
+    prdText: string, 
+    components: ComponentDefinition[], 
+    seams: SeamDefinition[], 
+    depth: "basic" | "detailed" | "comprehensive"
+  ) {
+    const patterns = this.identifyArchitecturalPatterns(prdText, components);
+    const risks = this.identifyRisks(components, seams);
+    const overview = this.generateArchitectureOverview(components, seams, patterns);
+
+    return {
+      overview,
+      patterns,
+      risks,
+      complexity: {
+        componentCount: components.length,
+        seamCount: seams.length,
+        interactionComplexity: this.calculateComplexity(components, seams)
+      }
+    };
+  }
+
+  private identifyArchitecturalPatterns(prdText: string, components: ComponentDefinition[]): string[] {
+    const patterns: string[] = [];
+    
+    // Pattern detection
+    if (components.some(c => c.type === 'service')) patterns.push('Service-Oriented Architecture');
+    if (prdText.includes('microservice')) patterns.push('Microservices');
+    if (prdText.includes('layer') || prdText.includes('tier')) patterns.push('Layered Architecture');
+    if (components.length > 8) patterns.push('Modular Architecture');
+    if (prdText.includes('event') || prdText.includes('message')) patterns.push('Event-Driven Architecture');
+    
+    return patterns;
+  }
+
+  private identifyRisks(components: ComponentDefinition[], seams: SeamDefinition[]): string[] {
+    const risks: string[] = [];
+    
+    if (components.length > 15) risks.push('High component complexity - consider modularization');
+    if (seams.length > components.length * 2) risks.push('High interconnection complexity - potential coupling issues');
+    if (seams.length === 0) risks.push('No component interactions identified - verify requirements completeness');
+    
+    return risks;
+  }
+
+  private generateArchitectureOverview(
+    components: ComponentDefinition[], 
+    seams: SeamDefinition[], 
+    patterns: string[]
+  ): string {
+    return `System architecture with ${components.length} components and ${seams.length} seams. ` +
+           `Identified patterns: ${patterns.join(', ') || 'None detected'}. ` +
+           `Complexity level: ${this.getComplexityLevel(components.length, seams.length)}.`;
+  }
+
+  private calculateComplexity(components: ComponentDefinition[], seams: SeamDefinition[]): number {
+    return components.length + (seams.length * 1.5);
+  }
+
+  private getComplexityLevel(componentCount: number, seamCount: number): string {
+    const total = componentCount + seamCount;
+    if (total < 5) return 'Low';
+    if (total < 15) return 'Medium';
+    return 'High';
+  }
+
+  // 🚀 RECOMMENDATIONS ENGINE
+  private generateRecommendations(
+    components: ComponentDefinition[], 
+    seams: SeamDefinition[], 
+    architecture: any,
+    focusAreas?: string[]
+  ): string[] {
+    const recommendations: string[] = [];
+    
+    // General recommendations
+    if (components.length > 10) {
+      recommendations.push('Consider breaking down into smaller, focused modules');
+    }
+    
+    if (seams.length < components.length * 0.5) {
+      recommendations.push('Low seam count detected - verify component interactions are captured');
+    }
+    
+    // Focus area specific recommendations
+    if (focusAreas?.includes('data_flows')) {
+      recommendations.push('Implement data flow validation and monitoring');
+    }
+    
+    if (focusAreas?.includes('dependencies')) {
+      recommendations.push('Create dependency injection framework for loose coupling');
+    }
+    
+    if (architecture.complexity.interactionComplexity > 20) {
+      recommendations.push('High interaction complexity - consider facade or mediator patterns');
+    }
+    
+    return recommendations;
+  }
+
+  // ...existing code...
+}
+
+// 🔌 TOOL MODULE CONTRACT EXPORT
+export const TOOL_MODULE_CONTRACT: ToolModuleContract = {
+  toolDefinition: {
+    name: "sdd_analyze_requirements",
+    description: "Analyze PRD/requirements and identify all component seams for SDD implementation",
+    inputSchema: "RequirementsAnalysisInput",
+    outputSchema: "RequirementsAnalysisOutput"
+  },
+  execute: async (
+    args: unknown
+  ): Promise<ContractResult<RequirementsAnalysisOutput>> => {
+    const tool = new SDDAnalyzeRequirementsTool();
+    return await tool.execute(args);
+  },
+};
+
+// 🔄 BACKWARD COMPATIBILITY EXPORTS
+export default TOOL_MODULE_CONTRACT;
+export const sddAnalyzeRequirementsTool = new SDDAnalyzeRequirementsTool();

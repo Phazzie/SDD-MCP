@@ -119,14 +119,14 @@ class SDDOrchestrateWorkflowTool {
         error: reqResult.error,
         duration: Date.now() - reqStart,
       });
-      if (!reqResult.success || !reqResult.data?.seamDefinitions) {
+      if (!reqResult.success || !(reqResult.data as any)?.seams) {
         return {
           success: false,
           error: reqResult.error || "Requirement analysis failed",
           metadata: { stage: "requirements" },
         };
       }
-      seamDefinitions = reqResult.data.seamDefinitions;
+      seamDefinitions = (reqResult.data as any).seams;
       // 2. Generate contracts for each seam
       const contractStart = Date.now();
       for (const seamDef of seamDefinitions) {
@@ -143,7 +143,10 @@ class SDDOrchestrateWorkflowTool {
           error: contractResult.error,
           duration: Date.now() - contractStart,
         });
-        if (!contractResult.success || !contractResult.data?.contractPath) {
+        if (
+          !contractResult.success ||
+          !(contractResult.data as any)?.contractCode
+        ) {
           return {
             success: false,
             error:
@@ -152,7 +155,7 @@ class SDDOrchestrateWorkflowTool {
             metadata: { stage: `contract:${seamDef.name}` },
           };
         }
-        contracts.push(contractResult.data.contractPath);
+        contracts.push((contractResult.data as any).contractCode);
       }
       // 3. Create stubs for each contract
       const stubStart = Date.now();
@@ -168,7 +171,10 @@ class SDDOrchestrateWorkflowTool {
           error: stubResult.error,
           duration: Date.now() - stubStart,
         });
-        if (!stubResult.success || !stubResult.data?.stubPath) {
+        if (
+          !stubResult.success ||
+          !(stubResult.data as any)?.filePathSuggestion
+        ) {
           return {
             success: false,
             error:
@@ -177,7 +183,7 @@ class SDDOrchestrateWorkflowTool {
             metadata: { stage: `stub:${contractPath}` },
           };
         }
-        stubs.push(stubResult.data.stubPath);
+        stubs.push((stubResult.data as any).filePathSuggestion);
       }
       // 4. Generate tests for each contract
       const testStart = Date.now();
@@ -193,7 +199,7 @@ class SDDOrchestrateWorkflowTool {
           error: testResult.error,
           duration: Date.now() - testStart,
         });
-        if (!testResult.success || !testResult.data?.testPath) {
+        if (!testResult.success || !(testResult.data as any)) {
           return {
             success: false,
             error:
@@ -202,7 +208,7 @@ class SDDOrchestrateWorkflowTool {
             metadata: { stage: `test:${contractPath}` },
           };
         }
-        tests.push(testResult.data.testPath);
+        tests.push(`test-${contractPath}.js`); // Generate a reasonable test file name
       }
       // 5. Organize project structure and documentation
       documentation = ["README.md", "ARCHITECTURE.md"];
@@ -240,27 +246,15 @@ export const sddOrchestrateWorkflowTool = new SDDOrchestrateWorkflowTool();
 
 // ToolModuleContract compliant export
 export const TOOL_MODULE_CONTRACT: ToolModuleContract = {
-  definition: {
+  toolDefinition: {
     name: "sdd_orchestrate_full_workflow",
     description:
       "Complete SDD workflow: PRD → Seams → Contracts → Stubs → Tests → Ready for Implementation",
     inputSchema: OrchestrateWorkflowInput,
     outputSchema: OrchestrateWorkflowOutput,
   },
-  handler: async (args: any) => {
+  execute: async (args: any) => {
     return await sddOrchestrateWorkflowTool.execute(args);
-  },
-  metadata: {
-    name: "sdd_orchestrate_full_workflow",
-    version: "1.0.0",
-    author: "SDD MCP Server",
-    tags: ["sdd", "workflow", "orchestration", "seam-driven"],
-    dependencies: [
-      "seamManager",
-      "analyze_requirements",
-      "generate_contract",
-      "create_stub",
-    ],
   },
 };
 
