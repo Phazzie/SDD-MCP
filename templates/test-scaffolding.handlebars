@@ -1,0 +1,235 @@
+{{!-- 
+PURPOSE: Generate comprehensive Vitest unit test files for SDD agents with full mock setup
+DATA FLOW: AgentContract → TestContext → Vitest test file with describe/it blocks
+INTEGRATION POINTS: Vitest, vi mocking, ContractResult<T>, NotImplementedError
+FAILURE MODES: Missing mock setup, invalid test context, dependency resolution errors
+RATIONALE: Automated test generation ensures consistent SDD compliance and coverage
+EXAMPLES: OrderProcessorAgent → complete test suite with seam mocks
+CONTRACT VERSION: 1.0.0
+--}}
+// {{testFileName}}
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { {{agentClassName}} } from '{{agentImportPath}}.js';
+{{#if seamManagerImportPath}}
+import { {{seamManagerClassName}} } from '{{seamManagerImportPath}}.js';
+{{else}}
+// Generic SeamManager mock structure
+const mockSeamManager = {
+  executeSeam: vi.fn(),
+  registerAgent: vi.fn(),
+  // Add other SeamManager methods if they are directly used by the agent under test
+};
+vi.mock('{{fallbackSeamManagerPathForMock}}', () => ({
+  SeamManager: vi.fn(() => mockSeamManager)
+}));
+{{/if}}
+{{#each contractDependencies}}
+import type { {{this.types}} } from '{{this.path}}.js';
+{{/each}}
+{{#each otherDependenciesToMock}}
+// Mock for {{this.exportName}}
+vi.mock('{{this.path}}.js', () => {
+  const actual = vi.importActual('{{this.path}}.js');
+  return {
+    ...actual,
+    {{this.exportName}}: vi.fn{{#if this.isClass}}(() => ({{{this.mockImplementation}}})){{else}}({{{this.mockImplementation}}}){{/if}},
+  };
+});
+{{/each}}
+import type { ContractResult } from '{{contractResultImportPath}}';
+import { NotImplementedError } from '{{notImplementedErrorImportPath}}';
+
+describe('{{agentClassName}} Unit Tests', () => {
+  let agent: {{agentClassName}};
+  {{#if seamManagerClassName}}
+  let mockSeamManagerInstance: vi.Mocked<{{seamManagerClassName}}>;
+  {{else}}
+  // Using generic mockSeamManager defined above
+  {{/if}}
+  {{#each directDependenciesToMock}}
+  let mock{{this.typeName}}: vi.Mocked<{{this.typeName}}>;
+  {{/each}}
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+
+    {{#if seamManagerClassName}}
+    mockSeamManagerInstance = {
+      executeSeam: vi.fn(),
+      registerAgent: vi.fn(),
+      // Additional SeamManager methods as needed
+    } as unknown as vi.Mocked<{{seamManagerClassName}}>;
+    {{else}}
+    mockSeamManager.executeSeam.mockClear();
+    mockSeamManager.registerAgent.mockClear();
+    {{/if}}
+
+    {{#each directDependenciesToMock}}
+    mock{{this.typeName}} = {
+      {{#each this.methodsToMock}}
+      {{this.name}}: vi.fn(),
+      {{/each}}
+    } as unknown as vi.Mocked<{{this.typeName}}>;
+    {{/each}}
+    
+    // Instantiate agent with mocked dependencies
+    agent = new {{agentClassName}}(
+      {{#if seamManagerClassName}}mockSeamManagerInstance{{else}}mockSeamManager{{/if}}
+      {{#each directDependenciesToMock}}
+      , mock{{this.typeName}}
+      {{/each}}
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should have a valid agentId', () => {
+    expect(agent.agentId).toBe('{{expectedAgentId}}');
+  });
+
+  {{#each methods}}
+  describe('{{this.name}}()', () => {
+    {{#if this.isImplemented}}
+    
+    // Test Case 1: Happy Path
+    it('should {{this.happyPathDescription}}', async () => {
+      // Arrange
+      const validInput: {{this.inputTypeName}} = {{{this.happyPathInputExample}}};
+      const expectedOutputData: {{this.outputTypeName}} = {{{this.happyPathOutputExample}}};
+      const expectedAgentId = agent.agentId;
+
+      {{#each this.mockSetupsHappyPath}}
+      // Mock for {{this.dependencyName}}.{{this.methodName}}
+      {{#if this.isSeamManagerCall}}
+      {{#if ../../seamManagerClassName}}mockSeamManagerInstance{{else}}mockSeamManager{{/if}}.executeSeam
+        .calledWith('{{this.seamTarget}}', '{{this.methodName}}', expect.anything())
+        .mockResolvedValueOnce({ success: true, data: {{{this.mockReturnValue}}}, agentId: 'mocked-{{this.seamTarget}}' });
+      {{else}}
+      mock{{this.dependencyName}}.{{this.methodName}}.mockResolvedValueOnce({{{this.mockReturnValue}}});
+      {{/if}}
+      {{/each}}
+
+      // Act
+      const result: ContractResult<{{this.outputTypeName}}> = await agent.{{this.name}}(validInput);
+
+      // Assert
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data).toEqual(expectedOutputData);
+      }
+      expect(result.agentId).toBe(expectedAgentId);
+      
+      {{#each this.mockVerificationsHappyPath}}
+      // Verify mock for {{this.dependencyName}}.{{this.methodName}} was called
+      {{#if this.isSeamManagerCall}}
+      expect({{#if ../../seamManagerClassName}}mockSeamManagerInstance{{else}}mockSeamManager{{/if}}.executeSeam).toHaveBeenCalledWith(
+        '{{this.seamTarget}}', 
+        '{{this.methodName}}', 
+        {{{this.expectedPayload}}}
+      );
+      {{else}}
+      expect(mock{{this.dependencyName}}.{{this.methodName}}).toHaveBeenCalledWith({{{this.expectedPayload}}});
+      {{/if}}
+      {{/each}}
+    });
+
+    // Test Case 2: Input Validation Failures
+    {{#each this.inputValidationTests}}
+    it('should return failure for invalid input: {{this.description}}', async () => {
+      // Arrange
+      const invalidInput: {{../this.inputTypeName}} = {{{this.inputExample}}};
+      const expectedErrorMessage = "{{this.expectedErrorMessage}}";
+      const expectedAgentId = agent.agentId;
+
+      // Act
+      const result = await agent.{{../this.name}}(invalidInput as {{../this.inputTypeName}});
+
+      // Assert
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain(expectedErrorMessage);
+      }
+      expect(result.agentId).toBe(expectedAgentId);
+    });
+    {{/each}}    {{#unless this.inputValidationTests.length}}
+    it('should return failure for basic invalid input (null/undefined)', async () => {
+      // Act
+      const result = await agent.{{this.name}}(null as any);
+      
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();      expect(result.agentId).toBe(agent.agentId);
+    });
+    {{/unless}}
+
+    // Test Case 3: Downstream Dependency Failures
+    {{#each this.dependencyFailureTests}}
+    it('should handle failure from {{this.dependencyDescription}}', async () => {
+      // Arrange
+      const validInput: {{../../this.inputTypeName}} = {{{../../this.happyPathInputExample}}};
+      const dependencyErrorMessage = "{{this.dependencyErrorMessage}}";
+      
+      {{#if this.isSeamManagerCall}}
+      {{#if ../../../seamManagerClassName}}mockSeamManagerInstance{{else}}mockSeamManager{{/if}}.executeSeam
+        .calledWith('{{this.seamTarget}}', '{{this.methodName}}', expect.anything())
+        .mockResolvedValueOnce({ success: false, error: dependencyErrorMessage, agentId: 'mocked-{{this.seamTarget}}-fail' });
+      {{else}}
+      mock{{this.dependencyName}}.{{this.methodName}}.mockRejectedValueOnce(new Error(dependencyErrorMessage));
+      {{/if}}
+
+      // Act
+      const result = await agent.{{../../this.name}}(validInput);
+
+      // Assert
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain("{{this.expectedWrappedErrorMessagePrefix}}");
+      }
+      expect(result.agentId).toBe(agent.agentId);
+    });
+    {{/each}}
+
+    // Test Case 4: Specific Failure Modes from Blueprint
+    {{#each this.failureModeTests}}
+    it('should handle failure mode: "{{this.description}}"', async () => {
+      // TODO: Implement test for failure mode "{{this.description}}"
+      // Expected error: {{this.expectedErrorMessage}}
+      throw new Error('Test case for failure mode "{{this.description}}" not fully implemented.');
+    });
+    {{/each}}
+
+    {{#unless this.isVoidOutput}}
+    // Test Case 5: Business Logic Validation
+    it('should correctly process data and apply business rules', async () => {
+      // TODO: Implement detailed business logic test for {{this.name}}
+      throw new Error('Detailed business logic test for "{{this.name}}" not fully implemented.');
+    });
+    {{/unless}}
+
+    {{else}}
+    // Method is not yet implemented - test for NotImplementedError
+    it('should throw NotImplementedError if business logic is not implemented', async () => {
+      // Arrange
+      const validInput: {{this.inputTypeName}} = {{{this.happyPathInputExample}}};
+
+      // Act & Assert
+      await expect(agent.{{this.name}}(validInput))
+        .rejects.toThrow(NotImplementedError);
+      
+      // Verify NotImplementedError message
+      try {
+        await agent.{{this.name}}(validInput);
+      } catch (e) {
+        if (e instanceof NotImplementedError) {
+          expect(e.message).toContain("{{../../agentClassName}}.{{this.name}}");
+          expect(e.message).toContain("{{this.blueprint.purpose}}");
+        }
+      }
+    });
+    {{/if}}
+  });
+  {{/each}}
+});

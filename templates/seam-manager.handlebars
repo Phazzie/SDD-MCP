@@ -1,0 +1,338 @@
+// {{seamManagerFileName}}.ts
+/**
+ * PURPOSE: Orchestrates communication between different agents (seams) in the system.
+ * DATA FLOW: BOTH - Manages requests to and responses from various agents.
+ * INTEGRATION POINTS: All registered agents, OrchestratorAgent.
+ * FAILURE MODES: Agent not found, Agent execution error, Health check failure, Circuit breaker open.
+ * RATIONALE: Centralizes seam management, routing, and resilience patterns like circuit breakers.
+ * EXAMPLES: `seamManager.executeSeam('UserManagementAgent', 'authenticateUser', { email, password })`
+ * CONTRACT VERSION: 1.0.0
+ */
+
+import { ContractResult } from '{{contractResultImportPath}}';
+import { NotImplementedError } from '{{notImplementedErrorImportPath}}';
+{{#if baseAgentInterfaceImportPath}}
+import { {{baseAgentInterfaceName}} } from '{{baseAgentInterfaceImportPath}}';
+{{else}}
+// Define a basic Agent interface if not provided
+interface {{baseAgentInterfaceName}} {
+  agentId: string;
+  healthCheck(): Promise<ContractResult<{ status: string; details?: any }>>;
+  [methodName: string]: (...args: any[]) => Promise<ContractResult<any>>;
+}
+{{/if}}
+
+{{#each agentsToImport}}
+import { {{this.componentName}} } from '{{this.importPath}}.js';
+{{/each}}
+
+// Consider using a proper logger library like Winston or Pino
+const logger = {
+  info: (message: string, ...args: any[]) => console.log(`[INFO] ${message}`, ...args),
+  error: (message: string, ...args: any[]) => console.error(`[ERROR] ${message}`, ...args),
+  warn: (message: string, ...args: any[]) => console.warn(`[WARN] ${message}`, ...args),
+};
+
+{{#if useCircuitBreaker}}
+interface CircuitBreakerState {
+  isOpen: boolean;
+  lastFailure?: Date;
+  failureCount: number;
+  successCount: number;
+  nextAttempt?: Date;
+}
+{{/if}}
+
+export class {{seamManagerClassName}} {
+  private agents: Map<string, {{baseAgentInterfaceName}}> = new Map();
+  public readonly agentId: string = '{{agentId}}';
+
+  {{#if useCircuitBreaker}}
+  private circuitBreakerStates: Map<string, CircuitBreakerState> = new Map();
+  private readonly CB_ERROR_THRESHOLD_PERCENTAGE = {{circuitBreakerConfig.errorThresholdPercentage}};
+  private readonly CB_RESET_TIMEOUT_MS = {{circuitBreakerConfig.resetTimeoutMs}};
+  private readonly CB_MIN_REQUESTS_FOR_EVAL = {{circuitBreakerConfig.minRequestsForEval}};
+  private readonly CB_OPEN_STATE_TIMEOUT_MS = {{circuitBreakerConfig.openStateTimeoutMs}};
+  {{/if}}
+
+  /**
+   * PURPOSE: Initializes the SeamManager, optionally pre-registering agents.
+   * DATA FLOW: N/A
+   * INTEGRATION POINTS: System startup.
+   * FAILURE MODES: None directly, but agent instantiation might fail.
+   * RATIONALE: Constructor for the SeamManager.
+   * EXAMPLES: `new {{seamManagerClassName}}()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  constructor({{#if agentsToRegisterAtConstruction.length}}
+    {{#each agentsToRegisterAtConstruction}}
+    {{this.camelCaseName}}Instance?: {{this.componentName}}{{#unless @last}},{{/unless}}
+    {{/each}}
+  {{/if}}) {
+    logger.info(`{{seamManagerClassName}} initialized. Agent ID: ${this.agentId}`);
+    {{#each agentsToRegisterAtConstruction}}
+    if ({{this.camelCaseName}}Instance) {
+      this.registerAgent('{{this.componentName}}', {{this.camelCaseName}}Instance);
+    }
+    {{/each}}
+    // 🛡️ DEFENSIVE: Initialize with any default agents or configurations here.
+  }
+
+  /**
+   * PURPOSE: Registers an agent instance with the SeamManager.
+   * DATA FLOW: IN - Agent instance and its designated name.
+   * INTEGRATION POINTS: System startup, Dynamic agent loading.
+   * FAILURE MODES: Agent name already registered.
+   * RATIONALE: Allows agents to be discoverable and manageable.
+   * EXAMPLES: `seamManager.registerAgent('UserManagementAgent', new UserManagementAgent())`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public registerAgent(seamName: string, agentInstance: {{baseAgentInterfaceName}}): ContractResult<void> {
+    if (this.agents.has(seamName)) {
+      const errorMsg = `Agent with name "${seamName}" is already registered.`;
+      logger.error(errorMsg);
+      return { success: false, error: errorMsg, agentId: this.agentId };
+    }
+    this.agents.set(seamName, agentInstance);
+    {{#if useCircuitBreaker}}
+    this.circuitBreakerStates.set(seamName, { isOpen: false, failureCount: 0, successCount: 0 });
+    {{/if}}
+    logger.info(`Agent "${seamName}" (ID: ${agentInstance.agentId}) registered successfully.`);
+    return { success: true, agentId: this.agentId };
+  }
+
+  /**
+   * PURPOSE: Executes a specific method on a registered agent.
+   * DATA FLOW: BOTH - Takes a request, routes it to an agent, and returns the agent's ContractResult.
+   * INTEGRATION POINTS: OrchestratorAgent, any component needing to interact with a seam.
+   * FAILURE MODES: Agent not found, Method not found on agent, Agent execution error, Circuit breaker open.
+   * RATIONALE: Core method for seam interaction.
+   * EXAMPLES: `await seamManager.executeSeam<AuthToken>('UserAuthAgent', 'authenticate', { user: 'test', pass: 'pw' })`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async executeSeam<TResponseData, TRequestData = any>(
+    seamName: string,
+    methodName: string,
+    requestPayload: TRequestData
+  ): Promise<ContractResult<TResponseData>> {
+    logger.info(`Executing seam: "${seamName}", method: "${methodName}"`, { payload: requestPayload });
+
+    const agent = this.agents.get(seamName);
+    if (!agent) {
+      const errorMsg = `Agent "${seamName}" not found.`;
+      logger.error(errorMsg);
+      return { success: false, error: errorMsg, agentId: this.agentId };
+    }
+
+    if (typeof (agent as any)[methodName] !== 'function') {
+      const errorMsg = `Method "${methodName}" not found on agent "${seamName}".`;
+      logger.error(errorMsg);
+      return { success: false, error: errorMsg, agentId: this.agentId };
+    }
+
+    {{#if useCircuitBreaker}}
+    const cbState = this.circuitBreakerStates.get(seamName);
+    if (cbState?.isOpen) {
+      if (cbState.nextAttempt && new Date() < cbState.nextAttempt) {
+        const errorMsg = `Circuit breaker for "${seamName}" is open. Try again later.`;
+        logger.warn(errorMsg);
+        return { success: false, error: errorMsg, agentId: this.agentId, metadata: { circuitBreaker: 'open' } };
+      }
+      logger.warn(`Circuit breaker for "${seamName}" is in half-open state. Attempting one call.`);
+    }
+    {{/if}}
+
+    try {
+      // 🔨 HARD_WORK: Delegate to the actual agent method.
+      const result: ContractResult<TResponseData> = await (agent as any)[methodName](requestPayload);
+      
+      {{#if useCircuitBreaker}}
+      this.recordCallMetrics(seamName, result.success);
+      if (!result.success && cbState?.isOpen) {
+         cbState.nextAttempt = new Date(Date.now() + this.CB_OPEN_STATE_TIMEOUT_MS);
+      }
+      {{/if}}
+
+      if (!result.success) {
+        logger.error(`Seam "${seamName}" method "${methodName}" execution failed: ${result.error}`, { agentId: result.agentId });
+      } else {
+        logger.info(`Seam "${seamName}" method "${methodName}" executed successfully.`, { agentId: result.agentId });
+      }
+      return result;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Critical error executing seam "${seamName}" method "${methodName}": ${errorMessage}`, { stack: (error as Error)?.stack });
+      
+      {{#if useCircuitBreaker}}
+      this.recordCallMetrics(seamName, false);
+      {{/if}}
+      
+      return {
+        success: false,
+        error: `SeamManager critical failure: ${errorMessage}`,
+        agentId: this.agentId,
+        metadata: { originalError: errorMessage }
+      };
+    }
+  }
+
+  {{#if useCircuitBreaker}}
+  /**
+   * PURPOSE: Records call metrics for circuit breaker logic.
+   * DATA FLOW: IN - Seam name and success status.
+   * INTEGRATION POINTS: `executeSeam` method.
+   * FAILURE MODES: None.
+   * RATIONALE: Internal helper for circuit breaker state management.
+   * EXAMPLES: N/A (internal)
+   * CONTRACT VERSION: 1.0.0
+   */
+  private recordCallMetrics(seamName: string, success: boolean): void {
+    const state = this.circuitBreakerStates.get(seamName);
+    if (!state) return;
+
+    if (success) {
+      state.successCount++;
+      if (state.isOpen) {
+        logger.info(`Circuit breaker for "${seamName}" is now closed due to successful half-open call.`);
+        state.isOpen = false;
+        state.failureCount = 0;
+        state.successCount = 0;
+        delete state.nextAttempt;
+      }
+    } else {
+      state.failureCount++;
+    }
+
+    if (!state.isOpen && (state.failureCount + state.successCount >= this.CB_MIN_REQUESTS_FOR_EVAL)) {
+      const errorRate = (state.failureCount / (state.failureCount + state.successCount)) * 100;
+      if (errorRate >= this.CB_ERROR_THRESHOLD_PERCENTAGE) {
+        logger.warn(`Circuit breaker for "${seamName}" is now open due to high error rate (${errorRate.toFixed(2)}%).`);
+        state.isOpen = true;
+        state.lastFailure = new Date();
+        state.nextAttempt = new Date(Date.now() + this.CB_OPEN_STATE_TIMEOUT_MS);
+        state.failureCount = 0;
+        state.successCount = 0;
+      }
+    }
+  }
+  {{/if}}
+
+  /**
+   * PURPOSE: Performs a health check on a specific registered agent.
+   * DATA FLOW: OUT - Returns the health status of the agent.
+   * INTEGRATION POINTS: Monitoring systems, OrchestratorAgent.
+   * FAILURE MODES: Agent not found, Agent health check fails.
+   * RATIONALE: Allows monitoring the health of individual seams.
+   * EXAMPLES: `await seamManager.checkSeamHealth('UserAuthAgent')`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async checkSeamHealth(seamName: string): Promise<ContractResult<{ status: string; details?: any; agentIdReported: string }>> {
+    const agent = this.agents.get(seamName);
+    if (!agent) {
+      return { success: false, error: `Agent "${seamName}" not found.`, agentId: this.agentId };
+    }
+    try {
+      if (typeof agent.healthCheck !== 'function') {
+        return { success: false, error: `Agent "${seamName}" does not implement healthCheck method.`, agentId: this.agentId };
+      }
+      const healthResult = await agent.healthCheck();
+      return {
+        success: healthResult.success,
+        data: { ...(healthResult.data || {status: 'unknown'}), agentIdReported: healthResult.agentId },
+        error: healthResult.error,
+        agentId: this.agentId,
+        metadata: { checkedAgentId: agent.agentId }
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Error during health check for "${seamName}": ${errorMessage}`);
+      return { success: false, error: `Health check for "${seamName}" failed: ${errorMessage}`, agentId: this.agentId };
+    }
+  }
+
+  /**
+   * PURPOSE: Aggregates health checks from all registered agents.
+   * DATA FLOW: OUT - Returns a summary of health statuses for all seams.
+   * INTEGRATION POINTS: Monitoring systems, System status dashboards.
+   * FAILURE MODES: One or more agents report unhealthy.
+   * RATIONALE: Provides an overview of the system's seam health.
+   * EXAMPLES: `await seamManager.checkAllSeams()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async checkAllSeams(): Promise<ContractResult<Record<string, { status: string; details?: any; error?: string; agentIdReported?: string }>>> {
+    const allHealthStatus: Record<string, { status: string; details?: any; error?: string; agentIdReported?: string }> = {};
+    let overallSuccess = true;
+
+    if (this.agents.size === 0) {
+      return {
+        success: true,
+        data: { message: "No agents registered to check." },
+        agentId: this.agentId
+      };
+    }
+
+    for (const [seamName, agent] of this.agents) {
+      if (typeof agent.healthCheck !== 'function') {
+        allHealthStatus[seamName] = { status: 'unhealthy', error: 'Agent does not implement healthCheck method.' };
+        overallSuccess = false;
+        continue;
+      }
+      const healthResult = await this.checkSeamHealth(seamName);
+      if (healthResult.success && healthResult.data) {
+        allHealthStatus[seamName] = { 
+          status: healthResult.data.status, 
+          details: healthResult.data.details,
+          agentIdReported: healthResult.data.agentIdReported
+        };
+      } else {
+        allHealthStatus[seamName] = { status: 'unhealthy', error: healthResult.error || 'Unknown error' };
+        overallSuccess = false;
+      }
+    }
+
+    logger.info('Overall seam health check completed.', { overallSuccess, statuses: allHealthStatus });
+    return {
+      success: overallSuccess,
+      data: allHealthStatus,
+      agentId: this.agentId,
+      error: overallSuccess ? undefined : 'One or more seams reported unhealthy.'
+    };
+  }
+
+  /**
+   * PURPOSE: Provides a list of all registered agent names.
+   * DATA FLOW: OUT
+   * INTEGRATION POINTS: Orchestrator, Debugging tools.
+   * FAILURE MODES: None.
+   * RATIONALE: Useful for discovery and diagnostics.
+   * EXAMPLES: `seamManager.getRegisteredSeamNames()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public getRegisteredSeamNames(): ContractResult<string[]> {
+    return {
+      success: true,
+      data: Array.from(this.agents.keys()),
+      agentId: this.agentId
+    };
+  }
+
+  /**
+   * PURPOSE: Placeholder for graceful shutdown logic.
+   * DATA FLOW: N/A
+   * INTEGRATION POINTS: Application lifecycle management.
+   * FAILURE MODES: Agent shutdown errors.
+   * RATIONALE: Ensures clean termination of seam communications.
+   * EXAMPLES: `await seamManager.shutdown()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async shutdown(): Promise<ContractResult<void>> {
+    logger.info('Shutting down SeamManager...');
+    // 🔨 HARD_WORK: Implement logic to gracefully shut down agents if needed
+    this.agents.clear();
+    {{#if useCircuitBreaker}}
+    this.circuitBreakerStates.clear();
+    {{/if}}
+    logger.info('SeamManager shut down successfully.');
+    return { success: true, agentId: this.agentId };
+  }
+}

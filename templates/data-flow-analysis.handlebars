@@ -1,0 +1,512 @@
+# 🌊 Data Flow Analysis Report
+**Generated: {{timestamp}}**  
+**Project: {{projectName}}**  
+**Analysis Scope: {{analysisScope}}**
+
+---
+
+## 📊 Data Flow Overview
+
+{{#if dataFlowSummary}}
+### System-Wide Data Movement
+
+- **Total Data Flows**: {{dataFlowSummary.totalFlows}}
+- **Active Transformations**: {{dataFlowSummary.activeTransformations}}
+- **Data Sources**: {{dataFlowSummary.dataSources}}
+- **Data Sinks**: {{dataFlowSummary.dataSinks}}
+- **Transformation Points**: {{dataFlowSummary.transformationPoints}}
+- **Validation Gates**: {{dataFlowSummary.validationGates}}
+{{else}}
+### 🎯 Data Flow Discovery Mode
+
+No data flows identified yet. This template will help you:
+1. Map data transformation chains
+2. Identify bottlenecks and failure points
+3. Design seam contracts for data processing
+4. Optimize performance-critical paths
+{{/if}}
+
+---
+
+## 🔄 Primary Data Transformation Chains
+
+{{#if transformationChains}}
+{{#each transformationChains}}
+### {{this.name}} Chain
+**Priority**: {{this.priority}} | **Complexity**: {{this.complexity}}/10 | **Performance Impact**: {{this.performanceImpact}}
+
+#### Data Flow Diagram
+```
+{{#each this.steps}}
+[{{this.source}}] --{{this.operation}}--> [{{this.target}}]
+  📥 Input: {{this.inputType}}
+  🔄 Transform: {{this.transformation}}
+  📤 Output: {{this.outputType}}
+  ⚡ Latency: {{this.expectedLatency}}ms
+  {{#if this.validation}}
+  ✅ Validation: {{this.validation}}
+  {{/if}}
+  {{#if this.errorHandling}}
+  🛡️ Error Handling: {{this.errorHandling}}
+  {{/if}}
+
+{{/each}}
+```
+
+#### Contract Integration
+```typescript
+interface {{pascalCase this.name}}Contract {
+  {{#each this.contractMethods}}
+  {{this.name}}(input: {{this.inputType}}): Promise<ContractResult<{{this.outputType}}>>;
+  {{/each}}
+}
+
+type {{pascalCase this.name}}Data = {
+  {{#each this.dataStructure}}
+  {{this.field}}: {{this.type}}; // {{this.description}}
+  {{/each}}
+};
+```
+
+#### Seam Manager Integration
+```typescript
+// {{this.name}} Chain Implementation
+const {{camelCase this.name}}Result = await seamManager.executeSeam(
+  "{{this.seamName}}", 
+  { 
+    data: inputData,
+    options: {
+      timeout: {{this.timeout}},
+      retryCount: {{this.retryCount}},
+      validateInput: {{this.validateInput}}
+    }
+  }
+);
+```
+
+#### Performance Metrics
+- **Expected Throughput**: {{this.expectedThroughput}} operations/sec
+- **Memory Usage**: {{this.memoryUsage}}
+- **CPU Impact**: {{this.cpuImpact}}
+- **I/O Requirements**: {{this.ioRequirements}}
+
+#### Risk Assessment
+{{#each this.risks}}
+- **{{this.type}}**: {{this.description}} ({{this.severity}})
+  - Mitigation: {{this.mitigation}}
+{{/each}}
+
+---
+{{/each}}
+{{else}}
+### 🎯 Data Flow Template Structure
+
+To populate this analysis, define your data transformation chains like this:
+
+```javascript
+const transformationChains = [
+  {
+    name: "UserInputProcessing",
+    priority: "HIGH",
+    complexity: 7,
+    performanceImpact: "MEDIUM",
+    steps: [
+      {
+        source: "WebUI",
+        target: "ValidationEngine", 
+        operation: "validate",
+        inputType: "UserRequest",
+        outputType: "ValidatedRequest",
+        transformation: "Schema validation + sanitization",
+        expectedLatency: 50
+      },
+      {
+        source: "ValidationEngine",
+        target: "BusinessLogic",
+        operation: "process",
+        inputType: "ValidatedRequest", 
+        outputType: "ProcessedResult",
+        transformation: "Business rules application",
+        expectedLatency: 200
+      }
+    ]
+  }
+];
+```
+{{/if}}
+
+---
+
+## 📈 Data Volume Analysis
+
+{{#if dataVolume}}
+### Volume Projections by Flow
+
+| Data Flow | Current Volume | Peak Volume | Growth Rate | Storage Impact |
+|-----------|----------------|-------------|-------------|----------------|
+{{#each dataVolume.flows}}
+| {{this.name}} | {{this.currentVolume}} | {{this.peakVolume}} | {{this.growthRate}} | {{this.storageImpact}} |
+{{/each}}
+
+### Capacity Planning
+- **Current Total Volume**: {{dataVolume.currentTotal}}
+- **Projected Peak Volume**: {{dataVolume.projectedPeak}}
+- **Storage Growth Rate**: {{dataVolume.storageGrowthRate}}/month
+- **Bandwidth Requirements**: {{dataVolume.bandwidthRequirements}}
+{{else}}
+### 💡 Volume Analysis Placeholder
+
+Data volume analysis will help you:
+- Plan infrastructure capacity
+- Identify scaling bottlenecks 
+- Optimize data processing strategies
+- Set performance SLAs for seam operations
+
+Example volume tracking:
+```typescript
+interface DataVolumeMetrics {
+  flowName: string;
+  currentVolume: string;
+  peakVolume: string;
+  averageSize: number; // bytes
+  throughputTarget: number; // ops/sec
+}
+```
+{{/if}}
+
+---
+
+## ⚡ Performance Critical Paths
+
+{{#if criticalPaths}}
+{{#each criticalPaths}}
+### 🔴 {{this.name}} ({{this.criticality}} Criticality)
+
+**End-to-End Latency Target**: {{this.latencyTarget}}ms  
+**Current Performance**: {{this.currentPerformance}}ms  
+**Performance Gap**: {{this.performanceGap}}
+
+#### Bottleneck Analysis
+{{#each this.bottlenecks}}
+- **{{this.component}}**: {{this.impact}}ms delay
+  - Root Cause: {{this.rootCause}}
+  - Optimization: {{this.optimization}}
+  - Expected Improvement: {{this.expectedImprovement}}
+{{/each}}
+
+#### Optimization Strategy
+```typescript
+// Performance-optimized seam implementation
+interface {{pascalCase this.name}}OptimizedContract {
+  {{#each this.optimizations}}
+  {{this.method}}(
+    input: {{this.inputType}},
+    options?: { 
+      useCache?: boolean;
+      timeout?: number;
+      priority?: 'high' | 'normal' | 'low';
+    }
+  ): Promise<ContractResult<{{this.outputType}}>>;
+  {{/each}}
+}
+```
+
+---
+{{/each}}
+{{else}}
+### 🎯 Critical Path Identification
+
+Critical paths are data flows that directly impact user experience or system reliability. Look for:
+
+1. **User-Facing Operations** - Login, search, checkout flows
+2. **Real-Time Processing** - Live updates, notifications, monitoring
+3. **High-Volume Operations** - Batch processing, data imports, reports  
+4. **External Dependencies** - API calls, database queries, file operations
+
+Example critical path definition:
+```typescript
+interface CriticalPathMetrics {
+  name: string;
+  latencyTarget: number; // ms
+  throughputTarget: number; // ops/sec
+  availabilityTarget: number; // percentage
+  errorRateTarget: number; // percentage
+}
+```
+{{/if}}
+
+---
+
+## 🛡️ Data Validation & Error Handling
+
+{{#if validationStrategies}}
+### Validation Strategy by Flow
+
+{{#each validationStrategies}}
+#### {{this.flowName}} Validation
+
+**Validation Points**: {{this.validationPoints}}  
+**Error Rate**: {{this.errorRate}}%  
+**Recovery Strategy**: {{this.recoveryStrategy}}
+
+**Input Validation**:
+```typescript
+interface {{pascalCase this.flowName}}InputValidator {
+  validate(input: unknown): ContractResult<{{this.inputType}}>;
+  sanitize(input: {{this.inputType}}): {{this.inputType}};
+  checkBounds(input: {{this.inputType}}): boolean;
+}
+```
+
+**Error Scenarios**:
+{{#each this.errorScenarios}}
+- **{{this.scenario}}**: {{this.handling}}
+  - Recovery: {{this.recovery}}
+  - Retry Logic: {{this.retryLogic}}
+{{/each}}
+
+**Seam Error Integration**:
+```typescript
+// Error handling in seam implementation
+const result = await seamManager.executeSeam("{{this.seamName}}", data);
+if (!result.success) {
+  await errorHandler.logError(result.error, {
+    flow: "{{this.flowName}}",
+    input: data,
+    timestamp: new Date().toISOString()
+  });
+  return { success: false, error: "{{this.fallbackMessage}}" };
+}
+```
+
+---
+{{/each}}
+{{else}}
+### 🎯 Validation Strategy Template
+
+Implement robust data validation using SDD patterns:
+
+1. **Input Validation at Seam Boundaries**
+   ```typescript
+   async validateInput(input: unknown): Promise<ContractResult<ValidatedInput>> {
+     if (!input) return { success: false, error: "Input required" };
+     // Add specific validation logic
+     return { success: true, data: validatedInput };
+   }
+   ```
+
+2. **Transform Validation at Each Step**
+   ```typescript
+   async transformData(input: ValidatedInput): Promise<ContractResult<TransformedData>> {
+     try {
+       const transformed = await this.processData(input);
+       return { success: true, data: transformed };
+     } catch (error) {
+       return { success: false, error: error.message };
+     }
+   }
+   ```
+
+3. **Output Validation Before Seam Exit**
+   ```typescript
+   async validateOutput(output: ProcessedData): Promise<ContractResult<ValidatedOutput>> {
+     const isValid = this.checkOutputConstraints(output);
+     if (!isValid) return { success: false, error: "Output validation failed" };
+     return { success: true, data: output };
+   }
+   ```
+{{/if}}
+
+---
+
+## 🔄 Data Transformation Patterns
+
+{{#if transformationPatterns}}
+### Common Transformation Patterns
+
+{{#each transformationPatterns}}
+#### {{this.name}} Pattern
+**Usage Count**: {{this.usageCount}} | **Performance**: {{this.performance}} | **Complexity**: {{this.complexity}}/10
+
+**Description**: {{this.description}}
+
+**Implementation Template**:
+```typescript
+class {{pascalCase this.name}}Transformer implements DataTransformer<{{this.inputType}}, {{this.outputType}}> {
+  async transform(input: {{this.inputType}}): Promise<ContractResult<{{this.outputType}}>> {
+    try {
+      {{#each this.steps}}
+      // Step {{@index}}: {{this.description}}
+      {{this.code}}
+      {{/each}}
+      
+      return { success: true, data: transformedData };
+    } catch (error) {
+      return { success: false, error: `{{this.name}} transformation failed: ${error.message}` };
+    }
+  }
+}
+```
+
+**Seam Integration**:
+```typescript
+const transformer = new {{pascalCase this.name}}Transformer();
+const result = await seamManager.executeSeam("{{this.seamName}}", {
+  transformer,
+  input: sourceData,
+  options: { {{this.defaultOptions}} }
+});
+```
+
+---
+{{/each}}
+{{else}}
+### 🎯 Standard Transformation Patterns
+
+Common data transformation patterns in SDD architecture:
+
+1. **Validation Transform** - Input sanitization and constraint checking
+2. **Format Transform** - Data type conversions and structure changes  
+3. **Enrichment Transform** - Adding computed fields or external data
+4. **Aggregation Transform** - Combining multiple data sources
+5. **Normalization Transform** - Standardizing data formats
+6. **Filter Transform** - Selecting subset of data based on criteria
+
+Each pattern should be implemented as a reusable seam with proper error handling and type safety.
+{{/if}}
+
+---
+
+## 📊 Integration Points Analysis
+
+{{#if integrationPoints}}
+### External System Integration
+
+{{#each integrationPoints}}
+#### {{this.name}} Integration
+**Type**: {{this.type}} | **Criticality**: {{this.criticality}} | **SLA**: {{this.sla}}
+
+**Data Exchange**:
+- **Input Format**: {{this.inputFormat}}
+- **Output Format**: {{this.outputFormat}}  
+- **Volume**: {{this.volume}} operations/hour
+- **Latency**: {{this.averageLatency}}ms
+
+**Contract Definition**:
+```typescript
+interface {{pascalCase this.name}}IntegrationContract {
+  {{#each this.operations}}
+  {{this.name}}(request: {{this.requestType}}): Promise<ContractResult<{{this.responseType}}>>;
+  {{/each}}
+}
+```
+
+**Error Scenarios**:
+{{#each this.errorScenarios}}
+- **{{this.type}}**: {{this.probability}}% chance
+  - Impact: {{this.impact}}
+  - Recovery: {{this.recovery}}
+  - Timeout: {{this.timeout}}ms
+{{/each}}
+
+**Monitoring Points**:
+- [ ] Response time tracking
+- [ ] Error rate monitoring  
+- [ ] Data quality validation
+- [ ] SLA compliance checking
+
+---
+{{/each}}
+{{else}}
+### 🎯 Integration Points Planning
+
+External integrations should be designed as seams with proper contracts:
+
+```typescript
+interface ExternalSystemContract {
+  healthCheck(): Promise<ContractResult<HealthStatus>>;
+  processRequest(data: RequestData): Promise<ContractResult<ResponseData>>;
+  validateConnection(): Promise<ContractResult<ConnectionStatus>>;
+}
+```
+
+Key considerations:
+- **Timeout Handling**: Set appropriate timeouts for external calls
+- **Retry Logic**: Implement exponential backoff for failures
+- **Circuit Breakers**: Prevent cascade failures
+- **Data Validation**: Validate all external data
+- **Monitoring**: Track integration health and performance
+{{/if}}
+
+---
+
+## 🎯 Optimization Recommendations
+
+{{#if optimizationRecommendations}}
+### Performance Optimization Strategy
+
+{{#each optimizationRecommendations}}
+#### {{this.category}} Optimizations
+
+{{#each this.recommendations}}
+- **{{this.title}}** ({{this.impact}} impact, {{this.effort}} effort)
+  - Description: {{this.description}}
+  - Implementation: {{this.implementation}}
+  - Expected Improvement: {{this.expectedImprovement}}
+  - Timeline: {{this.timeline}}
+{{/each}}
+
+---
+{{/each}}
+{{else}}
+### 💡 General Optimization Guidelines
+
+1. **Seam-Level Optimizations**
+   - Cache frequently accessed data at seam boundaries
+   - Implement async processing for non-blocking operations
+   - Use connection pooling for external integrations
+
+2. **Data Flow Optimizations**  
+   - Minimize data copying between transformation steps
+   - Implement streaming for large data sets
+   - Parallel processing where data flows are independent
+
+3. **Contract Optimizations**
+   - Use appropriate data types to minimize serialization overhead
+   - Implement pagination for large result sets
+   - Add compression for high-volume data transfers
+
+4. **Error Handling Optimizations**
+   - Fail fast for invalid inputs to reduce processing overhead
+   - Cache error responses to avoid repeated failed operations
+   - Implement graceful degradation for non-critical failures
+{{/if}}
+
+---
+
+## ✅ Implementation Checklist
+
+### Data Flow Implementation
+- [ ] **Seam Contracts Defined**: All data flows have typed contracts
+- [ ] **Error Handling**: Fail-fast patterns implemented throughout
+- [ ] **Validation Gates**: Input/output validation at each transformation
+- [ ] **Performance Monitoring**: Latency and throughput tracking
+- [ ] **Integration Testing**: End-to-end flow validation
+- [ ] **Documentation**: Flow diagrams and contract documentation
+
+### Seam Manager Integration  
+- [ ] **Seam Registration**: All data flows registered with seam manager
+- [ ] **Health Monitoring**: Seam health checks implemented
+- [ ] **Error Propagation**: Consistent error handling across seams
+- [ ] **Metadata Tracking**: Flow metadata captured for debugging
+
+### Performance Optimization
+- [ ] **Bottleneck Identification**: Critical path analysis completed
+- [ ] **Caching Strategy**: Appropriate caching implemented
+- [ ] **Async Processing**: Non-blocking operations identified
+- [ ] **Resource Management**: Memory and CPU usage optimized
+
+---
+
+**Generated by SDD MCP Server**  
+*Data flows first, then optimize the connections*

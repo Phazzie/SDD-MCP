@@ -1,0 +1,124 @@
+/**
+ * INTEGRATION TESTS: {{componentName}}
+ * PURPOSE: Validate seam connections and contract compliance
+ * COVERAGE: Contract interface, error handling, health checks
+ */
+
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { {{componentName}} } from "../{{stubFileName}}";
+import { 
+  {{pascalCaseName}}Request, 
+  {{pascalCaseName}}Response 
+} from "../{{contractFileName}}";
+
+describe("{{componentName}} Integration Tests", () => {
+  let {{camelCaseName}}: {{componentName}};
+
+  beforeEach(() => {
+    {{camelCaseName}} = new {{componentName}}();
+  });
+
+  afterEach(() => {
+    // Cleanup if needed
+  });
+
+  describe("Contract Compliance", () => {
+    it("should implement I{{contractName}} interface", () => {
+      expect({{camelCaseName}}).toBeDefined();
+      expect(typeof {{camelCaseName}}.{{methodName}}).toBe("function");
+      expect(typeof {{camelCaseName}}.healthCheck).toBe("function");
+      expect(typeof {{camelCaseName}}.getAgentId).toBe("function");
+    });
+
+    it("should return valid AgentId", () => {
+      const agentId = {{camelCaseName}}.getAgentId();
+      expect(agentId).toBeDefined();
+      expect(typeof agentId).toBe("string");
+      expect(agentId).toBe("{{agentId}}");
+    });
+  });
+
+  describe("Health Checks", () => {
+    it("should pass health check in stub state", async () => {
+      const result = await {{camelCaseName}}.healthCheck();
+      
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+      expect(result.data?.status).toBe("stub-ready");
+      expect(result.data?.agentId).toBe("{{agentId}}");
+    });
+  });
+
+  describe("Error Handling", () => {
+    it("should fail fast on null request", async () => {
+      const result = await {{camelCaseName}}.{{methodName}}(null as any);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid request - failing fast");
+      expect(result.agentId).toBe("{{agentId}}");
+    });
+
+    it("should fail fast on missing requestingAgentId", async () => {
+      const invalidRequest = {
+        {{#each sampleInputFields}}
+        {{name}}: {{sampleValue}},
+        {{/each}}
+        timestamp: new Date(),
+        correlationId: "test-correlation-id"
+      } as {{pascalCaseName}}Request;
+
+      const result = await {{camelCaseName}}.{{methodName}}(invalidRequest);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Missing requestingAgentId - failing fast");
+    });
+
+    it("should throw NotImplementedError for unimplemented methods", async () => {
+      const validRequest: {{pascalCaseName}}Request = {
+        requestingAgentId: "test-agent" as any,
+        {{#each sampleInputFields}}
+        {{name}}: {{sampleValue}},
+        {{/each}}
+        timestamp: new Date(),
+        correlationId: "test-correlation-id"
+      };
+
+      await expect({{camelCaseName}}.{{methodName}}(validRequest))
+        .rejects
+        .toThrow("🔨 HARD_WORK: {{componentName}}.{{methodName}} needs implementation");
+    });
+  });
+
+  describe("Seam Integration", () => {
+    it("should be ready for seam registration", () => {
+      // Verify component can be registered with SeamManager
+      expect({{camelCaseName}}).toBeInstanceOf({{componentName}});
+      expect({{camelCaseName}}.getAgentId()).toBeDefined();
+    });
+
+    {{#if hasSeamDependencies}}
+    it("should handle seam dependency injection", () => {
+      // TODO: Test seam dependencies when implemented
+      // Dependencies: {{seamDependencies}}
+      expect(true).toBe(true); // Placeholder
+    });
+    {{/if}}
+  });
+
+  describe("ContractResult Pattern", () => {
+    it("should use ContractResult<T> for all responses", async () => {
+      const healthResult = await {{camelCaseName}}.healthCheck();
+      
+      // Verify ContractResult structure
+      expect(healthResult).toHaveProperty("success");
+      expect(healthResult).toHaveProperty("agentId");
+      expect(typeof healthResult.success).toBe("boolean");
+      
+      if (healthResult.success) {
+        expect(healthResult).toHaveProperty("data");
+      } else {
+        expect(healthResult).toHaveProperty("error");
+      }
+    });
+  });
+});

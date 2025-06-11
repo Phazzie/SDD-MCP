@@ -1,0 +1,1037 @@
+Okay, this is a fantastic direction! Moving towards automated enforcement and a solid development pipeline for SDD projects is a logical and high-value next step.
+
+Since the "SDD Conformance Linter" rules are more conceptual definitions than Handlebars templates for direct code generation, I'll outline the rules themselves. For the Test Case Scaffolding and CI/CD pipelines, I'll provide Handlebars templates.
+
+Let's break this down:
+
+SDD Conformance Linter Rules (Conceptual Definitions)
+
+unit-test-scaffold.handlebars (Test Case Scaffolding)
+
+github-actions-sdd-workflow.handlebars (CI/CD Pipeline)
+
+dockerfile.handlebars (CI/CD Pipeline - Containerization)
+
+1. SDD Conformance Linter Rules (Conceptual Definitions)
+
+These would ideally be implemented as custom ESLint rules or within a dedicated SDD linting tool. For each rule, I'll specify:
+
+Rule ID (example): sdd/rule-name
+
+Description: What the rule checks for.
+
+Why it's important for SDD:
+
+What it would flag (Error/Warning):
+
+Potential Autofix:
+
+Rule: sdd/require-blueprint-comment
+
+Description: Ensures every exported class, interface, and public method in an agent or contract file has a 7-field blueprint JSDoc comment.
+
+Why SDD: Blueprint comments are fundamental for understanding, documentation, and AI-assisted development.
+
+Flags (Error):
+
+Missing JSDoc block entirely.
+
+JSDoc block present but missing one or more of the 7 required fields (PURPOSE, DATA FLOW, INTEGRATION POINTS, FAILURE MODES, RATIONALE, EXAMPLES, CONTRACT VERSION).
+
+Fields present but empty or with placeholder text like "TODO".
+
+Autofix: Could insert a template for the 7-field blueprint comment with "TODO" placeholders for the content.
+
+Rule: sdd/no-missing-contract-result
+
+Description: Ensures all public asynchronous methods in files named *.agent.ts (or a configurable pattern) return Promise<ContractResult<any>> or Promise<ContractResult<SpecificType>>.
+
+Why SDD: ContractResult is the mandatory communication wrapper.
+
+Flags (Error):
+
+An async public method in an agent does not have ContractResult as its promise's generic type.
+
+A method returns a raw promise without wrapping in ContractResult.
+
+Autofix: Could attempt to wrap the return type annotation (e.g., Promise<MyType> -> Promise<ContractResult<MyType>>), but the implementation would still need manual adjustment. More likely, it would just flag.
+
+Rule: sdd/require-agent-id-in-contract-result
+
+Description: Checks that when a ContractResult object literal is created, it includes an agentId property, typically assigned this.agentId.
+
+Why SDD: agentId is crucial for traceability and identifying the source of a result.
+
+Flags (Error):
+
+An object literal matching the ContractResult shape (e.g., has success: boolean and data or error) is returned without an agentId property.
+
+Autofix: Could attempt to add agentId: this.agentId if this.agentId is accessible in the scope, but this might be risky if this context is unexpected.
+
+Rule: sdd/enforce-js-import-extensions
+
+Description: Requires all relative import paths to end with .js (or .mjs, .cjs based on project config).
+
+Why SDD: Essential for ESModules in Node.js with TypeScript.
+
+Flags (Error):
+
+An import statement like import ... from './myModule';
+
+Autofix: Could append .js to the import path: import ... from './myModule.js';
+
+Rule: sdd/no-direct-agent-to-agent-call
+
+Description: (More advanced, might require type analysis or path conventions) Discourages direct method calls between agent instances. Enforces communication via SeamManager.executeSeam.
+
+Why SDD: Centralizes seam communication, allows for circuit breakers, monitoring, etc., at the SeamManager level.
+
+Flags (Warning/Error):
+
+An agent method directly calls a method on another known agent instance (e.g., this.otherAgent.someMethod()) instead of this.seamManager.executeSeam('OtherAgentName', 'someMethod', ...).
+
+Autofix: Not feasible. Requires manual refactoring.
+
+Rule: sdd/no-notimplementederror-in-production-build
+
+Description: Flags any remaining throw new NotImplementedError(...) statements if the build is for a production environment (e.g., based on NODE_ENV or a build flag).
+
+Why SDD: NotImplementedError are placeholders for development.
+
+Flags (Error in production build, Warning in dev):
+
+A NotImplementedError is found.
+
+Autofix: No.
+
+Rule: sdd/contract-version-consistency
+
+Description: (Challenging, needs to parse CONTRACT VERSION) If an agent method's blueprint references a CONTRACT VERSION that differs from the version declared on the corresponding interface method in the contract file, flag it.
+
+Why SDD: Helps maintain consistency and awareness of contract changes.
+
+Flags (Warning): Mismatch in CONTRACT VERSION strings.
+
+Autofix: No.
+
+2. unit-test-scaffold.handlebars
+
+This template generates a Vitest unit test file (*.unit.test.ts) for an agent, creating describe and it blocks based on the agent's contract and methods.
+
+A. Template Filename
+
+unit-test-scaffold.handlebars
+
+B. Complete Handlebars Template Code
+// {{testFileName}}
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { {{agentClassName}} } from '{{agentImportPath}}.js';
+{{#if seamManagerImportPath}}
+import { {{seamManagerClassName}} } from '{{seamManagerImportPath}}.js';
+{{else}}
+// Assuming a generic SeamManager mock structure if not provided
+const mockSeamManager = {
+  executeSeam: vi.fn(),
+  registerAgent: vi.fn(),
+  // Add other SeamManager methods if they are directly used by the agent under test and need mocking
+};
+vi.mock('{{fallbackSeamManagerPathForMock | default "../seams/seam.manager.js"}}', () => ({ // Adjust path if needed
+  SeamManager: vi.fn(() => mockSeamManager)
+}));
+{{/if}}
+{{#each contractDependencies}}
+import type { {{this.types}} } from '{{this.path}}.js'; // For request/response types
+{{/each}}
+{{#each otherDependenciesToMock}}
+// Example: vi.mock('{{this.path}}.js', () => ({ {{this.exportName}}: vi.fn() }));
+vi.mock('{{this.path}}.js', () => {
+  const actual = vi.importActual('{{this.path}}.js'); // Keep other exports if needed
+  return {
+    ...actual,
+    {{this.exportName}}: vi.fn{{#if this.isClass}}(() => ({{{this.mockImplementation}}})){{else}}({{{this.mockImplementation}}}){{/if}},
+  };
+});
+{{/each}}
+import type { ContractResult } from '{{contractResultImportPath | default "../../shared/common-types.js"}}'; // Adjust path
+import { NotImplementedError } from '{{notImplementedErrorImportPath | default "../../shared/sdd-errors.js"}}'; // Adjust path
+
+describe('{{agentClassName}} Unit Tests', () => {
+  let agent: {{agentClassName}};
+  {{#if seamManagerClassName}}
+  let mockSeamManagerInstance: vi.Mocked<{{seamManagerClassName}}>;
+  {{else}}
+  // Use the generic mockSeamManager defined above if seamManagerClassName is not provided
+  {{/if}}
+  {{#each directDependenciesToMock}}
+  let mock{{this.typeName}}: vi.Mocked<{{this.typeName}}>; // Assuming typeName is the class name
+  {{/each}}
+
+  beforeEach(() => {
+    vi.resetAllMocks(); // Reset mocks before each test
+
+    {{#if seamManagerClassName}}
+    // If SeamManager is a real class being mocked
+    mockSeamManagerInstance = {
+      executeSeam: vi.fn(),
+      registerAgent: vi.fn(),
+      // ... other methods you might need to mock on the actual SeamManager class
+    } as unknown as vi.Mocked<{{seamManagerClassName}}>;
+    {{else}}
+    // If using the generic mockSeamManager (global mock)
+    mockSeamManager.executeSeam.mockClear();
+    mockSeamManager.registerAgent.mockClear();
+    {{/if}}
+
+    {{#each directDependenciesToMock}}
+    mock{{this.typeName}} = {
+      {{#each this.methodsToMock}}
+      {{this.name}}: vi.fn(),
+      {{/each}}
+    } as unknown as vi.Mocked<{{this.typeName}}>;
+    {{/each}}
+    
+    // Instantiate the agent with mocked dependencies
+    agent = new {{agentClassName}}(
+      {{#if seamManagerClassName}}mockSeamManagerInstance{{else}}mockSeamManager{{/if}}
+      {{#each directDependenciesToMock}}
+      , mock{{this.typeName}}
+      {{/each}}
+    );
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks(); // Restore original implementations after each test
+  });
+
+  it('should have a valid agentId', () => {
+    expect(agent.agentId).toBe('{{expectedAgentId}}'); // Or check if it's a non-empty string
+  });
+
+  {{#each methods}}
+  describe('{{this.name}}()', () => {
+    {{#if this.isImplemented}} // Flag to indicate if we expect full tests or NotImplementedError test
+    
+    // Test Case 1: Happy Path
+    it('should {{this.happyPathDescription | default "succeed and return expected data for valid input"}}', async () => {
+      // Arrange
+      const validInput: {{this.inputTypeName}} = {{{this.happyPathInputExample}}};
+      const expectedOutputData: {{this.outputTypeName}} = {{{this.happyPathOutputExample}}};
+      const expectedAgentId = agent.agentId;
+
+      {{#each this.mockSetupsHappyPath}}
+      // Mock for {{this.dependencyName}}.{{this.methodName}}
+      {{#if this.isSeamManagerCall}}
+      {{#if ../../seamManagerClassName}}mockSeamManagerInstance{{else}}mockSeamManager{{/if}}.executeSeam
+        .calledWith('{{this.seamTarget}}', '{{this.methodName}}', expect.anything()) // Or more specific payload matching
+        .mockResolvedValueOnce({ success: true, data: {{{this.mockReturnValue}}}, agentId: 'mocked-{{this.seamTarget}}' });
+      {{else}}
+      mock{{this.dependencyName}}.{{this.methodName}}.mockResolvedValueOnce({{{this.mockReturnValue}}}); // Or raw value if not ContractResult
+      {{/if}}
+      {{/each}}
+
+      // Act
+      const result: ContractResult<{{this.outputTypeName}}> = await agent.{{this.name}}(validInput);
+
+      // Assert
+      expect(result.success).toBe(true);
+      if (result.success) { // Type guard for TypeScript
+        expect(result.data).toEqual(expectedOutputData);
+      }
+      expect(result.agentId).toBe(expectedAgentId);
+      {{#each this.mockVerificationsHappyPath}}
+      // Verify mock for {{this.dependencyName}}.{{this.methodName}} was called
+      {{#if this.isSeamManagerCall}}
+      expect({{#if ../../seamManagerClassName}}mockSeamManagerInstance{{else}}mockSeamManager{{/if}}.executeSeam).toHaveBeenCalledWith(
+        '{{this.seamTarget}}', 
+        '{{this.methodName}}', 
+        {{{this.expectedPayload}}} // Or expect.anything() if payload is complex/dynamic
+      );
+      {{else}}
+      expect(mock{{this.dependencyName}}.{{this.methodName}}).toHaveBeenCalledWith({{{this.expectedPayload}}});
+      {{/if}}
+      {{/each}}
+      // TODO: Add more specific assertions based on the method's logic and output structure.
+    });
+
+    // Test Case 2: Input Validation Failure(s)
+    {{#each this.inputValidationTests}}
+    it('should return failure for invalid input: {{this.description}}', async () => {
+      // Arrange
+      const invalidInput: {{../this.inputTypeName}} = {{{this.inputExample}}}; // Cast or satisfy partial type
+      const expectedErrorMessage = "{{this.expectedErrorMessage}}";
+      const expectedAgentId = agent.agentId;
+
+      // Act
+      const result = await agent.{{../this.name}}(invalidInput as {{../this.inputTypeName}});
+
+      // Assert
+      expect(result.success).toBe(false);
+      if (!result.success) { // Type guard
+        expect(result.error).toContain(expectedErrorMessage); // Use toContain for flexibility
+      }
+      expect(result.agentId).toBe(expectedAgentId);
+      // TODO: Ensure no side-effects (e.g., seam calls) occurred for invalid input.
+    });
+    {{/each}}
+    {{#if this.inputValidationTests.length === 0}}
+    it('should return failure for basic invalid input (e.g., null/undefined request)', async () => {
+      // Act
+      const result = await agent.{{this.name}}(null as any); // Test with null
+      // Assert
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+      expect(result.agentId).toBe(agent.agentId);
+    });
+    {{/if}}
+
+    // Test Case 3: Handling Downstream Seam/Dependency Failures
+    {{#each this.dependencyFailureTests}}
+    it('should handle failure from {{this.dependencyDescription}} and return appropriate error', async () => {
+      // Arrange
+      const validInput: {{../../this.inputTypeName}} = {{{../../this.happyPathInputExample}}}; // Use valid input to reach this dependency
+      const dependencyErrorMessage = "{{this.dependencyErrorMessage}}";
+      
+      {{#if this.isSeamManagerCall}}
+      {{#if ../../../seamManagerClassName}}mockSeamManagerInstance{{else}}mockSeamManager{{/if}}.executeSeam
+        .calledWith('{{this.seamTarget}}', '{{this.methodName}}', expect.anything())
+        .mockResolvedValueOnce({ success: false, error: dependencyErrorMessage, agentId: 'mocked-{{this.seamTarget}}-fail' });
+      {{else}}
+      // Mock direct dependency failure
+      mock{{this.dependencyName}}.{{this.methodName}}.mockRejectedValueOnce(new Error(dependencyErrorMessage)); // If it throws
+      // OR mock{{this.dependencyName}}.{{this.methodName}}.mockResolvedValueOnce({ success: false, error: dependencyErrorMessage, ... }); // If it returns ContractResult
+      {{/if}}
+
+      // Act
+      const result = await agent.{{../../this.name}}(validInput);
+
+      // Assert
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain("{{this.expectedWrappedErrorMessagePrefix | default 'Failed due to'}}" ); // Check if error is wrapped
+        // expect(result.error).toContain(dependencyErrorMessage); // Optionally check if original error is included
+      }
+      expect(result.agentId).toBe(agent.agentId);
+      // TODO: Assert any compensation logic or specific state changes if applicable on failure.
+    });
+    {{/each}}
+
+    // Test Case 4: Other Specific Error/Edge Cases from Blueprint FAILURE MODES
+    {{#each this.failureModeTests}}
+    it('should handle failure mode: "{{this.description}}"', async () => {
+      // Arrange
+      // TODO: Set up mocks and input to trigger this specific failure mode.
+      // Example: const specificInput = { ... };
+      // Example: mockSomeService.someMethod.mockResolvedValueOnce( { ... } ); // to trigger internal logic branch
+      
+      // Act
+      // const result = await agent.{{../../this.name}}(specificInput);
+
+      // Assert
+      // expect(result.success).toBe(false);
+      // expect(result.error).toContain("{{this.expectedErrorMessage}}");
+      // expect(result.agentId).toBe(agent.agentId);
+      throw new Error('Test case for failure mode "{{this.description}}" not fully implemented.');
+    });
+    {{/each}}
+
+    {{#unless this.isVoidOutput}}
+    // Test Case 5: Correct Data Transformation / Business Logic Detail
+    it('should correctly process data and apply business rules for {{this.name}}', async () => {
+        // Arrange
+        // TODO: Provide specific input that tests a particular business rule or data transformation.
+        // const specificInput: {{this.inputTypeName}} = { ... };
+        // const expectedProcessedData: {{this.outputTypeName}} = { ... }; // Expected data after transformation
+        
+        // Setup mocks if needed for this specific rule test
+        // Act
+        // const result = await agent.{{this.name}}(specificInput);
+
+        // Assert
+        // expect(result.success).toBe(true);
+        // if(result.success) {
+        //   expect(result.data).toEqual(expectedProcessedData);
+        // }
+        throw new Error('Detailed business logic test for "{{this.name}}" not fully implemented.');
+    });
+    {{/unless}}
+
+    {{else}} // Method is not yet implemented
+    it('should throw NotImplementedError if business logic is not implemented', async () => {
+      // Arrange
+      const validInput: {{this.inputTypeName}} = {{{this.happyPathInputExample}}}; // Use valid input to pass initial checks
+
+      // Act & Assert
+      await expect(agent.{{this.name}}(validInput))
+        .rejects.toThrow(NotImplementedError);
+      
+      // Optional: Check the message of NotImplementedError
+      try {
+        await agent.{{this.name}}(validInput);
+      } catch (e) {
+        if (e instanceof NotImplementedError) {
+          expect(e.message).toContain("{{../../agentClassName}}.{{this.name}}");
+          expect(e.message).toContain("{{this.blueprint.purpose}}"); // Check if blueprint purpose is in the message
+        }
+      }
+    });
+    {{/if}}
+  });
+  {{/each}}
+});
+
+C. Example TemplateContext for unit-test-scaffold.handlebars
+const unitTestScaffoldContext = {
+  testFileName: "tests/unit/orderProcessor.agent.unit.test.ts",
+  agentClassName: "OrderProcessorAgent",
+  agentImportPath: "../../src/agents/orderProcessor.agent", // Relative to test file
+  expectedAgentId: "order-processor-agent-main", // The agentId string used by the agent
+
+  // SeamManager details (optional, if agent uses it directly and needs specific mock)
+  seamManagerClassName: "SystemSeamManager",
+  seamManagerImportPath: "../../src/seams/system.seam-manager",
+  // fallbackSeamManagerPathForMock: "../seams/seam.manager.js" // Used if seamManagerClassName is not provided
+
+  // For ContractResult and NotImplementedError imports
+  contractResultImportPath: "../../../src/shared/common-types", // Relative to test file
+  notImplementedErrorImportPath: "../../../src/shared/sdd-errors", // Relative to test file
+
+  // Contract types needed for method inputs/outputs
+  contractDependencies: [
+    { types: "CreateOrderInput, Order, UpdateOrderStatusInput", path: "../../src/contracts/orderProcessor.contract" },
+    { types: "Product", path: "../../src/contracts/product.contract" } // Example if types from other contracts used
+  ],
+
+  // Other direct dependencies injected into agent's constructor that need mocking
+  directDependenciesToMock: [
+    { 
+      typeName: "DatabaseService", // Class name of the dependency
+      methodsToMock: [{ name: "saveOrder" }, { name: "findOrderById" }]
+    },
+    // { typeName: "AnalyticsService", methodsToMock: [{ name: "trackEvent"}] }
+  ],
+
+  // For mocking modules not directly injected but imported by the agent
+  otherDependenciesToMock: [
+    { path: "../../src/utils/id-generator", exportName: "generateUniqueId", mockImplementation: "() => 'mocked-uuid-123'" },
+    // { path: "some-npm-package", exportName: "SomeClassFromPackage", isClass: true, mockImplementation: "{ someMethod: vi.fn() }" }
+  ],
+
+  methods: [
+    {
+      name: "createOrder",
+      inputTypeName: "CreateOrderInput",
+      outputTypeName: "Order",
+      isImplemented: true, // Set to false if it should test for NotImplementedError
+      isVoidOutput: false,
+      happyPathDescription: "create a new order successfully when stock is available",
+      happyPathInputExample: JSON.stringify({ customerId: "cust123", items: [{ productId: "prodABC", quantity: 1, unitPrice: 100 }], shippingAddress: "123 Main St" }),
+      happyPathOutputExample: JSON.stringify({ orderId: "mocked-uuid-123", customerId: "cust123", status: "CONFIRMED", totalAmount: 100, items: [{ productId: "prodABC", quantity: 1, unitPrice: 100 }] /* more fields */ }),
+      blueprint: { purpose: "Creates a new customer order." /* other blueprint fields */ }, // For NotImplementedError message check
+      mockSetupsHappyPath: [
+        { dependencyName: "SystemSeamManager", methodName: "executeSeam", isSeamManagerCall: true, seamTarget: "InventoryManagerAgent", mockReturnValue: JSON.stringify({ allStockReserved: true }) },
+        { dependencyName: "SystemSeamManager", methodName: "executeSeam", isSeamManagerCall: true, seamTarget: "NotificationAgent", mockReturnValue: JSON.stringify({ messageId: "notify-xyz" }) },
+        { dependencyName: "DatabaseService", methodName: "saveOrder", isSeamManagerCall: false, mockReturnValue: JSON.stringify({ /* the saved order object */ orderId: "mocked-uuid-123", customerId: "cust123", status: "CONFIRMED", totalAmount: 100, items: [{ productId: "prodABC", quantity: 1, unitPrice: 100 }]}) }
+      ],
+      mockVerificationsHappyPath: [
+        { dependencyName: "SystemSeamManager", methodName: "executeSeam", isSeamManagerCall: true, seamTarget: "InventoryManagerAgent", expectedPayload: "expect.objectContaining({ items: expect.arrayContaining([expect.objectContaining({ productId: 'prodABC', quantityToReserve: 1 })]) })" },
+        { dependencyName: "DatabaseService", methodName: "saveOrder", isSeamManagerCall: false, expectedPayload: "expect.objectContaining({ orderId: 'mocked-uuid-123', status: 'CONFIRMED' })" } // Simplified
+      ],
+      inputValidationTests: [
+        { description: "missing customerId", inputExample: JSON.stringify({ items: [{ productId: "prodABC", quantity: 1 }], shippingAddress: "123 Main St" }), expectedErrorMessage: "Customer ID and at least one item are required" },
+        { description: "empty items array", inputExample: JSON.stringify({ customerId: "cust123", items: [], shippingAddress: "123 Main St" }), expectedErrorMessage: "Customer ID and at least one item are required" },
+        { description: "item with zero quantity", inputExample: JSON.stringify({ customerId: "cust123", items: [{ productId: "prodABC", quantity: 0, unitPrice: 100 }], shippingAddress: "123 Main St" }), expectedErrorMessage: "Invalid item data" }
+      ],
+      dependencyFailureTests: [
+        { dependencyDescription: "InventoryManagerAgent stock reservation", isSeamManagerCall: true, seamTarget: "InventoryManagerAgent", methodName: "reserveStock", dependencyErrorMessage: "Item prodABC out of stock", expectedWrappedErrorMessagePrefix: "Stock reservation failed" },
+        { dependencyDescription: "DatabaseService saveOrder", isSeamManagerCall: false, dependencyName: "DatabaseService", methodName: "saveOrder", dependencyErrorMessage: "DB connection error", expectedWrappedErrorMessagePrefix: "Failed to save order" }
+      ],
+      failureModeTests: [ // From blueprint FAILURE MODES
+        // { description: "payment gateway timeout", expectedErrorMessage: "Payment processing timed out" },
+      ]
+    },
+    {
+      name: "updateOrderStatus",
+      inputTypeName: "UpdateOrderStatusInput",
+      outputTypeName: "Order", // Assuming it returns the updated order
+      isImplemented: false, // This method is not yet implemented
+      isVoidOutput: false,
+      happyPathInputExample: JSON.stringify({ orderId: "ord123", newStatus: "SHIPPED" }), // Still need valid input for NotImplementedError test
+      blueprint: { purpose: "Updates the status of an existing order." },
+      // No need for other fields like mockSetups if isImplemented is false
+    },
+    {
+      name: "healthCheck",
+      inputTypeName: "void", // Or some generic type if it accepts options
+      outputTypeName: "{ status: string }",
+      isImplemented: true,
+      isVoidOutput: false,
+      happyPathDescription: "return a healthy status",
+      happyPathInputExample: "undefined", // No input
+      happyPathOutputExample: JSON.stringify({ status: "healthy", dependencies: { seamManager: "connected" } }),
+      blueprint: { purpose: "Checks agent health." },
+      inputValidationTests: [], // No specific input to validate typically
+    }
+  ]
+};
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Example of Generated Output (Snippet)
+// tests/unit/orderProcessor.agent.unit.test.ts
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { OrderProcessorAgent } from '../../src/agents/orderProcessor.agent.js';
+import { SystemSeamManager } from '../../src/seams/system.seam-manager.js';
+import type { CreateOrderInput, Order, UpdateOrderStatusInput } from '../../src/contracts/orderProcessor.contract.js';
+// ... other imports
+
+describe('OrderProcessorAgent Unit Tests', () => {
+  let agent: OrderProcessorAgent;
+  let mockSeamManagerInstance: vi.Mocked<SystemSeamManager>;
+  // ... other mocks
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockSeamManagerInstance = {
+      executeSeam: vi.fn(),
+      // ...
+    } as unknown as vi.Mocked<SystemSeamManager>;
+    agent = new OrderProcessorAgent(mockSeamManagerInstance /*, otherMocks */);
+  });
+  // ...
+
+  describe('createOrder()', () => {
+    it('should create a new order successfully when stock is available', async () => {
+      // Arrange
+      const validInput: CreateOrderInput = {"customerId":"cust123","items":[{"productId":"prodABC","quantity":1,"unitPrice":100}],"shippingAddress":"123 Main St"};
+      const expectedOutputData: Order = {"orderId":"mocked-uuid-123", /* ... */};
+      
+      mockSeamManagerInstance.executeSeam
+        .calledWith('InventoryManagerAgent', 'reserveStock', expect.anything())
+        .mockResolvedValueOnce({ success: true, data: {"allStockReserved":true}, agentId: 'mocked-InventoryManagerAgent' });
+      // ... other mocks
+
+      // Act
+      const result: ContractResult<Order> = await agent.createOrder(validInput);
+
+      // Assert
+      expect(result.success).toBe(true);
+      // ...
+    });
+
+    it('should return failure for invalid input: missing customerId', async () => {
+      // ...
+    });
+    // ... more tests
+  });
+
+  describe('updateOrderStatus()', () => {
+    it('should throw NotImplementedError if business logic is not implemented', async () => {
+      const validInput: UpdateOrderStatusInput = {"orderId":"ord123","newStatus":"SHIPPED"};
+      await expect(agent.updateOrderStatus(validInput))
+        .rejects.toThrow(NotImplementedError);
+    });
+  });
+});
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+3. github-actions-sdd-workflow.handlebars
+
+This template generates a GitHub Actions workflow file for a typical SDD project.
+
+A. Template Filename
+
+github-actions-sdd-workflow.handlebars (e.g., placed in .github/workflows/)
+
+B. Complete Handlebars Template Code
+name: {{workflowName | default "SDD Project CI/CD"}}
+
+on:
+  push:
+    branches:
+      - {{mainBranch | default "main"}}
+      - {{developBranch | default "develop"}}
+      - 'feature/**'
+      - 'fix/**'
+      - 'release/**'
+  pull_request:
+    branches:
+      - {{mainBranch | default "main"}}
+      - {{developBranch | default "develop"}}
+  workflow_dispatch: # Allows manual triggering
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: {{runsOn | default "ubuntu-latest"}}
+    strategy:
+      matrix:
+        node-version: [{{#each nodeVersions}}{{this}}{{#unless @last}}, {{/unless}}{{else}}"18.x", "20.x"{{/each}}]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: '{{packageManager | default "npm"}}' # npm, yarn, or pnpm
+
+      - name: Install Dependencies
+        run: {{packageManagerInstallCommand | default "npm ci"}} # Use 'npm ci' for faster, reliable installs
+
+      {{#if runLinter}}
+      - name: Run Linter (ESLint)
+        run: {{packageManagerRunCommand | default "npm run"}} lint
+      {{/if}}
+
+      {{#if runFormatterCheck}}
+      - name: Check Formatting (Prettier)
+        run: {{packageManagerRunCommand | default "npm run"}} format:check # Assume you have a 'format:check' script
+      {{/if}}
+
+      - name: Build Project
+        run: {{packageManagerRunCommand | default "npm run"}} build
+        {{#if buildEnvVars.length}}
+        env:
+          {{#each buildEnvVars}}
+          {{this.name}}: ${{ this.value }}
+          {{/each}}
+        {{/if}}
+
+      - name: Run Unit & Integration Tests (Vitest)
+        run: {{packageManagerRunCommand | default "npm run"}} test -- --coverage # Ensure Vitest generates coverage
+        {{#if testEnvVars.length}}
+        env:
+          {{#each testEnvVars}}
+          {{this.name}}: ${{ this.value }}
+          {{/each}}
+        {{/if}}
+
+      {{#if uploadCoverage}}
+      - name: Upload Coverage Report to Codecov
+        uses: codecov/codecov-action@v4 # Or your preferred coverage service action
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} # Store token in GitHub secrets
+          files: ./coverage/lcov.info,./coverage/coverage-final.json # Adjust paths as needed
+          fail_ci_if_error: {{failCiOnCoverageError | default true}}
+        if: ${{ github.ref == format('refs/heads/{0}', env.DEFAULT_BRANCH || env.MAIN_BRANCH || 'main') }} # Only upload on default branch pushes
+        env:
+          DEFAULT_BRANCH: {{mainBranch | default "main"}} # Ensure this is set for the condition
+      {{/if}}
+
+  {{#if includeBuildAndPublishJob}}
+  build-and-publish:
+    name: Build & Publish Docker Image
+    runs-on: {{runsOn | default "ubuntu-latest"}}
+    needs: lint-and-test # Depends on successful tests
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == format('refs/heads/{0}', env.RELEASE_BRANCH || 'release/**' )) # Trigger on tags like v1.0.0 or pushes to release branch
+    env:
+      RELEASE_BRANCH: {{releaseBranchPattern | default "release/**"}}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to {{dockerRegistryProvider | default "Docker Hub"}}
+        uses: docker/login-action@v3
+        with:
+          {{#if (eq dockerRegistryProvider "GitHub Container Registry")}}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          {{else if (eq dockerRegistryProvider "AWS ECR")}}
+          registry: ${{ secrets.AWS_ECR_REGISTRY_URL }} # e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com
+          # Configure AWS credentials separately or use aws-actions/configure-aws-credentials
+          {{else}}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          {{/if}}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: {{dockerImageName}} # e.g., your-org/your-sdd-app or ghcr.io/your-org/your-sdd-app
+          tags: |
+            type=schedule
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{versionPattern | default "v%M.%m.%p"}}
+            type=sha,prefix=,suffix=,event=push
+            type=raw,value=latest,enable={{isLatestBranch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./{{dockerfilePath | default "Dockerfile"}}
+          push: ${{ github.event_name != 'pull_request' }} # Don't push on PRs
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          {{#if buildArgs.length}}
+          build-args: |
+            {{#each buildArgs}}
+            {{this.name}}=${{this.value}}
+            {{/each}}
+          {{/if}}
+  {{/if}}
+
+  {{#if includeDeploymentJob}}
+  deploy-to-staging:
+    name: Deploy to Staging
+    runs-on: {{runsOn | default "ubuntu-latest"}}
+    needs: build-and-publish # Or lint-and-test if not using Docker
+    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', env.DEVELOP_BRANCH || 'develop')
+    environment:
+      name: staging
+      url: ${{ secrets.STAGING_APP_URL }} # Example, set in GitHub environments
+    env:
+      DEVELOP_BRANCH: {{developBranch | default "develop"}}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      
+      # Add your deployment steps here for staging
+      # Example: Deploy to a cloud provider (AWS, GCP, Azure, Heroku, Vercel, etc.)
+      # - name: Deploy to AWS Elastic Beanstalk
+      #   uses: einaregilsson/beanstalk-deploy@v21
+      #   with:
+      #     aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID_STAGING }}
+      #     aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGING }}
+      #     application_name: your-sdd-app-staging
+      #     environment_name: YourSddAppStaging-env
+      #     version_label: ${{ github.sha }}
+      #     region: your-aws-region
+      #     deployment_package: dist.zip # If you build a zip
+
+      - name: Placeholder Deploy Step
+        run: echo "Deploying version ${{ github.sha }} to Staging..."
+
+
+  deploy-to-production:
+    name: Deploy to Production
+    runs-on: {{runsOn | default "ubuntu-latest"}}
+    needs: build-and-publish # Or lint-and-test
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') # Deploy on version tags
+    environment:
+      name: production
+      url: ${{ secrets.PRODUCTION_APP_URL }}
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Add your deployment steps here for production
+      - name: Placeholder Deploy Step
+        run: echo "Deploying tag ${{ github.ref_name }} to Production..."
+
+  {{/if}}
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Yaml
+IGNORE_WHEN_COPYING_END
+C. Example TemplateContext for github-actions-sdd-workflow.handlebars
+const githubActionsContext = {
+  workflowName: "My SDD App CI/CD",
+  mainBranch: "main",
+  developBranch: "develop",
+  releaseBranchPattern: "release/**", // For Docker publish condition
+  runsOn: "ubuntu-latest",
+  nodeVersions: ["18.x", "20.x"],
+  packageManager: "npm", // "npm", "yarn", "pnpm"
+  packageManagerInstallCommand: "npm ci",
+  packageManagerRunCommand: "npm run",
+
+  runLinter: true,
+  runFormatterCheck: true, // Assumes a script like "format:check": "prettier --check ."
+
+  buildEnvVars: [
+    // { name: "NODE_ENV", value: "production" } // Example if build needs it
+  ],
+  testEnvVars: [
+    { name: "DATABASE_URL_TEST", value: "${{ secrets.TEST_DB_URL }}" },
+    { name: "NODE_ENV", value: "test" }
+  ],
+
+  uploadCoverage: true,
+  failCiOnCoverageError: false, // Change to true for stricter coverage enforcement
+
+  includeBuildAndPublishJob: true,
+  dockerRegistryProvider: "GitHub Container Registry", // "Docker Hub", "AWS ECR", "GitHub Container Registry"
+  dockerImageName: "ghcr.io/your-org/my-sdd-app", // Adjust based on provider
+  dockerfilePath: "Dockerfile",
+  versionPattern: "v%M.%m.%p", // For Docker metadata-action semver pattern
+  isLatestBranch: `github.ref == format('refs/heads/{0}', env.DEFAULT_BRANCH || env.MAIN_BRANCH || 'main')`, // Condition for 'latest' tag
+  buildArgs: [ // Docker build arguments
+    // { name: "NPM_TOKEN", value: "${{ secrets.NPM_TOKEN_READONLY }}" }
+  ],
+
+  includeDeploymentJob: true,
+  // Secrets like STAGING_APP_URL, CODECOV_TOKEN, DOCKERHUB_USERNAME, etc.,
+  // need to be configured in GitHub repository secrets and environments.
+};
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Example of Generated Output (Snippet .github/workflows/ci.yml)
+name: My SDD App CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      # ...
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: ["18.x", "20.x"]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      # ...
+      - name: Run Linter (ESLint)
+        run: npm run lint
+      # ...
+      - name: Upload Coverage Report to Codecov
+        uses: codecov/codecov-action@v4
+        # ...
+  build-and-publish:
+    name: Build & Publish Docker Image
+    # ...
+    steps:
+      # ...
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # ...
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Yaml
+IGNORE_WHEN_COPYING_END
+4. dockerfile.handlebars
+
+This template generates a multi-stage Dockerfile for an SDD Node.js/TypeScript application.
+
+A. Template Filename
+
+Dockerfile.handlebars (or just Dockerfile)
+
+B. Complete Handlebars Template Code
+# Stage 1: Build dependencies
+FROM node:{{nodeVersion}}-alpine AS deps
+WORKDIR /usr/src/app
+
+# Copy package.json and lock file
+COPY package.json {{packageManagerLockFile}} ./
+# Install dependencies
+RUN {{packageManagerInstallCommandProduction | default "npm ci --omit=dev"}}
+
+# Stage 2: Build the application
+FROM node:{{nodeVersion}}-alpine AS builder
+WORKDIR /usr/src/app
+
+# Copy dependencies from the 'deps' stage
+COPY --from=deps /usr/src/app/node_modules ./node_modules
+COPY package.json {{packageManagerLockFile}} ./
+
+# Copy application source code
+COPY . .
+
+# Set build-time arguments if any (passed via docker build --build-arg VAR=value)
+{{#each buildArgs}}
+ARG {{this.name}}
+ENV {{this.name}}=${{this.name}}
+{{/each}}
+
+# Build TypeScript
+RUN {{packageManagerRunCommand | default "npm run"}} build
+
+# Prune development dependencies (if not already handled by --omit=dev)
+{{#if pruneDevDependenciesAfterBuild}}
+RUN {{packageManagerPruneCommand | default "npm prune --production"}}
+{{/if}}
+
+# Stage 3: Production image
+FROM node:{{nodeVersion}}-alpine AS runner
+WORKDIR /usr/src/app
+
+# Set NODE_ENV to production
+ENV NODE_ENV production
+{{#each productionEnvVars}}
+ENV {{this.name}}="{{this.value}}"
+{{/each}}
+
+# Create a non-root user for security
+ARG UID=10001
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    appuser
+
+# Copy built application and dependencies from the 'builder' stage
+COPY --from=builder --chown=appuser:appuser /usr/src/app/dist ./dist
+COPY --from=builder --chown=appuser:appuser /usr/src/app/node_modules ./node_modules
+COPY --from=builder --chown=appuser:appuser /usr/src/app/package.json ./package.json
+{{#each otherFilesToCopyFromBuilder}}
+COPY --from=builder --chown=appuser:appuser /usr/src/app/{{this.source}} ./{{this.destination}}
+{{/each}}
+
+# Switch to the non-root user
+USER appuser
+
+# Expose the application port
+EXPOSE {{appPort | default 3000}}
+
+# Healthcheck (optional, adjust command as needed)
+{{#if includeHealthcheck}}
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD {{healthcheckCommand | default "wget --quiet --tries=1 --spider http://localhost:{{appPort | default 3000}}/health || exit 1"}}
+{{/if}}
+
+# Command to run the application
+CMD ["node", "{{mainEntryFileJS | default "dist/index.js"}}"]
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Dockerfile
+IGNORE_WHEN_COPYING_END
+C. Example TemplateContext for dockerfile.handlebars
+const dockerfileContext = {
+  nodeVersion: "20-slim", // Or "18-alpine", "20-bookworm-slim", etc.
+  packageManagerLockFile: "package-lock.json", // "yarn.lock", "pnpm-lock.yaml"
+  packageManagerInstallCommandProduction: "npm ci --omit=dev", // For 'deps' stage
+  packageManagerRunCommand: "npm run", // For 'builder' stage
+  pruneDevDependenciesAfterBuild: true, // If 'deps' stage doesn't fully prune
+  packageManagerPruneCommand: "npm prune --production",
+
+  buildArgs: [ // Build-time ARGs passed to `docker build`
+    // { name: "API_BASE_URL_BUILD" } // Will be set as ENV API_BASE_URL_BUILD=${API_BASE_URL_BUILD} in builder
+  ],
+  productionEnvVars: [ // Runtime ENVs set in the final image
+    { name: "PORT", value: "{{appPort | default 3000}}" }, // Value can be a Handlebars var itself for later substitution
+    { name: "LOG_LEVEL", value: "info" }
+  ],
+  otherFilesToCopyFromBuilder: [ // E.g., static assets, .env.production template
+    // { source: "public", destination: "public" },
+    // { source: ".env.production.template", destination: ".env.production.template" }
+  ],
+  appPort: 3001, // Port the application listens on
+  includeHealthcheck: true,
+  healthcheckCommand: "node -e \"require('http').get('http://localhost:3001/api/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1)).on('error', () => process.exit(1))\"", // More robust Node.js healthcheck
+  mainEntryFileJS: "dist/index.js" // Path to the compiled entry point
+};
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Example of Generated Output (Dockerfile)
+# Stage 1: Build dependencies
+FROM node:20-slim-alpine AS deps
+WORKDIR /usr/src/app
+
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+# Stage 2: Build the application
+FROM node:20-slim-alpine AS builder
+WORKDIR /usr/src/app
+
+COPY --from=deps /usr/src/app/node_modules ./node_modules
+COPY package.json package-lock.json ./
+COPY . .
+
+RUN npm run build
+RUN npm prune --production
+
+# Stage 3: Production image
+FROM node:20-slim-alpine AS runner
+WORKDIR /usr/src/app
+
+ENV NODE_ENV production
+ENV PORT="3001"
+ENV LOG_LEVEL="info"
+
+ARG UID=10001
+RUN adduser \
+    --disabled-password \
+    --gecos "" \
+    --home "/nonexistent" \
+    --shell "/sbin/nologin" \
+    --no-create-home \
+    --uid "${UID}" \
+    appuser
+
+COPY --from=builder --chown=appuser:appuser /usr/src/app/dist ./dist
+COPY --from=builder --chown=appuser:appuser /usr/src/app/node_modules ./node_modules
+COPY --from=builder --chown=appuser:appuser /usr/src/app/package.json ./package.json
+
+USER appuser
+EXPOSE 3001
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3001/api/health', (res) => res.statusCode === 200 ? process.exit(0) : process.exit(1)).on('error', () => process.exit(1))"
+
+CMD ["node", "dist/index.js"]
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Dockerfile
+IGNORE_WHEN_COPYING_END
+
+Phew! That's a lot. I've tried to make these comprehensive and flexible with Handlebars context.
+
+Key considerations for these templates:
+
+Handlebars Helpers: The api-documentation.handlebars uses a conceptual splitLines helper. You'd need to register this. The unit-test-scaffold.handlebars implicitly needs careful context preparation for mock setups.
+
+Context Complexity: The contexts for these, especially the AI prompts and test scaffold, can become very rich. Your TemplateProcessor will be doing significant work to gather and structure this data from contracts, PRDs, and existing code.
+
+Iterative Nature:
+
+The AI Prompts are starting points. You'll likely refine them heavily based on the quality of AI output you get.
+
+The Troubleshooting Guide is a living document; the template provides a good structure to be populated over time.
+
+The CI/CD and Dockerfile templates are good starting points but will need adjustment based on specific cloud providers, deployment strategies, and security requirements.
+
+Linter Rules: These are conceptual and would require a separate effort to implement as actual ESLint plugins/rules.
+
+I believe these templates provide a strong foundation for the remaining aspects of your SDD tooling. I'm eager to hear your feedback and discuss any adjustments or further refinements!

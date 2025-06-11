@@ -1,0 +1,212 @@
+# Troubleshooting Guide: {{projectName}}
+
+**Last Updated:** {{generationDate}}
+
+This guide provides solutions and diagnostic steps for common issues encountered while developing or running the **{{projectName}}** application, built with Seam-Driven Development (SDD).
+
+## Table of Contents
+1.  General SDD Issues
+2.  Seam Communication Problems
+3.  ContractResult Interpretation
+4.  Component-Specific Issues
+    {{#each componentsWithIssues}}
+    - [{{this.name}}](#{{this.idName}})
+    {{/each}}
+5.  Testing Problems
+6.  Deployment & Configuration
+7.  Performance Bottlenecks
+8.  Gathering Diagnostic Information
+
+---
+
+## 1. General SDD Issues
+
+### Issue: `NotImplementedError`
+- **Symptom:** Application throws `NotImplementedError: Method 'AgentName.methodName' is not implemented.`
+- **Cause:** The business logic for the specified method has not yet been implemented. This is an SDD placeholder.
+- **Solution:**
+    1. Locate the agent file (e.g., `src/agents/agentName.agent.ts`).
+    2. Find the method `methodName`.
+    3. Review the `PURPOSE` and other fields in its blueprint comment and the associated contract (`src/contracts/agentName.contract.ts`).
+    4. Implement the required business logic, ensuring it returns a `Promise<ContractResult<T>>`.
+    5. Write corresponding unit and integration tests.
+- **Prevention:** Follow the implementation checklists generated for each agent.
+
+### Issue: Missing `.js` in Imports
+- **Symptom:** `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '...' imported from '...'` where the path looks correct but lacks `.js`.
+- **Cause:** When using ESModules in Node.js with TypeScript, compiled output requires explicit `.js` (or `.mjs`, `.cjs`) extensions in import paths.
+- **Solution:** Ensure all relative import paths in your `.ts` files end with `.js`.
+  Example: `import { MyThing } from './my-module.js';` (NOT `./my-module`)
+- **Tooling:** Configure your IDE or linters if possible to help enforce this. `tsconfig.json` `moduleResolution: "NodeNext"` (or `Bundler`) helps TypeScript understand this.
+
+### Issue: Incorrect `agentId` in `ContractResult`
+- **Symptom:** Debugging shows `ContractResult.agentId` is incorrect or missing, making tracing difficult.
+- **Cause:** The agent generating the `ContractResult` did not correctly set `this.agentId`.
+- **Solution:**
+    1. Ensure every agent class has a `public readonly agentId: string = 'unique-agent-id';` property.
+    2. Verify all return paths that create a `ContractResult` include `agentId: this.agentId`.
+- **Best Practice:** Initialize `agentId` in the constructor or as a class property.
+
+---
+
+## 2. Seam Communication Problems
+
+### Issue: SeamManager: "Agent 'AgentName' not found"
+- **Symptom:** `SeamManager.executeSeam` returns `success: false` with an error indicating the agent isn't registered.
+- **Cause:**
+    1. The target agent (`AgentName`) was never registered with the `SeamManager` instance.
+    2. A typo in the `seamName` string used in `executeSeam`.
+    3. The agent was registered *after* the call to `executeSeam` was made (timing issue).
+- **Solution:**
+    1. Verify agent registration: In your application's bootstrap/startup sequence, ensure `seamManager.registerAgent('AgentName', new AgentName(...));` is called.
+    2. Double-check the `seamName` string for exact match (case-sensitive).
+    3. Log registered agents: Add logging in `SeamManager.registerAgent` and potentially a method to list all registered agents for debugging.
+
+### Issue: SeamManager: "Method 'methodName' not found on agent 'AgentName'"
+- **Symptom:** `SeamManager.executeSeam` finds the agent but not the method.
+- **Cause:**
+    1. Typo in `methodName` string.
+    2. The method `methodName` does not exist on the `AgentName` class, or is not public.
+    3. The method exists but does not match the expected signature (though `SeamManager` often calls via `(agent as any)[methodName]`, type issues might manifest elsewhere).
+- **Solution:**
+    1. Check `methodName` string for exact match.
+    2. Verify the method is public and correctly defined in `AgentName` and its contract.
+
+### Issue: Circuit Breaker Open
+- **Symptom:** Calls to a specific seam consistently fail with a "Circuit breaker for 'AgentName' is open" error.
+- **Cause:** The target seam/agent has been failing frequently, causing its circuit breaker in `SeamManager` to trip.
+- **Solution:**
+    1. **Investigate the failing agent (`AgentName`):** Check its logs for the root cause of its failures (e.g., database errors, unhandled exceptions, downstream issues).
+    2. **Address the root cause** in `AgentName`.
+    3. **Monitor `SeamManager` logs:** Observe when the circuit breaker transitions to half-open and then closed after successful calls.
+    4. **Review circuit breaker thresholds:** If they are too sensitive for the expected operational conditions, they might need adjustment (in `SeamManager` config).
+
+---
+
+## 3. `ContractResult` Interpretation
+
+### Issue: Unsure why an operation failed.
+- **Symptom:** `ContractResult.success` is `false`.
+- **Diagnostic Steps:**
+    1. **`error: string`**: This is the primary human-readable message.
+    2. **`agentId: string`**: Identifies *which* agent reported the failure. This is crucial for distributed tracing.
+    3. **`errorCode?: string`**: If present, this machine-readable code can pinpoint specific failure types. Check documentation for this `errorCode`.
+    4. **`details?: any`**: May contain structured data about the error (e.g., validation errors, stack trace snippets from downstream).
+    5. **`correlationId?: string`**: Use this ID to trace the request across logs of multiple services/agents.
+    6. **Check logs of the failing `agentId`**: Look for more detailed logs around the time of failure, using `correlationId` if available.
+
+### Issue: `ContractResult.data` is null/undefined when `success` is true.
+- **Cause:**
+    1. The method is designed to not return data (e.g., a `void` operation like `sendNotification` where success just means it was queued).
+    2. There was an issue in the agent logic where `data` was not correctly assigned despite the operation being considered successful.
+- **Solution:**
+    1. Check the method's contract (`OutputTypeName`) and blueprint `PURPOSE` to understand if data is expected.
+    2. Debug the agent's logic to ensure `data` is correctly populated.
+
+---
+
+## 4. Component-Specific Issues
+
+{{#each componentsWithIssues}}
+### <a id="{{this.idName}}"></a>{{this.name}}
+
+{{#each this.issues}}
+#### Issue: {{this.symptom}}
+- **Context:** {{this.context}}
+- **Possible Causes:**
+  {{#each this.causes}}
+  - {{this}}
+  {{/each}}
+- **Troubleshooting Steps:**
+  {{#each this.steps}}
+  {{@indexPlus1}}. {{this.action}}
+     {{#if this.expectedResult}}
+     *Expected Result:* {{this.expectedResult}}
+     {{/if}}
+  {{/each}}
+- **Relevant Logs:** {{default this.relevantLogs "Check agent-specific logs for this component."}}
+---
+{{/each}}
+{{#unless this.issues.length}}
+*No specific common issues documented yet for {{this.name}}. Refer to general SDD troubleshooting.*
+{{/unless}}
+
+{{/each}}
+
+## 5. Testing Problems (Vitest)
+
+### Issue: Tests failing due to module resolution / `.js` imports.
+- **Symptom:** Similar to "Missing `.js` in Imports" but within test execution.
+- **Cause:** Vitest (or underlying Vite/Node) needs to correctly resolve module paths that include `.js`.
+- **Solution:**
+    1. Ensure `tsconfig.json` has `moduleResolution: "NodeNext"` or `"Bundler"`.
+    2. If using path aliases (e.g., `@/*`), ensure `vite-tsconfig-paths` plugin is configured in `vitest.config.ts`.
+    3. Verify all test file imports also use `.js`.
+
+### Issue: Mocking SeamManager or Agent Dependencies
+- **Symptom:** Difficulty isolating agents for unit tests.
+- **Solution:**
+    1. **Dependency Injection:** Agents should receive dependencies (like `SeamManager` or other direct agent instances) via their constructor.
+    2. **Vitest Mocks:** Use `vi.mock('./path/to/module.js', () => ({ ... }))` or `vi.spyOn()` to mock dependencies.
+       ```typescript
+       // Example: Mocking SeamManager.executeSeam
+       const mockSeamManager = {
+         executeSeam: vi.fn()
+       };
+       vi.mock('../seams/system.seam-manager.js', () => ({
+         SystemSeamManager: vi.fn(() => mockSeamManager)
+       }));
+       // ... in your test setup ...
+       mockSeamManager.executeSeam.mockResolvedValue({ success: true, data: { foo: 'bar' }, agentId: 'mocked-agent' });
+       ```
+    3. **Interface-based Mocks:** If agents implement interfaces, you can create simple mock objects conforming to those interfaces.
+
+---
+
+## 6. Deployment & Configuration
+
+### Issue: Application fails to start due to missing environment variables.
+- **Symptom:** Errors during startup related to `process.env.SOME_VAR` being undefined.
+- **Cause:** Required environment variables are not set in the deployment environment.
+- **Solution:**
+    1. **`.env.example`**: Maintain an `.env.example` file listing all required variables with placeholder or default values.
+    2. **Configuration Loading Logic**: Ensure your application has robust logic to load and validate environment variables at startup (e.g., using a library like `dotenv` for local dev, and proper env var management in cloud platforms).
+    3. **Deployment Scripts:** Ensure your deployment process correctly injects/configures these variables.
+
+### Issue: Incorrect configuration values leading to unexpected behavior.
+- **Solution:**
+    1. **Log Loaded Configuration (Carefully!):** At startup (in a dev/debug mode), log the configuration values being used (excluding secrets).
+    2. **Centralized Config Service:** Consider a dedicated configuration service/module that validates and provides access to config values.
+    3. **Schema Validation:** For complex configurations, use a schema validation library (e.g., Zod, Joi) at startup.
+
+---
+
+## 7. Performance Bottlenecks
+
+### Identifying Bottlenecks:
+1.  **Logging with Timestamps/Durations:** Add detailed timing information to logs for critical operations and seam calls. `ContractResult.metadata` can store `durationMs`.
+2.  **APM Tools:** If available (e.g., Datadog, New Relic, Sentry APM), use them to trace requests and identify slow spans.
+3.  **Node.js Profiler:** Use `node --prof` and tools like `0x` or `flamebearer` for in-depth CPU profiling.
+4.  **Load Testing:** Simulate realistic load to see how components behave under pressure.
+
+### Common Causes & Solutions:
+- **Slow Database Queries:** Optimize queries, add indexes, consider caching.
+- **Excessive I/O Operations:** Batch operations, use streams.
+- **Blocking Synchronous Code:** Ensure all I/O is asynchronous (`async/await`).
+- **Inefficient Algorithms:** Review complex computations.
+- **Chatty Seam Interactions:** Can multiple seam calls be combined or data aggregated differently?
+
+---
+
+## 8. Gathering Diagnostic Information
+
+When reporting an issue, please try to include:
+1.  **Clear description of the problem:** What happened vs. what was expected?
+2.  **Steps to reproduce (if known).**
+3.  **Relevant `ContractResult` objects (especially `error`, `agentId`, `errorCode`, `correlationId`).**
+4.  **Relevant log snippets** from all involved agents (use `correlationId` to find them).
+5.  **Environment details:** (Local dev, staging, production? Node version? Key dependency versions?).
+6.  **Any recent changes** that might be related.
+
+---
+*This guide is a living document. Please contribute common issues and solutions as they are discovered.*

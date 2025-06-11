@@ -1,0 +1,160 @@
+# SDD Implementation Task: {{agentName}} - Method(s): {{#each methodsToImplement}}{{this.name}}{{#unless @last}}, {{/unless}}{{/each}}
+
+## AI ASSISTANT TASK BRIEFING
+
+**Project:** {{projectName}}
+**Target Agent:** `{{agentName}}` (File: `{{agentFilePath}}`)
+**Associated Contract:** `{{contractName}}` (File: `{{contractFilePath}}`)
+
+You are to implement the business logic for the following method(s) within the `{{agentName}}`. Adhere strictly to Seam-Driven Development (SDD) principles.
+
+**Overall Agent Purpose:** {{agentPurpose}}
+
+---
+{{#each methodsToImplement}}
+## Method: `{{this.name}}`
+
+### 1. Contract Definition (from `{{../contractName}}`):
+```typescript
+{{this.contractMethodSignature}}
+  // Blueprint Comment from Contract:
+  /**
+   * PURPOSE: {{this.blueprint.purpose}}
+   * DATA FLOW: {{this.blueprint.dataFlow}}
+   * INTEGRATION POINTS: {{this.blueprint.integrationPoints}}
+   * FAILURE MODES: {{this.blueprint.failureModes}}
+   * RATIONALE: {{this.blueprint.rationale}}
+   * EXAMPLES: {{this.blueprint.examples}}
+   * CONTRACT VERSION: {{this.blueprint.contractVersion}}
+   */
+{{#if this.inputTypeDefinition}}
+// Input Type: {{this.inputTypeName}}
+{{this.inputTypeDefinition}}
+{{/if}}
+{{#if this.outputTypeDefinition}}
+// Output Type: {{this.outputTypeName}}
+{{this.outputTypeDefinition}}
+{{/if}}
+```
+
+### 2. Current Stub in `{{../agentFilePath}}`:
+```typescript
+public async {{this.name}}(request: {{this.inputTypeName}}): Promise<ContractResult<{{this.outputTypeName}}>> {
+  // 🛡️ DEFENSIVE: Input validation for '{{this.name}}'
+  {{#if this.initialValidationCode}}
+  {{{this.initialValidationCode}}}
+  {{else}}
+  // TODO: Add comprehensive input validation for all fields in 'request: {{this.inputTypeName}}'.
+  // Example: if (!request || !request.requiredField) return { success: false, error: "Missing requiredField", agentId: this.agentId };
+  {{/if}}
+
+  // 🔨 HARD_WORK: Implement business logic for '{{this.name}}'
+  // Replace this NotImplementedError with your implementation.
+  throw new NotImplementedError("{{../agentName}}.{{this.name}}", "Blueprint: {{this.blueprint.purpose}}");
+}
+```
+
+### 3. Detailed Requirements & Implementation Guidance for `{{this.name}}`:
+
+**Objective:** {{this.implementationObjective}}
+
+**Key Steps / Logic Flow:**
+{{#if this.steps.length}}
+{{#each this.steps}}
+  {{@indexPlus1}}. {{this.description}}
+     {{#if this.codeHint}}
+     *Code Hint/Example:*
+     ```typescript
+     {{{this.codeHint}}}
+     ```
+     {{/if}}
+     {{#if this.validation}}
+     *Validation:* {{this.validation}}
+     {{/if}}
+{{/each}}
+{{else}}
+  - *No explicit sub-steps provided. Infer logic from PURPOSE, RATIONALE, and objective.*
+{{/if}}
+
+**Data Transformations (if any):**
+{{#if this.dataTransformations}}
+  - {{this.dataTransformations}}
+{{else}}
+  - *None specified, or map directly based on types.*
+{{/if}}
+
+**Integration with Other Seams (via `this.seamManager.executeSeam<Output, Input>(...)`):**
+{{#if this.seamIntegrations.length}}
+{{#each this.seamIntegrations}}
+  - **Seam:** `{{this.seamName}}`
+  - **Method:** `{{this.methodToCall}}`
+  - **Purpose:** {{this.purposeInWorkflow}}
+  - **Input Payload (Example):**
+    ```typescript
+    // const {{this.seamNameCamelCase}}Request: {{this.requestTypeName}} = { ... map from 'request' or prior results ... };
+    {{{this.exampleInputPayload}}}
+    ```
+  - **Output Handling:**
+    ```typescript
+    // const {{this.seamNameCamelCase}}Result = await this.seamManager.executeSeam<{{this.responseTypeName}}, {{this.requestTypeName}}>(
+    //   '{{this.seamName}}', '{{this.methodToCall}}', {{this.seamNameCamelCase}}Request
+    // );
+    // if (!{{this.seamNameCamelCase}}Result.success) {
+    //   // Handle error, potentially return ContractResult failure
+    //   return { success: false, error: `Failed calling {{this.seamName}}: ${{this.seamNameCamelCase}}Result.error}`, agentId: this.agentId };
+    // }
+    // const {{this.seamNameCamelCase}}Data = {{this.seamNameCamelCase}}Result.data;
+    // // Use {{this.seamNameCamelCase}}Data...
+    {{{this.exampleOutputHandling}}}
+    ```
+{{/each}}
+{{else}}
+  - *No direct seam integrations specified for this method beyond what's in its blueprint INTEGRATION POINTS. If INTEGRATION POINTS mention other agents, assume `this.seamManager` will be used.*
+{{/if}}
+
+**Error Handling Specifics:**
+  - Beyond standard input validation, consider: {{default this.specificErrorHandling "Refer to method's FAILURE MODES blueprint."}}
+  - All errors MUST be caught and returned as `ContractResult<{{this.outputTypeName}}>` with `success: false`.
+
+**Security Considerations:**
+  - {{default this.securityNotes "Standard input sanitization. If dealing with sensitive data, ensure it's handled appropriately (e.g., no logging of PII). Refer to project security guidelines if available."}}
+
+**Performance Considerations:**
+  - {{default this.performanceNotes "Aim for efficient execution. If database calls or complex computations are involved, consider optimization."}}
+
+**Logging:**
+  - Log key entry/exit points, significant decisions, and errors.
+  - Use a structured logger if available, e.g., `this.logger.info(...)`, `this.logger.error(...)`.
+  - Avoid logging sensitive data. Example:
+    ```typescript
+    // this.logger.info({ message: "{{this.name}} started", input: requestWithoutSensitiveData });
+    // ...
+    // this.logger.error({ message: "{{this.name}} failed", error: result.error, input: requestWithoutSensitiveData });
+    ```
+
+### 4. Acceptance Criteria / Test Cases for `{{this.name}}`:
+{{#if this.acceptanceCriteria.length}}
+{{#each this.acceptanceCriteria}}
+  - **Given:** {{this.given}}
+  - **When:** {{this.when}}
+  - **Then:** {{this.then}}
+  - **ContractResult:** `success: {{this.expectedSuccess}}`{{#if this.expectedDataSnippet}}, `data` should resemble `{{{this.expectedDataSnippet}}}`{{/if}}{{#if this.expectedError}}, `error` contains "{{this.expectedError}}"{{/if}}
+{{/each}}
+{{else}}
+  - *Develop unit tests covering happy path, common error cases (from FAILURE MODES), and edge cases based on input types and business logic.*
+  - *Ensure tests validate the structure and content of `ContractResult` (both success and failure).*
+{{/if}}
+
+---
+{{/each}}
+
+## GENERAL SDD REMINDERS (from Onboarding):
+- Return `Promise<ContractResult<T>>` for all methods.
+- Include `agentId: this.agentId` in all `ContractResult`s.
+- Use 7-field Blueprint Comments for any new helper methods you create.
+- Use `.js` in all import statements.
+- Write comprehensive unit tests in `tests/unit/{{camelCaseAgentName}}.unit.test.ts` for the logic you implement.
+- If this method requires changes to other agents or new contracts, please state that clearly rather than implementing it directly.
+
+**Output Expectation:**
+Provide the complete updated Typescript code for the `{{agentName}}` class, specifically the implemented method(s). Ensure the code is well-formatted, includes necessary imports, and adheres to all SDD principles. Also, provide the corresponding unit tests.

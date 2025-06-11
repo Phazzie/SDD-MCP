@@ -1,0 +1,1450 @@
+Okay, I'm ready to assist you in generating these Handlebars templates for Seam-Driven Development! This is an exciting approach, and I'll ensure the templates align perfectly with your SDD philosophy and core patterns.
+
+Let's proceed with the requested templates in the specified priority order.
+
+1. seam-manager.handlebars
+
+This template generates a SeamManager class responsible for orchestrating communication between various agents (seams).
+
+A. Template Filename
+
+seam-manager.handlebars
+
+B. Complete Handlebars Template Code
+// {{seamManagerFileName}}.ts
+/**
+ * PURPOSE: Orchestrates communication between different agents (seams) in the system.
+ * DATA FLOW: BOTH - Manages requests to and responses from various agents.
+ * INTEGRATION POINTS: All registered agents, OrchestratorAgent.
+ * FAILURE MODES: Agent not found, Agent execution error, Health check failure, Circuit breaker open.
+ * RATIONALE: Centralizes seam management, routing, and resilience patterns like circuit breakers.
+ * EXAMPLES: `seamManager.executeSeam('UserManagementAgent', 'authenticateUser', { email, password })`
+ * CONTRACT VERSION: 1.0.0
+ */
+
+import { ContractResult } from '{{contractResultImportPath}}'; // e.g., './shared/types.js' or from a central contracts file
+import { NotImplementedError } from '{{notImplementedErrorImportPath}}'; // e.g., './shared/errors.js'
+{{#if baseAgentInterfaceImportPath}}
+import { {{baseAgentInterfaceName}} } from '{{baseAgentInterfaceImportPath}}';
+{{else}}
+// Define a basic Agent interface if not provided
+interface {{baseAgentInterfaceName}} {
+  agentId: string;
+  healthCheck(): Promise<ContractResult<{ status: string; details?: any }>>;
+  // Add other common methods if necessary, or agents can have their specific contracts
+  // This SeamManager assumes agents have methods matching the `methodName` passed to `executeSeam`
+  [methodName: string]: (...args: any[]) => Promise<ContractResult<any>>;
+}
+{{/if}}
+
+{{#each agentsToImport}}
+import { {{this.componentName}} } from '{{this.importPath}}.js';
+{{/each}}
+
+// Consider using a proper logger library like Winston or Pino
+const logger = {
+  info: (message: string, ...args: any[]) => console.log(`[INFO] ${message}`, ...args),
+  error: (message: string, ...args: any[]) => console.error(`[ERROR] ${message}`, ...args),
+  warn: (message: string, ...args: any[]) => console.warn(`[WARN] ${message}`, ...args),
+};
+
+{{#if useCircuitBreaker}}
+interface CircuitBreakerState {
+  isOpen: boolean;
+  lastFailure?: Date;
+  failureCount: number;
+  successCount: number;
+  nextAttempt?: Date;
+}
+{{/if}}
+
+export class {{seamManagerClassName}} {
+  private agents: Map<string, {{baseAgentInterfaceName}}> = new Map();
+  public readonly agentId: string = '{{agentId}}';
+
+  {{#if useCircuitBreaker}}
+  private circuitBreakerStates: Map<string, CircuitBreakerState> = new Map();
+  private readonly CB_ERROR_THRESHOLD_PERCENTAGE = {{circuitBreakerConfig.errorThresholdPercentage}}; // e.g., 50
+  private readonly CB_RESET_TIMEOUT_MS = {{circuitBreakerConfig.resetTimeoutMs}}; // e.g., 30000 (30 seconds)
+  private readonly CB_MIN_REQUESTS_FOR_EVAL = {{circuitBreakerConfig.minRequestsForEval}}; // e.g., 10 requests before evaluating threshold
+  private readonly CB_OPEN_STATE_TIMEOUT_MS = {{circuitBreakerConfig.openStateTimeoutMs}}; // Time before switching to half-open
+  {{/if}}
+
+  /**
+   * PURPOSE: Initializes the SeamManager, optionally pre-registering agents.
+   * DATA FLOW: N/A
+   * INTEGRATION POINTS: System startup.
+   * FAILURE MODES: None directly, but agent instantiation might fail.
+   * RATIONALE: Constructor for the SeamManager.
+   * EXAMPLES: `new {{seamManagerClassName}}()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  constructor({{#if agentsToRegisterAtConstruction.length > 0}}
+    {{#each agentsToRegisterAtConstruction}}
+    {{this.camelCaseName}}Instance?: {{this.componentName}}{{#unless @last}},{{/unless}}
+    {{/each}}
+  {{/if}}) {
+    logger.info(`{{seamManagerClassName}} initialized. Agent ID: ${this.agentId}`);
+    {{#each agentsToRegisterAtConstruction}}
+    if ({{this.camelCaseName}}Instance) {
+      this.registerAgent('{{this.componentName}}', {{this.camelCaseName}}Instance);
+    }
+    {{/each}}
+    // 🛡️ DEFENSIVE: Initialize with any default agents or configurations here.
+  }
+
+  /**
+   * PURPOSE: Registers an agent instance with the SeamManager.
+   * DATA FLOW: IN - Agent instance and its designated name.
+   * INTEGRATION POINTS: System startup, Dynamic agent loading.
+   * FAILURE MODES: Agent name already registered.
+   * RATIONALE: Allows agents to be discoverable and manageable.
+   * EXAMPLES: `seamManager.registerAgent('UserManagementAgent', new UserManagementAgent())`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public registerAgent(seamName: string, agentInstance: {{baseAgentInterfaceName}}): ContractResult<void> {
+    if (this.agents.has(seamName)) {
+      const errorMsg = `Agent with name "${seamName}" is already registered.`;
+      logger.error(errorMsg);
+      return { success: false, error: errorMsg, agentId: this.agentId };
+    }
+    this.agents.set(seamName, agentInstance);
+    {{#if useCircuitBreaker}}
+    this.circuitBreakerStates.set(seamName, { isOpen: false, failureCount: 0, successCount: 0 });
+    {{/if}}
+    logger.info(`Agent "${seamName}" (ID: ${agentInstance.agentId}) registered successfully.`);
+    return { success: true, agentId: this.agentId };
+  }
+
+  /**
+   * PURPOSE: Executes a specific method on a registered agent.
+   * DATA FLOW: BOTH - Takes a request, routes it to an agent, and returns the agent's ContractResult.
+   * INTEGRATION POINTS: OrchestratorAgent, any component needing to interact with a seam.
+   * FAILURE MODES: Agent not found, Method not found on agent, Agent execution error, Circuit breaker open.
+   * RATIONALE: Core method for seam interaction.
+   * EXAMPLES: `await seamManager.executeSeam<AuthToken>('UserAuthAgent', 'authenticate', { user: 'test', pass: 'pw' })`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async executeSeam<TResponseData, TRequestData = any>(
+    seamName: string,
+    methodName: string,
+    requestPayload: TRequestData
+  ): Promise<ContractResult<TResponseData>> {
+    logger.info(`Executing seam: "${seamName}", method: "${methodName}"`, { payload: requestPayload }); // Avoid logging sensitive data in prod
+
+    const agent = this.agents.get(seamName);
+    if (!agent) {
+      const errorMsg = `Agent "${seamName}" not found.`;
+      logger.error(errorMsg);
+      return { success: false, error: errorMsg, agentId: this.agentId };
+    }
+
+    if (typeof (agent as any)[methodName] !== 'function') {
+      const errorMsg = `Method "${methodName}" not found on agent "${seamName}".`;
+      logger.error(errorMsg);
+      return { success: false, error: errorMsg, agentId: this.agentId };
+    }
+
+    {{#if useCircuitBreaker}}
+    const cbState = this.circuitBreakerStates.get(seamName);
+    if (cbState?.isOpen) {
+      if (cbState.nextAttempt && new Date() < cbState.nextAttempt) {
+        const errorMsg = `Circuit breaker for "${seamName}" is open. Try again later.`;
+        logger.warn(errorMsg);
+        return { success: false, error: errorMsg, agentId: this.agentId, metadata: { circuitBreaker: 'open' } };
+      }
+      // Half-open state: allow one request through
+      logger.warn(`Circuit breaker for "${seamName}" is in half-open state. Attempting one call.`);
+    }
+    {{/if}}
+
+    try {
+      // 🔨 HARD_WORK: Delegate to the actual agent method.
+      const result: ContractResult<TResponseData> = await (agent as any)[methodName](requestPayload);
+      
+      {{#if useCircuitBreaker}}
+      this.recordCallMetrics(seamName, result.success);
+      if (!result.success && cbState?.isOpen) { // If half-open call failed, keep it open and reset timer
+         cbState.nextAttempt = new Date(Date.now() + this.CB_OPEN_STATE_TIMEOUT_MS);
+      }
+      {{/if}}
+
+      if (!result.success) {
+        logger.error(`Seam "${seamName}" method "${methodName}" execution failed: ${result.error}`, { agentId: result.agentId });
+      } else {
+        logger.info(`Seam "${seamName}" method "${methodName}" executed successfully.`, { agentId: result.agentId });
+      }
+      return result;
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Critical error executing seam "${seamName}" method "${methodName}": ${errorMessage}`, { stack: (error as Error)?.stack });
+      
+      {{#if useCircuitBreaker}}
+      this.recordCallMetrics(seamName, false); // Record as failure
+      {{/if}}
+      
+      return {
+        success: false,
+        error: `SeamManager critical failure: ${errorMessage}`,
+        agentId: this.agentId,
+        metadata: { originalError: errorMessage }
+      };
+    }
+  }
+
+  {{#if useCircuitBreaker}}
+  /**
+   * PURPOSE: Records call metrics for circuit breaker logic.
+   * DATA FLOW: IN - Seam name and success status.
+   * INTEGRATION POINTS: `executeSeam` method.
+   * FAILURE MODES: None.
+   * RATIONALE: Internal helper for circuit breaker state management.
+   * EXAMPLES: N/A (internal)
+   * CONTRACT VERSION: 1.0.0
+   */
+  private recordCallMetrics(seamName: string, success: boolean): void {
+    const state = this.circuitBreakerStates.get(seamName);
+    if (!state) return;
+
+    if (success) {
+      state.successCount++;
+      if (state.isOpen) { // Successful call in half-open state
+        logger.info(`Circuit breaker for "${seamName}" is now closed due to successful half-open call.`);
+        state.isOpen = false;
+        state.failureCount = 0;
+        state.successCount = 0; // Reset counts
+        delete state.nextAttempt;
+      }
+    } else {
+      state.failureCount++;
+    }
+
+    // If not open and enough requests, check threshold
+    if (!state.isOpen && (state.failureCount + state.successCount >= this.CB_MIN_REQUESTS_FOR_EVAL)) {
+      const errorRate = (state.failureCount / (state.failureCount + state.successCount)) * 100;
+      if (errorRate >= this.CB_ERROR_THRESHOLD_PERCENTAGE) {
+        logger.warn(`Circuit breaker for "${seamName}" is now open due to high error rate (${errorRate.toFixed(2)}%).`);
+        state.isOpen = true;
+        state.lastFailure = new Date();
+        state.nextAttempt = new Date(Date.now() + this.CB_OPEN_STATE_TIMEOUT_MS);
+        // Reset counts for next evaluation window when it re-closes or goes half-open
+        state.failureCount = 0;
+        state.successCount = 0;
+      }
+    }
+  }
+  {{/if}}
+
+  /**
+   * PURPOSE: Performs a health check on a specific registered agent.
+   * DATA FLOW: OUT - Returns the health status of the agent.
+   * INTEGRATION POINTS: Monitoring systems, OrchestratorAgent.
+   * FAILURE MODES: Agent not found, Agent health check fails.
+   * RATIONALE: Allows monitoring the health of individual seams.
+   * EXAMPLES: `await seamManager.checkSeamHealth('UserAuthAgent')`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async checkSeamHealth(seamName: string): Promise<ContractResult<{ status: string; details?: any; agentIdReported: string }>> {
+    const agent = this.agents.get(seamName);
+    if (!agent) {
+      return { success: false, error: `Agent "${seamName}" not found.`, agentId: this.agentId };
+    }
+    try {
+      // 🛡️ DEFENSIVE: Ensure agent has a healthCheck method.
+      if (typeof agent.healthCheck !== 'function') {
+        return { success: false, error: `Agent "${seamName}" does not implement healthCheck method.`, agentId: this.agentId };
+      }
+      const healthResult = await agent.healthCheck();
+      return {
+        success: healthResult.success,
+        data: { ...(healthResult.data || {status: 'unknown'}), agentIdReported: healthResult.agentId },
+        error: healthResult.error,
+        agentId: this.agentId, // SeamManager is reporting, but includes agent's response
+        metadata: { checkedAgentId: agent.agentId }
+      };
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.error(`Error during health check for "${seamName}": ${errorMessage}`);
+      return { success: false, error: `Health check for "${seamName}" failed: ${errorMessage}`, agentId: this.agentId };
+    }
+  }
+
+  /**
+   * PURPOSE: Aggregates health checks from all registered agents.
+   * DATA FLOW: OUT - Returns a summary of health statuses for all seams.
+   * INTEGRATION POINTS: Monitoring systems, System status dashboards.
+   * FAILURE MODES: One or more agents report unhealthy.
+   * RATIONALE: Provides an overview of the system's seam health.
+   * EXAMPLES: `await seamManager.checkAllSeams()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async checkAllSeams(): Promise<ContractResult<Record<string, { status: string; details?: any; error?: string; agentIdReported?: string }>>> {
+    const allHealthStatus: Record<string, { status: string; details?: any; error?: string; agentIdReported?: string }> = {};
+    let overallSuccess = true;
+
+    if (this.agents.size === 0) {
+      return {
+        success: true, // No agents, so vacuously healthy
+        data: { message: "No agents registered to check." },
+        agentId: this.agentId
+      };
+    }
+
+    for (const [seamName, agent] of this.agents) {
+      // 🛡️ DEFENSIVE: Ensure agent has a healthCheck method.
+      if (typeof agent.healthCheck !== 'function') {
+        allHealthStatus[seamName] = { status: 'unhealthy', error: 'Agent does not implement healthCheck method.' };
+        overallSuccess = false;
+        continue;
+      }
+      const healthResult = await this.checkSeamHealth(seamName);
+      if (healthResult.success && healthResult.data) {
+        allHealthStatus[seamName] = { 
+          status: healthResult.data.status, 
+          details: healthResult.data.details,
+          agentIdReported: healthResult.data.agentIdReported
+        };
+      } else {
+        allHealthStatus[seamName] = { status: 'unhealthy', error: healthResult.error || 'Unknown error' };
+        overallSuccess = false;
+      }
+    }
+
+    logger.info('Overall seam health check completed.', { overallSuccess, statuses: allHealthStatus });
+    return {
+      success: overallSuccess,
+      data: allHealthStatus,
+      agentId: this.agentId,
+      error: overallSuccess ? undefined : 'One or more seams reported unhealthy.'
+    };
+  }
+
+  /**
+   * PURPOSE: Provides a list of all registered agent names.
+   * DATA FLOW: OUT
+   * INTEGRATION POINTS: Orchestrator, Debugging tools.
+   * FAILURE MODES: None.
+   * RATIONALE: Useful for discovery and diagnostics.
+   * EXAMPLES: `seamManager.getRegisteredSeamNames()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public getRegisteredSeamNames(): ContractResult<string[]> {
+    return {
+      success: true,
+      data: Array.from(this.agents.keys()),
+      agentId: this.agentId
+    };
+  }
+
+  /**
+   * PURPOSE: Placeholder for graceful shutdown logic.
+   * DATA FLOW: N/A
+   * INTEGRATION POINTS: Application lifecycle management.
+   * FAILURE MODES: Agent shutdown errors.
+   * RATIONALE: Ensures clean termination of seam communications.
+   * EXAMPLES: `await seamManager.shutdown()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async shutdown(): Promise<ContractResult<void>> {
+    logger.info('Shutting down SeamManager...');
+    // 🔨 HARD_WORK: Implement logic to gracefully shut down agents if needed
+    // For example, call a `dispose` or `shutdown` method on each agent
+    // for (const [seamName, agent] of this.agents) {
+    //   if (typeof (agent as any).shutdown === 'function') {
+    //     await (agent as any).shutdown();
+    //     logger.info(`Agent "${seamName}" shut down.`);
+    //   }
+    // }
+    this.agents.clear();
+    {{#if useCircuitBreaker}}
+    this.circuitBreakerStates.clear();
+    {{/if}}
+    logger.info('SeamManager shut down successfully.');
+    return { success: true, agentId: this.agentId };
+  }
+}
+
+C. Example of Generated Output (using a Sample TemplateContext)
+
+Let's assume the following context:
+
+const seamManagerContext = {
+  seamManagerClassName: "ApplicationSeamManager",
+  seamManagerFileName: "application.seam-manager",
+  agentId: "app-seam-manager-001",
+  baseAgentInterfaceName: "IAgentBase",
+  contractResultImportPath: "../../shared/common-types.js", // Adjusted path
+  notImplementedErrorImportPath: "../../shared/sdd-errors.js", // Adjusted path
+  baseAgentInterfaceImportPath: "../../shared/iagent-base.js",
+  agentsToImport: [
+    { componentName: "UserManagementAgent", importPath: "../agents/userManagement.agent" },
+    { componentName: "NotificationAgent", importPath: "../agents/notification.agent" }
+  ],
+  agentsToRegisterAtConstruction: [ // For constructor DI example
+    { componentName: "UserManagementAgent", camelCaseName: "userManagementAgent" },
+    { componentName: "NotificationAgent", camelCaseName: "notificationAgent" },
+  ],
+  useCircuitBreaker: true,
+  circuitBreakerConfig: {
+    errorThresholdPercentage: 50,
+    resetTimeoutMs: 30000,
+    minRequestsForEval: 5,
+    openStateTimeoutMs: 60000
+  }
+};
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+
+Generated application.seam-manager.ts (Snippet):
+
+// application.seam-manager.ts
+/**
+ * PURPOSE: Orchestrates communication between different agents (seams) in the system.
+ * DATA FLOW: BOTH - Manages requests to and responses from various agents.
+ * INTEGRATION POINTS: All registered agents, OrchestratorAgent.
+ * FAILURE MODES: Agent not found, Agent execution error, Health check failure, Circuit breaker open.
+ * RATIONALE: Centralizes seam management, routing, and resilience patterns like circuit breakers.
+ * EXAMPLES: `seamManager.executeSeam('UserManagementAgent', 'authenticateUser', { email, password })`
+ * CONTRACT VERSION: 1.0.0
+ */
+
+import { ContractResult } from '../../shared/common-types.js';
+import { NotImplementedError } from '../../shared/sdd-errors.js';
+import { IAgentBase } from '../../shared/iagent-base.js';
+
+import { UserManagementAgent } from '../agents/userManagement.agent.js';
+import { NotificationAgent } from '../agents/notification.agent.js';
+
+// ... (logger definition) ...
+
+interface CircuitBreakerState {
+  isOpen: boolean;
+  lastFailure?: Date;
+  failureCount: number;
+  successCount: number;
+  nextAttempt?: Date;
+}
+
+export class ApplicationSeamManager {
+  private agents: Map<string, IAgentBase> = new Map();
+  public readonly agentId: string = 'app-seam-manager-001';
+
+  private circuitBreakerStates: Map<string, CircuitBreakerState> = new Map();
+  private readonly CB_ERROR_THRESHOLD_PERCENTAGE = 50;
+  private readonly CB_RESET_TIMEOUT_MS = 30000;
+  private readonly CB_MIN_REQUESTS_FOR_EVAL = 5;
+  private readonly CB_OPEN_STATE_TIMEOUT_MS = 60000;
+
+  constructor(
+    userManagementAgentInstance?: UserManagementAgent,
+    notificationAgentInstance?: NotificationAgent
+  ) {
+    logger.info(`ApplicationSeamManager initialized. Agent ID: ${this.agentId}`);
+    if (userManagementAgentInstance) {
+      this.registerAgent('UserManagementAgent', userManagementAgentInstance);
+    }
+    if (notificationAgentInstance) {
+      this.registerAgent('NotificationAgent', notificationAgentInstance);
+    }
+    // 🛡️ DEFENSIVE: Initialize with any default agents or configurations here.
+  }
+
+  // ... (rest of the methods: registerAgent, executeSeam, recordCallMetrics, checkSeamHealth, checkAllSeams, etc.)
+}
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Integration Instructions
+
+Placement: This file (e.g., application.seam-manager.ts) should typically reside in a central location like src/seams/ or src/core/.
+
+Dependencies:
+
+Ensure a ContractResult type definition exists at the contractResultImportPath.
+
+Ensure a NotImplementedError class exists at the notImplementedErrorImportPath.
+
+If baseAgentInterfaceImportPath is used, ensure the IAgentBase (or equivalent) interface is defined there. This interface should mandate agentId: string and healthCheck(): Promise<ContractResult<{ status: string; details?: any }>>. Other methods can be agent-specific, and executeSeam uses (agent as any)[methodName] for flexibility, or you can enforce a more generic execute method on IAgentBase.
+
+All agent implementations (e.g., UserManagementAgent) must be importable from the paths specified in agentsToImport. They should conform to IAgentBase or the duck-typed expectations.
+
+Instantiation:
+
+The SeamManager should be instantiated once, typically at application startup.
+
+Agents can be registered either via constructor arguments (as shown in the example) or by calling registerAgent post-instantiation.
+
+This SeamManager instance will then be injected into or made available to the OrchestratorAgent and any other components that need to initiate seam communications.
+
+Agent Requirements:
+
+Each agent managed by this SeamManager MUST implement a healthCheck(): Promise<ContractResult<{ status: string; details?: any }>> method.
+
+Each agent MUST have an agentId: string property.
+
+Methods called via executeSeam must return Promise<ContractResult<T>>.
+
+Configuration:
+
+The TemplateContext for this template needs to be populated with:
+
+seamManagerClassName, seamManagerFileName, agentId.
+
+Correct import paths for shared types/errors.
+
+A list of agentsToImport with their componentName and importPath (relative to the SeamManager file, excluding .js initially as the template adds it).
+
+Optional: agentsToRegisterAtConstruction for constructor dependency injection.
+
+Circuit breaker configuration (useCircuitBreaker and circuitBreakerConfig).
+
+Logging: The template uses a simple console logger. Replace with a more robust logging solution (e.g., Winston, Pino) as needed, ensuring the logger interface is compatible.
+
+Circuit Breaker: If useCircuitBreaker is true, the basic circuit breaker logic is included. This is a simplified implementation; for production, consider using a mature library like opossum.
+
+E. Validation Checklist
+
+[ ] File Generation: Does the template generate a .ts file with the correct seamManagerFileName?
+
+[ ] Class Definition: Is the {{seamManagerClassName}} correctly generated?
+
+[ ] Imports:
+
+Are ContractResult and NotImplementedError imported correctly using {{contractResultImportPath}} and {{notImplementedErrorImportPath}} with .js extension?
+
+Is {{baseAgentInterfaceName}} imported correctly if baseAgentInterfaceImportPath is provided?
+
+Are all agents listed in agentsToImport correctly imported with .js extensions?
+
+[ ] SDD Patterns:
+
+Blueprint Comments: Are the 7-field blueprint comments present for the class and major public methods?
+
+ContractResult: Do methods like registerAgent, executeSeam, checkSeamHealth, checkAllSeams, getRegisteredSeamNames, shutdown return ContractResult (or Promise<ContractResult>) where appropriate?
+
+Error Handling: Does executeSeam catch errors and wrap them in a ContractResult? Are error messages informative?
+
+Agent ID: Is this.agentId used in returned ContractResult objects?
+
+[ ] Core Functionality:
+
+registerAgent:
+
+Can it register an agent?
+
+Does it prevent duplicate registration by seamName?
+
+Does it initialize circuit breaker state if enabled?
+
+executeSeam:
+
+Does it correctly find and call the method on the specified agent?
+
+Does it handle "agent not found" errors?
+
+Does it handle "method not found on agent" errors?
+
+Does it correctly propagate the agent's ContractResult?
+
+If circuit breaker is enabled:
+
+Does it check isOpen state before calling?
+
+Does it handle half-open state correctly?
+
+Does recordCallMetrics update state correctly (open, close, failure/success counts)?
+
+checkSeamHealth:
+
+Does it call the healthCheck method on the agent?
+
+Does it handle agents without a healthCheck method?
+
+Does it return the agent's health status wrapped in a ContractResult?
+
+checkAllSeams:
+
+Does it iterate through all registered agents?
+
+Does it aggregate health statuses correctly?
+
+Does it set overallSuccess based on individual health checks?
+
+getRegisteredSeamNames:
+
+Does it return a list of registered seam names?
+
+shutdown:
+
+Does it include a placeholder for agent shutdown logic?
+
+Does it clear internal agent/circuit breaker maps?
+
+[ ] Logging: Are there logger.info/error/warn calls at appropriate places?
+
+[ ] Circuit Breaker (if enabled):
+
+Are CB_ constants used from circuitBreakerConfig?
+
+Is circuitBreakerStates map used correctly?
+
+Is recordCallMetrics logic sound for state transitions (closed -> open, open -> half-open -> closed/open)?
+
+[ ] TypeScript Compliance: Does the generated code compile without TypeScript errors (assuming all dependent types and interfaces are correctly defined)?
+
+[ ] Example Output Review: Does the example output look correct based on the sample context?
+
+[ ] Extensibility: Are there clear markers (// 🔨 HARD_WORK, // 🛡️ DEFENSIVE) for areas needing further implementation or customization?
+
+This seam-manager.handlebars provides a robust foundation. Next, I'll work on orchestrator-agent.handlebars.
+
+Okay, let's move on to the orchestrator-agent.handlebars. This agent is central to coordinating workflows by interacting with other agents via the SeamManager.
+
+2. orchestrator-agent.handlebars
+
+This template generates the main OrchestratorAgent class, which is responsible for handling high-level business processes by invoking various seams.
+
+A. Template Filename
+
+orchestrator-agent.handlebars
+
+B. Complete Handlebars Template Code
+// {{stubFileName}}
+/**
+ * PURPOSE: {{purpose}} - Coordinates multiple seams to fulfill complex business workflows.
+ * DATA FLOW: BOTH - Receives high-level requests and orchestrates calls to various agents.
+ * INTEGRATION POINTS: Client applications, API Gateways, {{seamManagerClassName}}. {{#each directDependencies}} {{this.name}} {{/each}}
+ * FAILURE MODES: Seam execution failure, Invalid request, Data transformation error, Transaction rollback failure, Timeout.
+ * RATIONALE: Centralizes complex workflow logic, decouples clients from individual seam details, and manages cross-seam operations.
+ * EXAMPLES: Orchestrating user onboarding (registration, email verification, profile setup).
+ * CONTRACT VERSION: 1.0.0
+ */
+
+import { ContractResult } from '{{contractResultImportPath}}';
+import { NotImplementedError } from '{{notImplementedErrorImportPath}}';
+import { {{seamManagerClassName}} } from '{{seamManagerImportPath}}.js';
+{{#if baseAgentInterfaceImportPath}}
+import { {{baseAgentInterfaceName}} } from '{{baseAgentInterfaceImportPath}}';
+{{/if}}
+{{#each additionalImports}}
+import { {{this.identifiers}} } from '{{this.path}}.js';
+{{/each}}
+
+// Consider using a proper logger library
+const logger = {
+  info: (message: string, ...args: any[]) => console.log(`[INFO][{{pascalCaseName}}Agent] ${message}`, ...args),
+  error: (message: string, ...args: any[]) => console.error(`[ERROR][{{pascalCaseName}}Agent] ${message}`, ...args),
+  warn: (message: string, ...args: any[]) => console.warn(`[WARN][{{pascalCaseName}}Agent] ${message}`, ...args),
+};
+
+{{#if generateCorrelationId}}
+// Using a simple UUID generator; replace with a robust library if needed
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+{{/if}}
+
+// Define input/output types for orchestrator methods - these would typically be in a {{contractFileName}}
+{{#each exposedMethods}}
+export interface {{../pascalCaseName}}{{this.pascalCaseName}}Input {
+  {{#each this.inputFields}}
+  {{this.name}}{{#if this.optional}}?{{/if}}: {{this.type}}; // {{this.description}}
+  {{/each}}
+  {{#if ../generateCorrelationId}}
+  correlationId?: string; // Optional: For tracing requests across multiple services
+  {{/if}}
+}
+
+export interface {{../pascalCaseName}}{{this.pascalCaseName}}Output {
+  {{#each this.outputFields}}
+  {{this.name}}{{#if this.optional}}?{{/if}}: {{this.type}}; // {{this.description}}
+  {{/each}}
+  {{#if ../generateCorrelationId}}
+  correlationId: string;
+  {{/if}}
+}
+
+{{/each}}
+export class {{pascalCaseName}}Agent {{#if baseAgentInterfaceName}}implements {{baseAgentInterfaceName}}{{/if}} {
+  public readonly agentId: string = '{{agentId}}';
+  private seamManager: {{seamManagerClassName}};
+  {{#each directDependencies}}
+  private {{this.camelCaseName}}: {{this.type}};
+  {{/each}}
+
+  /**
+   * PURPOSE: Constructor for the {{pascalCaseName}}Agent.
+   * DATA FLOW: IN - Dependencies like SeamManager.
+   * INTEGRATION POINTS: System initialization.
+   * FAILURE MODES: Missing dependencies.
+   * RATIONALE: Initializes the orchestrator with necessary services.
+   * EXAMPLES: `new {{pascalCaseName}}Agent(seamManagerInstance)`
+   * CONTRACT VERSION: 1.0.0
+   */
+  constructor(
+    seamManager: {{seamManagerClassName}}{{#each directDependencies}}, {{this.name}}: {{this.type}}{{/each}}
+  ) {
+    // 🛡️ DEFENSIVE: Validate dependencies
+    if (!seamManager) {
+      throw new Error("{{pascalCaseName}}Agent: SeamManager dependency is required.");
+    }
+    this.seamManager = seamManager;
+    {{#each directDependencies}}
+    if (!{{this.name}}) {
+      throw new Error("{{../pascalCaseName}}Agent: {{this.type}} dependency '{{this.name}}' is required.");
+    }
+    this.{{this.camelCaseName}} = {{this.name}};
+    {{/each}}
+    logger.info(`{{pascalCaseName}}Agent initialized. Agent ID: ${this.agentId}`);
+  }
+
+  /**
+   * PURPOSE: Provides a health check for the orchestrator agent.
+   * DATA FLOW: OUT - Returns the health status.
+   * INTEGRATION POINTS: SeamManager, Monitoring systems.
+   * FAILURE MODES: Internal state corruption (if any).
+   * RATIONALE: Allows monitoring of the orchestrator itself.
+   * EXAMPLES: `orchestratorAgent.healthCheck()`
+   * CONTRACT VERSION: 1.0.0
+   */
+  public async healthCheck(): Promise<ContractResult<{ status: string; details?: any }>> {
+    // 🔨 HARD_WORK: Add checks for critical dependencies or internal state if necessary.
+    // For now, if it's running, it's healthy.
+    logger.info('Health check requested.');
+    return {
+      success: true,
+      data: { status: 'healthy', checks: ['dependencies_initialized'] },
+      agentId: this.agentId,
+    };
+  }
+
+  {{#each exposedMethods}}
+  /**
+   * PURPOSE: {{this.methodDescription}}
+   * DATA FLOW: BOTH
+   * INTEGRATION POINTS: {{#if this.integrationPoints}}{{this.integrationPoints}}{{else}}Clients, API Gateway{{/if}}
+   * FAILURE MODES: {{#if this.failureModes}}{{this.failureModes}}{{else}}Input validation failed, Downstream seam failure ({{#each this.involvedSeams}}{{this.seamName}}{{#unless @last}}, {{/unless}}{{/each}}), Data processing error{{/if}}
+   * RATIONALE: {{#if this.rationale}}{{this.rationale}}{{else}}Orchestrates the '{{this.methodName}}' workflow by coordinating multiple seams.{{/if}}
+   * EXAMPLES: `await orchestrator.{{this.methodName}}({ {{#each this.inputFields}}{{this.name}}: 'sample'{{#unless @last}}, {{/unless}}{{/each}} })`
+   * CONTRACT VERSION: {{this.contractVersion | default "1.0.0"}}
+   */
+  public async {{this.methodName}}(
+    request: {{../pascalCaseName}}{{this.pascalCaseName}}Input
+  ): Promise<ContractResult<{{../pascalCaseName}}{{this.pascalCaseName}}Output>> {
+    const startTime = Date.now();
+    {{#if ../generateCorrelationId}}
+    const correlationId = request.correlationId || generateUUID();
+    logger.info(`Executing {{this.methodName}}`, { correlationId, request });
+    {{else}}
+    logger.info(`Executing {{this.methodName}}`, { request });
+    {{/if}}
+
+    // 🛡️ DEFENSIVE: Input validation
+    if (!request) { // 🔨 HARD_WORK: Add more specific input validation based on 'this.inputFields'
+      const errorMsg = "Invalid input for {{this.methodName}} - request is null or undefined.";
+      logger.error(errorMsg, {{#if ../generateCorrelationId}}{ correlationId }{{/if}});
+      return { success: false, error: errorMsg, agentId: this.agentId{{#if ../generateCorrelationId}}, metadata: { correlationId }{{/if}} };
+    }
+    {{#each this.inputFields}}
+    {{#if this.required}}
+    if (request.{{this.name}} === undefined || request.{{this.name}} === null {{#ifEquals this.type "string"}}|| request.{{this.name}}.trim() === ""{{/ifEquals}}) {
+      const errorMsg = "Invalid input for {{../this.methodName}}: '{{this.name}}' is required.";
+      logger.error(errorMsg, {{#if ../../generateCorrelationId}}{ correlationId }{{/if}});
+      return { success: false, error: errorMsg, agentId: this.agentId{{#if ../../generateCorrelationId}}, metadata: { correlationId }{{/if}} };
+    }
+    {{/if}}
+    {{/each}}
+
+    let transactionSuccessful = true;
+    const intermediateResults: Record<string, any> = {};
+
+    try {
+      // 🔨 HARD_WORK: Implement the orchestration logic.
+      // This often involves calling multiple seams sequentially or in parallel.
+      // Manage state and data transformations between seam calls.
+
+      {{#each this.involvedSeams}}
+      // --- Calling Seam: {{this.seamName}}.{{this.methodToCall}} ---
+      logger.info(`{{../../methodName}}: Calling seam '{{this.seamName}}' method '{{this.methodToCall}}'`, {{#if ../../../generateCorrelationId}}{ correlationId }{{/if}});
+      
+      // 🛡️ DEFENSIVE: Prepare request payload for {{this.seamName}}.{{this.methodToCall}}
+      // Example: const {{this.camelCaseSeamName}}Request = { {{#if this.requestMapping}}{{this.requestMapping}}{{else}}...map from 'request' or 'intermediateResults'{{/if}} };
+      const {{this.camelCaseSeamName}}RequestPayload = {
+        {{#each this.inputMapping}}
+        {{this.targetField}}: {{this.sourceFieldExpression}}, // e.g., request.userId or intermediateResults.somePreviousStep.data.id
+        {{/each}}
+        {{#if ../../../generateCorrelationId}}
+        correlationId, // Pass correlation ID to downstream services
+        {{/if}}
+      };
+      
+      let {{this.camelCaseSeamName}}Result: ContractResult<any>; // Define specific type for TResponseData if known
+      
+      // 🎯 CRITICAL: Retry logic for critical seams
+      {{#if this.retryConfig}}
+      let attempt = 0;
+      const maxAttempts = {{this.retryConfig.attempts}};
+      const delayMs = {{this.retryConfig.delayMs}};
+      let lastError: string | undefined;
+
+      while(attempt < maxAttempts) {
+        attempt++;
+        logger.info(`{{../../methodName}}: Attempt ${attempt}/${maxAttempts} for seam '{{this.seamName}}' method '{{this.methodToCall}}'`, {{#if ../../../generateCorrelationId}}{ correlationId }{{/if}});
+        {{this.camelCaseSeamName}}Result = await this.seamManager.executeSeam(
+          '{{this.seamName}}',
+          '{{this.methodToCall}}',
+          {{this.camelCaseSeamName}}RequestPayload
+        );
+
+        if ({{this.camelCaseSeamName}}Result.success) {
+          lastError = undefined;
+          break; // Success, exit retry loop
+        }
+        lastError = {{this.camelCaseSeamName}}Result.error || 'Unknown error from {{this.seamName}}';
+        logger.warn(`{{../../methodName}}: Seam '{{this.seamName}}' method '{{this.methodToCall}}' failed (attempt ${attempt}/${maxAttempts}): ${lastError}`, {{#if ../../../generateCorrelationId}}{ correlationId }{{/if}});
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+      if (lastError) { // All retries failed
+         {{this.camelCaseSeamName}}Result = { success: false, error: `Retry exhausted for {{this.seamName}}.{{this.methodToCall}}: ${lastError}`, agentId: this.agentId };
+      }
+      {{else}}
+      {{this.camelCaseSeamName}}Result = await this.seamManager.executeSeam(
+        '{{this.seamName}}',
+        '{{this.methodToCall}}',
+        {{this.camelCaseSeamName}}RequestPayload
+      );
+      {{/if}}
+
+      if (!{{this.camelCaseSeamName}}Result.success) {
+        const errorMsg = `{{../../methodName}}: Failed to execute '{{this.seamName}}.{{this.methodToCall}}'. Error: ${{this.camelCaseSeamName}}Result.error}`;
+        logger.error(errorMsg, { details: {{this.camelCaseSeamName}}Result, {{#if ../../../generateCorrelationId}}correlationId{{/if}} });
+        {{#if this.isCritical}}
+        transactionSuccessful = false;
+        // 🔨 HARD_WORK: Implement compensation/rollback logic if needed for critical failures
+        // e.g., await this.compensateFor{{this.pascalCaseSeamName}}Failure(intermediateResults, correlationId);
+        logger.error(`{{../../methodName}}: Critical seam '{{this.seamName}}' failed. Halting workflow.`, {{#if ../../../generateCorrelationId}}{ correlationId }{{/if}});
+        {{/if}}
+        // Decide if to return immediately or continue with partial data / alternative flow
+        return {
+          success: false,
+          error: errorMsg,
+          agentId: this.agentId,
+          metadata: { 
+            failedSeam: '{{this.seamName}}', 
+            failedMethod: '{{this.methodToCall}}',
+            {{#if ../../../generateCorrelationId}}correlationId,{{/if}}
+            downstreamError: {{this.camelCaseSeamName}}Result.error
+          }
+        }; // Or set transactionSuccessful = false and break/continue based on strategy
+      }
+
+      intermediateResults['{{this.resultKey | default this.camelCaseSeamName }}'] = {{this.camelCaseSeamName}}Result.data;
+      logger.info(`{{../../methodName}}: Seam '{{this.seamName}}' method '{{this.methodToCall}}' succeeded.`, { data: {{this.camelCaseSeamName}}Result.data, {{#if ../../../generateCorrelationId}}correlationId{{/if}} });
+
+      {{/each}}
+
+      // 🎯 CRITICAL: Transaction Management / Finalization
+      if (!transactionSuccessful) {
+        // This block might be redundant if critical failures return early.
+        // Useful if non-critical failures allow continuation but overall workflow fails.
+        const errorMsg = "{{this.methodName}}: Workflow could not be completed due to earlier critical failures.";
+        logger.error(errorMsg, {{#if ../generateCorrelationId}}{ correlationId }{{/if}});
+        return { success: false, error: errorMsg, agentId: this.agentId{{#if ../generateCorrelationId}}, metadata: { correlationId }{{/if}} };
+      }
+
+      // 💰 HIGH_ROI: Transform intermediateResults into the final output structure
+      const responseData: {{../pascalCaseName}}{{this.pascalCaseName}}Output = {
+        {{#each this.outputMapping}}
+        {{this.targetField}}: {{this.sourceFieldExpression}}, // e.g., intermediateResults.userProfile.name
+        {{/each}}
+        {{#if ../generateCorrelationId}}
+        correlationId,
+        {{/if}}
+      };
+
+      const duration = Date.now() - startTime;
+      logger.info(`{{this.methodName}} executed successfully. Duration: ${duration}ms`, { responseData, {{#if ../generateCorrelationId}}correlationId{{/if}} });
+      // 🎯 CRITICAL: Collect performance metrics (e.g., send to monitoring system)
+      // this.metricCollector.recordLatency('{{this.methodName}}', duration, { correlationId });
+
+      return {
+        success: true,
+        data: responseData,
+        agentId: this.agentId,
+        metadata: { durationMs: duration{{#if ../generateCorrelationId}}, correlationId{{/if}} }
+      };
+
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const duration = Date.now() - startTime;
+      logger.error(`{{this.methodName}}: Unhandled exception during orchestration: ${errorMessage}`, { 
+        stack: (error instanceof Error) ? error.stack : undefined, 
+        {{#if ../generateCorrelationId}}correlationId,{{/if}}
+        durationMs: duration 
+      });
+      return {
+        success: false,
+        error: `Orchestration error in {{this.methodName}}: ${errorMessage}`,
+        agentId: this.agentId,
+        metadata: { durationMs: duration{{#if ../generateCorrelationId}}, correlationId{{/if}} }
+      };
+    }
+  }
+
+  {{/each}}
+
+  // 🔨 HARD_WORK: Add any private helper methods for data transformation, compensation logic, etc.
+  /*
+  {{#each exposedMethods}}
+  {{#each this.involvedSeams}}
+  {{#if this.isCritical}}
+  private async compensateFor{{this.pascalCaseSeamName}}Failure(intermediateResults: Record<string, any>, correlationId?: string): Promise<void> {
+    logger.warn(`Attempting compensation for {{this.seamName}} failure.`, { intermediateResults, correlationId });
+    // Example: Call another seam to revert changes or notify admin
+    // const compensationRequest = { ... };
+    // const compensationResult = await this.seamManager.executeSeam(
+    //   'CompensationAgent', 
+    //   'revert{{this.pascalCaseSeamName}}Action', 
+    //   compensationRequest
+    // );
+    // if(!compensationResult.success) {
+    //   logger.error(`Compensation for {{this.seamName}} failed.`, { error: compensationResult.error, correlationId });
+    // }
+    throw new NotImplementedError("{{../pascalCaseName}}Agent.compensateFor{{this.pascalCaseSeamName}}Failure", "Compensation logic not implemented.");
+  }
+  {{/if}}
+  {{/each}}
+  {{/each}}
+  */
+}
+
+C. Example of Generated Output (using a Sample TemplateContext)
+
+Let's assume the following context for the Orchestrator Agent:
+
+const orchestratorContext = {
+  componentName: "UserOnboardingOrchestratorAgent",
+  contractName: "IUserOnboardingOrchestratorContract",
+  pascalCaseName: "UserOnboardingOrchestrator", // Derived
+  camelCaseName: "userOnboardingOrchestrator", // Derived
+  stubFileName: "userOnboarding.orchestrator.agent.ts", // Output file
+  contractFileName: "userOnboarding.orchestrator.contract.ts", // For I/O types
+  agentId: "orchestrator-user-onboarding-001",
+  purpose: "Orchestrates the complete user onboarding flow, including registration, email verification, and profile creation.",
+
+  contractResultImportPath: "../../../shared/common-types.js",
+  notImplementedErrorImportPath: "../../../shared/sdd-errors.js",
+  baseAgentInterfaceImportPath: "../../../shared/iagent-base.js", // Optional
+  baseAgentInterfaceName: "IAgentBase", // Optional
+
+  seamManagerClassName: "GlobalSeamManager",
+  seamManagerImportPath: "../../core/global.seam-manager",
+
+  additionalImports: [
+    { identifiers: "UserRole", path: "../../../models/user.model" }
+  ],
+  directDependencies: [ // For constructor injection besides SeamManager
+    // { name: "configService", type: "ConfigService", camelCaseName: "configService" }
+  ],
+
+  generateCorrelationId: true,
+
+  exposedMethods: [
+    {
+      methodName: "onboardNewUser",
+      pascalCaseName: "OnboardNewUser", // Derived
+      methodDescription: "Handles the full new user onboarding process.",
+      integrationPoints: "Public API, Mobile App Backend",
+      failureModes: "User registration failed, Email sending failed, Profile creation conflict",
+      rationale: "Provides a single entry point for the complex user onboarding workflow.",
+      contractVersion: "1.1.0",
+      inputFields: [
+        { name: "email", type: "string", description: "User's email address", required: true },
+        { name: "password", type: "string", description: "User's chosen password", required: true },
+        { name: "fullName", type: "string", description: "User's full name", required: true },
+      ],
+      outputFields: [
+        { name: "userId", type: "string", description: "ID of the newly created user" },
+        { name: "status", type: "string", description: "Onboarding status message" },
+        { name: "activationToken", type: "string | null", description: "Token for email activation, if applicable", optional: true },
+      ],
+      involvedSeams: [
+        {
+          seamName: "UserRegistrationAgent",
+          methodToCall: "registerUser",
+          camelCaseSeamName: "userRegistration", // Derived or provided
+          resultKey: "registrationOutput", // Key for intermediateResults
+          isCritical: true,
+          inputMapping: [ // How to map Orchestrator input or previous results to this seam's input
+            { targetField: "email", sourceFieldExpression: "request.email" },
+            { targetField: "password", sourceFieldExpression: "request.password" },
+            { targetField: "displayName", sourceFieldExpression: "request.fullName" },
+          ],
+          retryConfig: { attempts: 3, delayMs: 1000 }
+        },
+        {
+          seamName: "NotificationAgent",
+          methodToCall: "sendActivationEmail",
+          camelCaseSeamName: "notification", // Derived
+          resultKey: "emailNotificationOutput",
+          isCritical: false, // Maybe not critical for core onboarding success
+          inputMapping: [
+            { targetField: "recipientEmail", sourceFieldExpression: "request.email" },
+            { targetField: "userName", sourceFieldExpression: "request.fullName" },
+            { targetField: "activationLink", sourceFieldExpression: "intermediateResults.registrationOutput.activationLink" } // Uses previous result
+          ]
+        },
+        {
+          seamName: "UserProfileAgent",
+          methodToCall: "createUserProfile",
+          camelCaseSeamName: "userProfile", // Derived
+          resultKey: "profileOutput",
+          isCritical: true,
+          inputMapping: [
+            { targetField: "userId", sourceFieldExpression: "intermediateResults.registrationOutput.userId" },
+            { targetField: "initialPreferences", sourceFieldExpression: "{ theme: 'dark' }" } // Example of fixed value
+          ]
+        }
+      ],
+      outputMapping: [ // How to map intermediate results to the Orchestrator's output
+        { targetField: "userId", sourceFieldExpression: "intermediateResults.registrationOutput.userId" },
+        { targetField: "status", sourceFieldExpression: "'Onboarding process initiated. Profile created.'" },
+        { targetField: "activationToken", sourceFieldExpression: "intermediateResults.registrationOutput.activationToken || null" }
+      ]
+    }
+  ]
+};
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+
+Generated userOnboarding.orchestrator.agent.ts (Snippet):
+
+// userOnboarding.orchestrator.agent.ts
+/**
+ * PURPOSE: Orchestrates the complete user onboarding flow, including registration, email verification, and profile creation. - Coordinates multiple seams to fulfill complex business workflows.
+ * DATA FLOW: BOTH - Receives high-level requests and orchestrates calls to various agents.
+ * INTEGRATION POINTS: Client applications, API Gateways, GlobalSeamManager. 
+ * FAILURE MODES: Seam execution failure, Invalid request, Data transformation error, Transaction rollback failure, Timeout.
+ * RATIONALE: Centralizes complex workflow logic, decouples clients from individual seam details, and manages cross-seam operations.
+ * EXAMPLES: Orchestrating user onboarding (registration, email verification, profile setup).
+ * CONTRACT VERSION: 1.0.0
+ */
+
+import { ContractResult } from '../../../shared/common-types.js';
+import { NotImplementedError } from '../../../shared/sdd-errors.js';
+import { GlobalSeamManager } from '../../core/global.seam-manager.js';
+import { IAgentBase } from '../../../shared/iagent-base.js';
+import { UserRole } from '../../../models/user.model.js';
+
+
+// ... (logger definition, generateUUID) ...
+
+export interface UserOnboardingOrchestratorOnboardNewUserInput {
+  email: string; // User's email address
+  password: string; // User's chosen password
+  fullName: string; // User's full name
+  correlationId?: string; // Optional: For tracing requests across multiple services
+}
+
+export interface UserOnboardingOrchestratorOnboardNewUserOutput {
+  userId: string; // ID of the newly created user
+  status: string; // Onboarding status message
+  activationToken?: string | null; // Token for email activation, if applicable
+  correlationId: string;
+}
+
+export class UserOnboardingOrchestratorAgent implements IAgentBase {
+  public readonly agentId: string = 'orchestrator-user-onboarding-001';
+  private seamManager: GlobalSeamManager;
+
+  constructor(
+    seamManager: GlobalSeamManager
+  ) {
+    if (!seamManager) {
+      throw new Error("UserOnboardingOrchestratorAgent: SeamManager dependency is required.");
+    }
+    this.seamManager = seamManager;
+    logger.info(`UserOnboardingOrchestratorAgent initialized. Agent ID: ${this.agentId}`);
+  }
+
+  public async healthCheck(): Promise<ContractResult<{ status: string; details?: any }>> {
+    logger.info('Health check requested.');
+    return {
+      success: true,
+      data: { status: 'healthy', checks: ['dependencies_initialized'] },
+      agentId: this.agentId,
+    };
+  }
+
+  /**
+   * PURPOSE: Handles the full new user onboarding process.
+   * DATA FLOW: BOTH
+   * INTEGRATION POINTS: Public API, Mobile App Backend
+   * FAILURE MODES: User registration failed, Email sending failed, Profile creation conflict
+   * RATIONALE: Provides a single entry point for the complex user onboarding workflow.
+   * EXAMPLES: `await orchestrator.onboardNewUser({ email: 'sample', password: 'sample', fullName: 'sample' })`
+   * CONTRACT VERSION: 1.1.0
+   */
+  public async onboardNewUser(
+    request: UserOnboardingOrchestratorOnboardNewUserInput
+  ): Promise<ContractResult<UserOnboardingOrchestratorOnboardNewUserOutput>> {
+    const startTime = Date.now();
+    const correlationId = request.correlationId || generateUUID();
+    logger.info(`Executing onboardNewUser`, { correlationId, request });
+
+    // 🛡️ DEFENSIVE: Input validation
+    if (!request) { 
+      const errorMsg = "Invalid input for onboardNewUser - request is null or undefined.";
+      logger.error(errorMsg, { correlationId });
+      return { success: false, error: errorMsg, agentId: this.agentId, metadata: { correlationId } };
+    }
+    if (request.email === undefined || request.email === null || request.email.trim() === "") {
+      const errorMsg = "Invalid input for onboardNewUser: 'email' is required.";
+      logger.error(errorMsg, { correlationId });
+      return { success: false, error: errorMsg, agentId: this.agentId, metadata: { correlationId } };
+    }
+    // ... (similar validation for password, fullName)
+
+    let transactionSuccessful = true;
+    const intermediateResults: Record<string, any> = {};
+
+    try {
+      // --- Calling Seam: UserRegistrationAgent.registerUser ---
+      logger.info(`onboardNewUser: Calling seam 'UserRegistrationAgent' method 'registerUser'`, { correlationId });
+      
+      const userRegistrationRequestPayload = {
+        email: request.email, 
+        password: request.password, 
+        displayName: request.fullName, 
+        correlationId, 
+      };
+      
+      let userRegistrationResult: ContractResult<any>; 
+      
+      let attempt = 0;
+      const maxAttempts = 3;
+      const delayMs = 1000;
+      let lastError: string | undefined;
+
+      while(attempt < maxAttempts) {
+        attempt++;
+        logger.info(`onboardNewUser: Attempt ${attempt}/${maxAttempts} for seam 'UserRegistrationAgent' method 'registerUser'`, { correlationId });
+        userRegistrationResult = await this.seamManager.executeSeam(
+          'UserRegistrationAgent',
+          'registerUser',
+          userRegistrationRequestPayload
+        );
+
+        if (userRegistrationResult.success) {
+          lastError = undefined;
+          break; 
+        }
+        lastError = userRegistrationResult.error || 'Unknown error from UserRegistrationAgent';
+        logger.warn(`onboardNewUser: Seam 'UserRegistrationAgent' method 'registerUser' failed (attempt ${attempt}/${maxAttempts}): ${lastError}`, { correlationId });
+        if (attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+      }
+      if (lastError) { 
+         userRegistrationResult = { success: false, error: `Retry exhausted for UserRegistrationAgent.registerUser: ${lastError}`, agentId: this.agentId };
+      }
+
+      if (!userRegistrationResult.success) {
+        const errorMsg = `onboardNewUser: Failed to execute 'UserRegistrationAgent.registerUser'. Error: ${userRegistrationResult.error}`;
+        logger.error(errorMsg, { details: userRegistrationResult, correlationId });
+        transactionSuccessful = false;
+        logger.error(`onboardNewUser: Critical seam 'UserRegistrationAgent' failed. Halting workflow.`, { correlationId });
+        return {
+          success: false,
+          error: errorMsg,
+          agentId: this.agentId,
+          metadata: { 
+            failedSeam: 'UserRegistrationAgent', 
+            failedMethod: 'registerUser',
+            correlationId,
+            downstreamError: userRegistrationResult.error
+          }
+        }; 
+      }
+
+      intermediateResults['registrationOutput'] = userRegistrationResult.data;
+      logger.info(`onboardNewUser: Seam 'UserRegistrationAgent' method 'registerUser' succeeded.`, { data: userRegistrationResult.data, correlationId });
+
+      // --- Calling Seam: NotificationAgent.sendActivationEmail ---
+      // ... (similar structure for NotificationAgent call, without retry and not critical) ...
+
+      // --- Calling Seam: UserProfileAgent.createUserProfile ---
+      // ... (similar structure for UserProfileAgent call, critical, no retry in this example) ...
+
+      if (!transactionSuccessful) {
+        const errorMsg = "onboardNewUser: Workflow could not be completed due to earlier critical failures.";
+        // ... (return error) ...
+      }
+
+      const responseData: UserOnboardingOrchestratorOnboardNewUserOutput = {
+        userId: intermediateResults.registrationOutput.userId, 
+        status: 'Onboarding process initiated. Profile created.', 
+        activationToken: intermediateResults.registrationOutput.activationToken || null, 
+        correlationId,
+      };
+
+      // ... (log success, duration, return success) ...
+
+    } catch (error: unknown) {
+      // ... (handle unhandled exception) ...
+    }
+  }
+  // ... (end of class)
+}
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Integration Instructions
+
+Placement: This agent file (e.g., userOnboarding.orchestrator.agent.ts) would typically reside in src/agents/ or a subdirectory like src/agents/orchestrators/.
+
+Contract File: The input/output interfaces (e.g., UserOnboardingOrchestratorOnboardNewUserInput) are defined within this template for simplicity. In a larger setup, you might generate a separate {{contractFileName}} (e.g., userOnboarding.orchestrator.contract.ts) for these and import them.
+
+Dependencies:
+
+Requires ContractResult and NotImplementedError from shared paths.
+
+Requires the {{seamManagerClassName}} (e.g., GlobalSeamManager) to be importable.
+
+Any additionalImports must be resolvable.
+
+If baseAgentInterfaceName is used, it must be importable. The orchestrator should fulfill its contract (e.g., agentId, healthCheck).
+
+Instantiation:
+
+The OrchestratorAgent is instantiated with a SeamManager instance and any other directDependencies.
+
+This orchestrator might itself be registered with the SeamManager if other agents need to call it (less common for a top-level orchestrator but possible for sub-orchestrators). More likely, it's directly used by API controllers or entry points.
+
+Seam Manager Usage: The orchestrator uses this.seamManager.executeSeam('TargetAgentName', 'methodToCall', payload) to interact with other agents.
+
+Configuration (TemplateContext):
+
+Populate all general fields: componentName, agentId, purpose, import paths.
+
+Define seamManagerClassName and its import path.
+
+Specify exposedMethods. Each method needs:
+
+methodName, methodDescription.
+
+inputFields (name, type, description, required).
+
+outputFields (name, type, description, optional).
+
+involvedSeams: An array detailing each downstream seam call:
+
+seamName: Name of the agent to call.
+
+methodToCall: Method on that agent.
+
+camelCaseSeamName (used for variable names, can be derived).
+
+resultKey: How to store the result in intermediateResults.
+
+isCritical: Boolean, if its failure stops the whole workflow.
+
+inputMapping: Array of {targetField, sourceFieldExpression} to build the request for this seam. sourceFieldExpression can access request.* (orchestrator input) or intermediateResults.someKey.*.
+
+retryConfig (optional): { attempts: number, delayMs: number }.
+
+outputMapping: Array of {targetField, sourceFieldExpression} to build the orchestrator's final response from intermediateResults.
+
+generateCorrelationId: Boolean flag to include correlation ID logic.
+
+Error Handling and Transactions:
+
+The template provides a basic structure for sequential seam calls.
+
+isCritical on involvedSeams helps decide if a failure should halt the entire workflow.
+
+Placeholders for compensation logic (compensateFor...Failure) are commented out; these would require significant custom implementation.
+
+Basic retry logic is included if retryConfig is provided for a seam.
+
+Customization:
+
+Input Validation: Expand the basic input validation.
+
+Request/Response Mapping: The inputMapping and outputMapping use simple string expressions. Complex transformations will require custom code in the // 🔨 HARD_WORK: sections.
+
+Parallel Calls: To execute seams in parallel:
+
+const [resultA, resultB] = await Promise.all([
+    this.seamManager.executeSeam(...),
+    this.seamManager.executeSeam(...)
+]);
+// Handle results of parallel calls
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+
+Conditional Logic: Use standard if/else based on intermediateResults to conditionally call seams.
+
+E. Validation Checklist
+
+[ ] File Generation: Does the template generate a {{stubFileName}} (e.g., .agent.ts)?
+
+[ ] Class Definition: Is {{pascalCaseName}}Agent correctly generated? Does it implement {{baseAgentInterfaceName}} if provided?
+
+[ ] Imports:
+
+Are ContractResult, NotImplementedError, {{seamManagerClassName}} imported correctly with .js?
+
+Are additionalImports and baseAgentInterfaceName handled?
+
+[ ] SDD Patterns:
+
+Blueprint Comments: Are 7-field blueprint comments present for the class and exposedMethods?
+
+ContractResult: Do all exposedMethods and healthCheck return Promise<ContractResult<T>>?
+
+Error Handling: Is input validation present? Are seamManager.executeSeam failures handled and wrapped in ContractResult? Is there a top-level try/catch?
+
+Agent ID: Is this.agentId used in ContractResult?
+
+[ ] Constructor:
+
+Does it accept and store SeamManager?
+
+Does it handle directDependencies?
+
+Are there null checks for critical dependencies?
+
+[ ] healthCheck Method: Is a basic healthCheck method generated?
+
+[ ] exposedMethods Generation:
+
+Interfaces: Are input (...Input) and output (...Output) interfaces generated for each method?
+
+Method Signature: Is the method signature correct (accepts input interface, returns Promise of output interface ContractResult)?
+
+Correlation ID: If generateCorrelationId is true, is it generated, logged, and passed through?
+
+Input Validation: Is basic validation for required fields generated?
+
+Orchestration Logic:
+
+Does it iterate through involvedSeams?
+
+Is seamManager.executeSeam called with correct seamName, methodToCall, and a payload placeholder?
+
+Is inputMapping used to structure the payload (conceptually)?
+
+Is retryConfig logic generated if present?
+
+Is the result of executeSeam checked for success?
+
+Is isCritical logic present to potentially halt workflow and return an error?
+
+Are results stored in intermediateResults using resultKey?
+
+Response Aggregation: Is there a placeholder for transforming intermediateResults into the final output using outputMapping?
+
+Logging: Are there appropriate log messages (start, seam calls, success, errors, duration)?
+
+Performance Metrics: Is there a placeholder for recording duration/metrics?
+
+[ ] Placeholders: Are // 🔨 HARD_WORK:, // 🎯 CRITICAL:, // 💰 HIGH_ROI:, // 🛡️ DEFENSIVE: comments used appropriately?
+
+[ ] TypeScript Compliance: Does the generated code compile without major TypeScript errors (assuming context is correct and dependencies exist)?
+
+[ ] Example Output Review: Does the example output based on the sample context align with expectations for a complex orchestration flow?
+
+[ ] Compensation Placeholders: Are commented-out placeholders for compensation methods generated if seams are critical?
+
+This orchestrator template is significantly more involved due to the dynamic nature of workflow orchestration. The next template, granular-checklist.handlebars, will shift focus to providing detailed implementation guidance.
+
+
+### D. Integration Instructions
+
+1.  **Generation**: This checklist (e.g., `granular-checklist-user-management-agent.md`) should be generated whenever a new agent/seam's stubs and contracts are created. It serves as the primary guide for the developer or AI implementing that component.
+2.  **`TemplateContext` Population**: This is the most crucial part. The `TemplateProcessor` (or equivalent logic on your MCP server) needs to be significantly enhanced to generate the detailed steps for each phase.
+    *   **Phase 1 (Foundation)**: Mostly static, but can include component-specific dependencies.
+    *   **Phase 2 (Stub Implementation)**: Iterates through methods defined in the contract. Tasks involve creating method signatures, basic input validation, and `NotImplementedError`.
+    *   **Phase 3 (Core Logic)**: This is the most complex to auto-generate.
+        *   It needs to iterate through methods from the contract.
+        *   For each method, it should break down the "TODO" from the `NotImplementedError` (or a more detailed `blueprint` from the context) into smaller, actionable tasks.
+        *   **Smart Step Generation**: This is where AI prompting within your MCP server might be useful. You could prompt an LLM with the method's purpose, input/output types, and known patterns (e.g., "if method involves 'user authentication', include steps for 'fetch user', 'compare password hash', 'generate token'").
+        *   Code snippets here will be more illustrative or high-level placeholders.
+        *   Security considerations and performance benchmarks should be tied to the type of operation (e.g., auth methods get JWT security notes, data-intensive methods get DB query optimization hints).
+    *   **Phase 4 (Integration & Testing)**: Focuses on testing contracts (already covered by `integration-tests.handlebars`) and interaction points. The `INTEGRATION POINTS` from blueprint comments are key here.
+    *   **Phase 5 (Productionization)**: Covers general best practices: config, logging, monitoring, docs.
+    *   **Time Estimates**: These can be heuristics based on complexity, number of fields/methods, or even learned over time.
+    *   **Code Snippets**: For phases 2 and 3, try to provide meaningful, context-aware snippets. For phase 1, it's often standard commands.
+    *   **Rollback/Validation**: Generic advice can be provided, with specific points for key steps.
+3.  **Usage**:
+    *   The Markdown file can be committed to the repository alongside the code.
+    *   Developers use it as a to-do list, checking off items.
+    *   AI assistants can be fed this checklist (or parts of it) along with the contract and stub to guide their implementation efforts.
+4.  **Iterative Refinement**: The quality of this checklist, especially Phase 3, will heavily depend on the intelligence built into your `TemplateProcessor` to infer tasks from the component's purpose and contract. It will likely be an area of continuous improvement.
+
+### E. Validation Checklist
+
+1.  **[ ] File Generation**: Is a Markdown file generated with a descriptive name (e.g., `granular-checklist-{{componentName}}.md`)?
+2.  **[ ] Header Information**: Are `componentName`, `purpose`, contract/stub filenames, estimates, and priority correctly displayed?
+3.  **[ ] Phase Structure**: Are all 5 phases (Foundation, Stub, Core Logic, Integration, Productionization) present?
+4.  **[ ] Dynamic Content - Phase 1 (Foundation)**:
+    *   [ ] Are `{{foundationSteps}}` iterated correctly?
+    *   [ ] Are component-specific dependencies (e.g., `{{pascalCaseName}} specific dependencies`) included if provided in context?
+5.  **[ ] Dynamic Content - Phase 2 (Stub Implementation)**:
+    *   [ ] Does it iterate through `{{stubImplementationSteps}}` (methods from the contract)?
+    *   [ ] For each method, are tasks for signature, input validation, `NotImplementedError`, try/catch, and basic unit tests included?
+    *   [ ] Are `{{stubFileName}}` and `{{contractName}}` referenced correctly?
+    *   [ ] Are code snippets relevant to stubbing?
+6.  **[ ] Dynamic Content - Phase 3 (Core Logic)**:
+    *   [ ] Does it iterate through `{{coreLogicSteps}}` (methods from the contract)?
+    *   [ ] Is `targetFunctionality` (derived from method's purpose) displayed?
+    *   [ ] Are tasks broken down into smaller, logical steps (this is the hardest part to automate well)?
+    *   [ ] Do code snippets provide useful examples or placeholders for the business logic?
+    *   [ ] Are `securityConsideration`, `performanceBenchmark`, `hints` populated where relevant?
+7.  **[ ] Dynamic Content - Phase 4 (Integration & Testing)**:
+    *   [ ] Are `{{integrationTestingSteps}}` iterated?
+    *   [ ] Are `{{testFileName}}` and `integration-tests.handlebars` concepts referenced?
+    *   [ ] Do tasks guide writing integration tests for method interactions and failure modes?
+8.  **[ ] Dynamic Content - Phase 5 (Productionization)**:
+    *   [ ] Are `{{productionizationSteps}}` iterated?
+    *   [ ] Do tasks cover configuration, logging, monitoring, documentation, and review?
+9.  **[ ] Task Structure**: For tasks within each phase:
+    *   [ ] Is the `[ ]` checkbox present?
+    *   [ ] Are `title`, `time` (estimate), `description`, `code`, `validationPoint`, `rollback` fields correctly rendered when present in the context?
+    *   [ ] Are code blocks correctly formatted with language hints?
+10. **[ ] Validation Checkpoints**: Are phase-level and method-level validation checklists present and relevant?
+11. **[ ] Overall Checklist**: Is the final "Overall Project Completion Checklist" present?
+12. **[ ] Markdown Formatting**: Is the output valid Markdown that renders correctly?
+13. **[ ] Readability & Actionability**: Is the checklist easy to understand and follow? Are steps clear and actionable?
+14. **[ ] Comprehensiveness**: Does the checklist appear to cover the major aspects of implementing a component from scratch to production-ready (at a high level, with details to be filled by the implementer)? (Goal is 300+ steps in spirit, meaning very granular).
+15. **[ ] Placeholders**: Are placeholders like `{{componentName}}` correctly substituted throughout?
+
+---
+
+This `granular-checklist.handlebars` is a powerful tool for guiding development. The next step, `project-structure.handlebars`, will define how to lay out all the generated files and folders.
+
+This is a lot of detailed generation! I'll continue with `project-structure.handlebars` next.

@@ -1,0 +1,180 @@
+# API Documentation: {{componentName}} ({{contractName}})
+
+**Version:** {{default componentVersion "N/A"}}
+**Last Updated:** {{generationDate}}
+
+## Overview
+
+**Purpose:** {{componentPurpose}}
+
+**Contract File:** `{{contractFilePath}}`
+{{#if agentFilePath}}
+**Primary Implementing Agent:** `{{agentFilePath}}` ({{agentName}})
+{{/if}}
+
+This document outlines the API contract for the `{{componentName}}`, defining how other components can interact with it. All interactions adhere to the Seam-Driven Development (SDD) `ContractResult<T>` pattern.
+
+---
+
+## Core Interaction Pattern: `ContractResult<T>`
+
+All methods exposed by this API return a `Promise<ContractResult<Output>>`.
+
+```typescript
+// General Structure (from {{default contractResultPath 'src/shared/common-types.ts'}})
+type ContractResult<TSuccessData, TErrorData = any> =
+  | { success: true; data: TSuccessData; agentId: string; metadata?: Record<string, any>; correlationId?: string; }
+  | { success: false; error: string; agentId: string; errorCode?: string; details?: TErrorData; metadata?: Record<string, any>; correlationId?: string; };
+```
+- **`success: boolean`**: `true` if the operation succeeded, `false` otherwise.
+- **`data?: TSuccessData`**: The payload if `success` is `true`.
+- **`error?: string`**: A human-readable error message if `success` is `false`.
+- **`agentId: string`**: The unique ID of the agent that processed this request and generated this result.
+- **`errorCode?: string`**: (Optional) A machine-readable code for specific errors.
+- **`details?: TErrorData`**: (Optional) Additional structured data about the error.
+- **`metadata?: Record<string, any>`**: (Optional) Telemetry or other contextual information.
+- **`correlationId?: string`**: (Optional) ID for tracing requests across multiple services.
+
+---
+
+## Endpoints / Methods
+
+{{#each methods}}
+### `{{this.name}}`
+
+**Purpose:** {{this.blueprint.purpose}}
+
+**Method Signature (from contract):**
+```typescript
+{{this.signature}}
+```
+
+**Data Flow:** {{this.blueprint.dataFlow}}
+
+**Integration Points:** {{this.blueprint.integrationPoints}}
+
+**Rationale:** {{this.blueprint.rationale}}
+
+**Contract Version:** {{this.blueprint.contractVersion}}
+
+#### Request (`{{this.inputTypeName}}`)
+
+{{#if this.requestSchema.properties.length}}
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+{{#each this.requestSchema.properties}}
+| `{{this.name}}` | `{{this.type}}` | {{#if this.required}}✅ Yes{{else}}❌ No{{/if}} | {{this.description}} | `{{{this.example}}}` |
+{{/each}}
+
+**Example Request Payload:**
+```json
+{{{this.requestSchema.examplePayload}}}
+```
+{{#if this.inputTypeDefinition}}
+**TypeScript Definition (`{{this.inputTypeName}}`):**
+```typescript
+{{{this.inputTypeDefinition}}}
+```
+{{/if}}
+{{else}}
+*This method does not take any specific input parameters beyond what might be part of a generic request wrapper (if applicable).*
+{{/if}}
+
+#### Response (`ContractResult<{{this.outputTypeName}}>`)
+
+**On Success (`success: true`):**
+The `data` field will contain an object of type `{{this.outputTypeName}}`.
+
+{{#if this.responseSchema.properties.length}}
+**`{{this.outputTypeName}}` Structure:**
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+{{#each this.responseSchema.properties}}
+| `{{this.name}}` | `{{this.type}}` | {{this.description}} | `{{{this.example}}}` |
+{{/each}}
+
+**Example Success Response Payload (`data` field):**
+```json
+{{{this.responseSchema.examplePayload}}}
+```
+{{#if this.outputTypeDefinition}}
+**TypeScript Definition (`{{this.outputTypeName}}`):**
+```typescript
+{{{this.outputTypeDefinition}}}
+```
+{{/if}}
+{{else if this.outputTypeNameIsNotVoid}}
+*The `data` field will be of type `{{this.outputTypeName}}` but no detailed structure is defined here. Refer to its type definition.*
+{{else}}
+*This method does not return any specific data on success (i.e., `data` might be `void` or a simple status message).*
+The `data` field in `ContractResult` might be `null`, `undefined`, or a simple status object like `{ status: "ok" }`.
+{{/if}}
+
+**On Failure (`success: false`):**
+The `error` field will contain a message describing the issue.
+- **`error: string`**: Human-readable error message.
+- **`agentId: string`**: ID of this agent (`{{../agentId}}`).
+- **`errorCode?: string`**: (Optional) Machine-readable error code.
+- **`details?: any`**: (Optional) Further error details.
+
+**Common Failure Modes for `{{this.name}}`:**
+{{#if this.blueprint.failureModes}}
+  - {{#splitLines this.blueprint.failureModes}}{{this}}{{/splitLines}}
+{{else}}
+  - Input validation failure.
+  - Internal processing error.
+  - Downstream service unavailability (if applicable from INTEGRATION POINTS).
+{{/if}}
+
+**Example Usage / Call Flow:**
+{{#if this.blueprint.examples}}
+```
+{{{this.blueprint.examples}}}
+```
+{{else}}
+*No specific call flow examples provided in blueprint.*
+{{/if}}
+
+---
+{{/each}}
+
+## General Error Handling
+
+Beyond method-specific failures:
+- **Seam Not Found / Misconfiguration:** If the SeamManager cannot route to this agent.
+- **Network Issues:** If communication between components fails.
+
+Always inspect the `success` flag of the `ContractResult` before attempting to use `data`. If `success` is `false`, consult the `error`, `errorCode`, and `details` fields.
+
+## Sequence Diagrams (Optional Placeholder)
+
+{{#if sequenceDiagrams.length}}
+{{#each sequenceDiagrams}}
+### {{this.title}}
+```mermaid
+{{{this.mermaidCode}}}
+```
+{{/each}}
+{{else}}
+*(Consider adding Mermaid sequence diagrams here to illustrate common call flows involving `{{componentName}}` and its integration points.)*
+
+**Example Mermaid Syntax:**
+```mermaid
+sequenceDiagram
+    participant Client
+    participant {{default agentNameShort componentName}}
+    participant OtherAgent
+
+    Client->>{{default agentNameShort componentName}}: someMethod(request)
+    activate {{default agentNameShort componentName}}
+    {{default agentNameShort componentName}}->>OtherAgent: internalCall(payload)
+    activate OtherAgent
+    OtherAgent-->>{{default agentNameShort componentName}}: ContractResult (success)
+    deactivate OtherAgent
+    {{default agentNameShort componentName}}-->>Client: ContractResult (success with data)
+    deactivate {{default agentNameShort componentName}}
+```
+{{/if}}
+
+---
+*This documentation is auto-generated based on SDD contracts and blueprint comments. For issues or clarifications, refer to the source contract file.*

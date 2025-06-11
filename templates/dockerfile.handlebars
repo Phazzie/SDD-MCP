@@ -1,0 +1,66 @@
+{{! 
+PURPOSE: Generate multi-stage Dockerfile for SDD Node.js/TypeScript applications with security and optimization
+DATA FLOW: Source code → Build dependencies → Production image with minimal attack surface
+INTEGRATION POINTS: Docker, Node.js, npm/yarn/pnpm, TypeScript compiler, multi-stage builds
+FAILURE MODES: Build failures, dependency installation errors, runtime errors, security vulnerabilities
+RATIONALE: Optimized containerization ensures consistent deployment and minimal production footprint
+EXAMPLES: SDD MCP Server → Node.js app with TypeScript build and non-root user
+CONTRACT VERSION: 1.0.0
+}}
+# Stage 1: Build dependencies FROM node:{{nodeVersion}}-alpine AS deps WORKDIR
+/usr/src/app # Copy package.json and lock file COPY package.json
+{{packageManagerLockFile}}
+./ # Install dependencies RUN
+{{packageManagerInstallCommandProduction}}
+
+# Stage 2: Build the application FROM node:{{nodeVersion}}-alpine AS builder
+WORKDIR /usr/src/app # Copy dependencies from the 'deps' stage COPY --from=deps
+/usr/src/app/node_modules ./node_modules COPY package.json
+{{packageManagerLockFile}}
+./ # Copy application source code COPY . . # Set build-time arguments if any
+(passed via docker build --build-arg VAR=value)
+{{#each buildArgs}}
+  ARG
+  {{this.name}}
+  ENV
+  {{this.name}}=${{this.name}}
+{{/each}}
+
+# Build TypeScript RUN
+{{packageManagerRunCommand}}
+build
+
+{{#if pruneDevDependenciesAfterBuild}}
+  # Prune development dependencies RUN
+  {{packageManagerPruneCommand}}
+{{/if}}
+
+# Stage 3: Production image FROM node:{{nodeVersion}}-alpine AS runner WORKDIR
+/usr/src/app # Set NODE_ENV to production ENV NODE_ENV production
+{{#each productionEnvVars}}
+  ENV
+  {{this.name}}="{{this.value}}"
+{{/each}}
+
+# Create a non-root user for security ARG UID=10001 RUN adduser \
+--disabled-password \ --gecos "" \ --home "/nonexistent" \ --shell
+"/sbin/nologin" \ --no-create-home \ --uid "${UID}" \ appuser # Copy built
+application and dependencies from the 'builder' stage COPY --from=builder
+--chown=appuser:appuser /usr/src/app/dist ./dist COPY --from=builder
+--chown=appuser:appuser /usr/src/app/node_modules ./node_modules COPY
+--from=builder --chown=appuser:appuser /usr/src/app/package.json ./package.json
+{{#each otherFilesToCopyFromBuilder}}
+  COPY --from=builder --chown=appuser:appuser /usr/src/app/{{this.source}}
+  ./{{this.destination}}
+{{/each}}
+
+# Switch to the non-root user USER appuser # Expose the application port EXPOSE
+{{appPort}}
+
+{{#if includeHealthcheck}}
+  # Healthcheck (optional, adjust command as needed) HEALTHCHECK --interval=30s
+  --timeout=5s --start-period=10s --retries=3 \ CMD
+  {{healthcheckCommand}}
+{{/if}}
+
+# Command to run the application CMD ["node", "{{mainEntryFileJS}}"]

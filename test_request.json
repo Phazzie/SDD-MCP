@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": "2",
+  "method": "tools/call",
+  "params": {
+    "name": "sdd_analyze_requirements",
+    "arguments": {
+      "prdText": "Build a simple task management system. Users should be able to create, edit, and delete tasks. Tasks have titles, descriptions, due dates, and priorities. The system should send email notifications when tasks are due. Users can organize tasks into categories and assign them to team members."
+    }
+  }
+}

@@ -1,0 +1,102 @@
+import { ContractResult, CreateStubInput, CreateStubOutput } from '../../contracts.js';
+
+class NotImplementedError extends Error {
+  constructor(methodName: string, blueprint: string) {
+    super(`${methodName}: ${blueprint}`);
+    this.name = 'NotImplementedError';
+  }
+}
+
+/**
+ * SDD Create Stub Agent
+ * Creates implementation stubs with blueprint comments and NotImplementedError patterns
+ * 
+ * Blueprint: This agent generates SDD-compliant code stubs from contract definitions:
+ * - Parses contract interface definitions
+ * - Generates class stubs with NotImplementedError patterns
+ * - Adds blueprint comments for implementation guidance
+ * - Ensures ContractResult<T> return types
+ */
+export class CreateStubAgent {
+  private readonly agentId = "create-stub-agent";
+
+  /**
+   * Validate input parameters for stub creation
+   */
+  async validateInput(input: unknown): Promise<ContractResult<CreateStubInput>> {
+    try {
+      if (!input || typeof input !== 'object') {
+        return {
+          success: false,
+          error: "Input must be an object",
+          metadata: {
+            agentId: this.agentId,
+            seamName: "validateInput",
+            timestamp: new Date().toISOString(),
+            validationErrors: "Invalid input type",
+          },
+        };
+      }
+
+      const data = input as any;
+      if (!data.contractCode || typeof data.contractCode !== 'string') {
+        return {
+          success: false,
+          error: "contractCode is required and must be a string",
+          metadata: {
+            agentId: this.agentId,
+            seamName: "validateInput",
+            timestamp: new Date().toISOString(),
+            validationErrors: "contractCode validation failed",
+          },
+        };
+      }
+
+      if (!data.componentName || typeof data.componentName !== 'string') {
+        return {
+          success: false,
+          error: "componentName is required and must be a string",
+          metadata: {
+            agentId: this.agentId,
+            seamName: "validateInput",
+            timestamp: new Date().toISOString(),
+            validationErrors: "componentName validation failed",
+          },
+        };
+      }
+
+      return {
+        success: true,
+        data: data as CreateStubInput,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "validateInput", 
+          timestamp: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Input validation failed: ${error instanceof Error ? error.message : String(error)}`,
+        metadata: {
+          agentId: this.agentId,
+          seamName: "validateInput",
+          timestamp: new Date().toISOString(),
+          validationErrors: error,
+        },
+      };
+    }
+  }
+
+  /**
+   * Execute stub creation
+   */
+  async execute(
+    stubInput: CreateStubInput
+  ): Promise<ContractResult<CreateStubOutput>> {
+    throw new NotImplementedError(
+      "CreateStubAgent.execute",
+      "Blueprint: Generate SDD-compliant implementation stubs from contract interface code"
+    );
+  }
+}

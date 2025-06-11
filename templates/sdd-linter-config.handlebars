@@ -1,0 +1,102 @@
+{{! 
+PURPOSE: Generate ESLint configuration for SDD compliance with custom rules and TypeScript support
+DATA FLOW: Project structure → ESLint config → SDD pattern enforcement
+INTEGRATION POINTS: ESLint, TypeScript, custom SDD rules, Prettier integration
+FAILURE MODES: Rule conflicts, TypeScript parsing errors, missing rule definitions
+RATIONALE: Automated enforcement of SDD patterns ensures consistent code quality and methodology adherence
+EXAMPLES: SDD MCP Server → enforce ContractResult<T>, blueprint comments, .js imports
+CONTRACT VERSION: 1.0.0
+}}
+{ "root": true, "env": { "node": true, "es2022": true
+{{#if includeTestEnvironment}}
+  ,"vitest-globals/env": true
+{{/if}}
+}, "extends": [ "eslint:recommended", "@typescript-eslint/recommended",
+"@typescript-eslint/recommended-requiring-type-checking"
+{{#if includePrettier}}
+  ,"prettier"
+{{/if}}
+{{#if includeTestExtensions}}
+  ,"plugin:vitest/recommended"
+{{/if}}
+], "parser": "@typescript-eslint/parser", "parserOptions": { "ecmaVersion":
+"latest", "sourceType": "module", "project": ["./tsconfig.json"]
+{{#if additionalTsConfigPaths}}
+  ,"./tsconfig.*.json"
+{{/if}}
+}, "plugins": [ "@typescript-eslint"
+{{#if includeTestPlugins}}
+  ,"vitest"
+{{/if}}
+{{#if includeSddCustomRules}}
+  ,"sdd-compliance"
+{{/if}}
+], "rules": { // TypeScript specific rules "@typescript-eslint/no-unused-vars":
+["error", { "argsIgnorePattern": "^_" }],
+"@typescript-eslint/explicit-function-return-type": "error",
+"@typescript-eslint/no-explicit-any": "warn",
+"@typescript-eslint/prefer-nullish-coalescing": "error",
+"@typescript-eslint/prefer-optional-chain": "error", // Import/Export rules for
+ES Modules "prefer-const": "error", "no-var": "error",
+
+{{#if enforceJsImportExtensions}}
+  // SDD Rule: Enforce .js extensions for relative imports "import/extensions":
+  ["error", "ignorePackages", { "js": "always", "ts": "never" }],
+{{/if}}
+
+{{#if includeSddCustomRules}}
+  // SDD Compliance Rules (custom plugin)
+  "sdd-compliance/require-blueprint-comment": "error",
+  "sdd-compliance/no-missing-contract-result": "error",
+  "sdd-compliance/require-agent-id-in-contract-result": "error",
+  "sdd-compliance/enforce-js-import-extensions": "error",
+  "sdd-compliance/no-direct-agent-to-agent-call": "warn",
+  "sdd-compliance/no-notimplementederror-in-production-build": "error",
+  "sdd-compliance/contract-version-consistency": "warn",
+{{/if}}
+
+// Additional code quality rules "no-console":
+{{consoleRule}}, "no-debugger": "error", "no-alert": "error",
+"no-duplicate-imports": "error", "no-self-compare": "error",
+"no-template-curly-in-string": "error", "no-unreachable-loop": "error",
+"no-unused-private-class-members": "error", "require-atomic-updates": "error",
+// Best practices for async/await "require-await": "error", "no-return-await":
+"error", "prefer-promise-reject-errors": "error"
+
+{{#if additionalCustomRules}}
+  {{#each additionalCustomRules}}
+    ,"{{@key}}":
+    {{this}}
+  {{/each}}
+{{/if}}
+}, "overrides": [ { "files": ["*.test.ts", "*.test.js", "**/__tests__/**/*"],
+"rules": { // Relax some rules for test files
+"@typescript-eslint/no-explicit-any": "off", "no-console": "off"
+{{#if includeSddCustomRules}}
+  ,"sdd-compliance/no-notimplementederror-in-production-build": "off"
+{{/if}}
+} }
+{{#if hasConfigFiles}}
+  ,{ "files": ["*.config.js", "*.config.ts"], "rules": {
+  "@typescript-eslint/no-var-requires": "off", "no-console": "off" } }
+{{/if}}
+{{#if hasScriptFiles}}
+  ,{ "files": ["scripts/**/*"], "rules": { "no-console": "off",
+  "@typescript-eslint/no-explicit-any": "warn" } }
+{{/if}}
+], "ignorePatterns": [ "node_modules/", "dist/", "build/", "coverage/",
+"*.min.js"
+{{#each additionalIgnorePatterns}}
+  ,"{{this}}"
+{{/each}}
+]
+{{#if includeSddCustomRules}}
+  ,"settings": { "sdd-compliance": { "agentFilePattern": "*.agent.ts",
+  "contractFilePattern": "*.contract.ts", "seamFilePattern": "*.seam.ts",
+  "requiredBlueprintFields": [ "PURPOSE", "DATA FLOW", "INTEGRATION POINTS",
+  "FAILURE MODES", "RATIONALE", "EXAMPLES", "CONTRACT VERSION" ],
+  "contractResultPath": "{{contractResultImportPath}}",
+  "notImplementedErrorPath": "{{notImplementedErrorImportPath}}",
+  "seamManagerMethods": ["executeSeam", "registerAgent", "unregisterAgent"] } }
+{{/if}}
+}

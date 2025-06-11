@@ -1,0 +1,469 @@
+# ✅ Seam Validation Checklist
+**Generated: {{timestamp}}**  
+**Project: {{projectName}}**  
+**Validation Scope: {{validationScope}}**
+
+---
+
+## 🎯 Pre-Contract Validation Overview
+
+{{#if validationSummary}}
+### Validation Status Summary
+
+- **Total Seams to Validate**: {{validationSummary.totalSeams}}
+- **Contracts Defined**: {{validationSummary.contractsDefined}}/{{validationSummary.totalSeams}}
+- **Validation Passed**: {{validationSummary.validationPassed}}/{{validationSummary.totalSeams}}
+- **Critical Issues**: {{validationSummary.criticalIssues}}
+- **Warnings**: {{validationSummary.warnings}}
+- **Overall Status**: {{validationSummary.overallStatus}}
+{{else}}
+### 🔍 Validation Checklist Purpose
+
+This checklist ensures your seam definitions are ready for contract generation by validating:
+- Seam communication patterns
+- Data flow consistency
+- Error handling completeness
+- Performance requirements
+- Integration readiness
+{{/if}}
+
+---
+
+## 🔗 Seam Definition Validation
+
+{{#if seamDefinitions}}
+{{#each seamDefinitions}}
+### {{this.name}} Seam Validation
+
+#### ✅ Basic Definition Checklist
+- [{{#if this.hasName}}✓{{else}} {{/if}}] **Seam Name Defined**: {{default this.name "❌ Missing seam name"}}
+- [{{#if this.hasDescription}}✓{{else}} {{/if}}] **Purpose Description**: {{default this.description "❌ Missing purpose description"}}
+- [{{#if this.hasSourceComponent}}✓{{else}} {{/if}}] **Source Component**: {{default this.sourceComponent "❌ Missing source component"}}
+- [{{#if this.hasTargetComponent}}✓{{else}} {{/if}}] **Target Component**: {{default this.targetComponent "❌ Missing target component"}}
+- [{{#if this.hasCommunicationPattern}}✓{{else}} {{/if}}] **Communication Pattern**: {{default this.communicationPattern "❌ Missing communication pattern"}}
+
+#### 🔄 Data Flow Validation
+- [{{#if this.hasInputType}}✓{{else}} {{/if}}] **Input Type Defined**: {{default this.inputType "❌ Missing input type definition"}}
+- [{{#if this.hasOutputType}}✓{{else}} {{/if}}] **Output Type Defined**: {{default this.outputType "❌ Missing output type definition"}}
+- [{{#if this.hasDataValidation}}✓{{else}} {{/if}}] **Data Validation Rules**: {{default this.dataValidation "❌ Missing validation rules"}}
+- [{{#if this.hasTransformation}}✓{{else}} {{/if}}] **Data Transformation Logic**: {{default this.transformation "❌ Missing transformation logic"}}
+
+#### 🛡️ Error Handling Validation
+- [{{#if this.hasErrorScenarios}}✓{{else}} {{/if}}] **Error Scenarios Identified**: {{default this.errorScenarios.length "0"}} scenarios defined
+- [{{#if this.hasFailFastPattern}}✓{{else}} {{/if}}] **Fail-Fast Pattern**: {{#if this.hasFailFastPattern}}✓ Implemented{{else}}❌ Missing fail-fast validation{{/if}}
+- [{{#if this.hasErrorRecovery}}✓{{else}} {{/if}}] **Error Recovery Strategy**: {{default this.errorRecovery "❌ Missing recovery strategy"}}
+- [{{#if this.hasTimeoutHandling}}✓{{else}} {{/if}}] **Timeout Handling**: {{default this.timeoutHandling "❌ Missing timeout configuration"}}
+
+#### ⚡ Performance Validation
+- [{{#if this.hasLatencyRequirement}}✓{{else}} {{/if}}] **Latency Requirement**: {{default this.latencyRequirement "❌ Missing latency SLA"}}
+- [{{#if this.hasThroughputRequirement}}✓{{else}} {{/if}}] **Throughput Requirement**: {{default this.throughputRequirement "❌ Missing throughput SLA"}}
+- [{{#if this.hasResourceRequirements}}✓{{else}} {{/if}}] **Resource Requirements**: {{default this.resourceRequirements "❌ Missing resource estimation"}}
+- [{{#if this.hasScalabilityPlan}}✓{{else}} {{/if}}] **Scalability Plan**: {{default this.scalabilityPlan "❌ Missing scalability strategy"}}
+
+#### 🔗 Contract Readiness
+- [{{#if this.hasContractInterface}}✓{{else}} {{/if}}] **TypeScript Interface**: {{#if this.hasContractInterface}}✓ Defined{{else}}❌ Missing interface definition{{/if}}
+- [{{#if this.hasContractResult}}✓{{else}} {{/if}}] **ContractResult<T> Pattern**: {{#if this.hasContractResult}}✓ Implemented{{else}}❌ Missing ContractResult pattern{{/if}}
+- [{{#if this.hasSeamManagerIntegration}}✓{{else}} {{/if}}] **Seam Manager Integration**: {{#if this.hasSeamManagerIntegration}}✓ Configured{{else}}❌ Missing seam manager setup{{/if}}
+- [{{#if this.hasStubImplementation}}✓{{else}} {{/if}}] **Stub Implementation**: {{#if this.hasStubImplementation}}✓ Ready{{else}}❌ Missing stub template{{/if}}
+
+**Validation Score**: {{this.validationScore}}/20
+
+{{#if this.criticalIssues}}
+#### 🔴 Critical Issues
+{{#each this.criticalIssues}}
+- **{{this.category}}**: {{this.issue}}
+  - **Impact**: {{this.impact}}
+  - **Resolution**: {{this.resolution}}
+  - **Priority**: {{this.priority}}
+{{/each}}
+{{/if}}
+
+{{#if this.warnings}}
+#### ⚠️ Warnings
+{{#each this.warnings}}
+- **{{this.category}}**: {{this.warning}}
+  - **Recommendation**: {{this.recommendation}}
+{{/each}}
+{{/if}}
+
+---
+{{/each}}
+{{else}}
+### 🎯 Seam Definition Template
+
+To validate your seams, define them using this structure:
+
+```javascript
+const seamDefinitions = [
+  {
+    name: "UserAuthenticationSeam",
+    description: "Handles user login and session management",
+    sourceComponent: "AuthController", 
+    targetComponent: "AuthService",
+    communicationPattern: "request-response",
+    inputType: "LoginRequest",
+    outputType: "AuthSession",
+    dataValidation: "Email format, password strength",
+    transformation: "Credentials validation + session creation",
+    errorScenarios: [
+      { type: "invalid_credentials", handling: "fail-fast with error message" },
+      { type: "service_unavailable", handling: "retry with exponential backoff" }
+    ],
+    latencyRequirement: "< 500ms",
+    throughputRequirement: "100 requests/sec"
+  }
+];
+```
+{{/if}}
+
+---
+
+## 🏗️ Contract Generation Readiness
+
+{{#if contractReadiness}}
+### Contract Template Validation
+
+{{#each contractReadiness}}
+#### {{this.seamName}} Contract
+
+**Template Status**: {{this.templateStatus}}  
+**TypeScript Compliance**: {{this.typescriptCompliance}}  
+**SDD Pattern Compliance**: {{this.sddCompliance}}
+
+```typescript
+// Generated Contract Preview
+interface {{pascalCase this.seamName}}Contract {
+  {{#each this.methods}}
+  {{this.name}}({{this.parameters}}): Promise<ContractResult<{{this.returnType}}>>;
+  {{/each}}
+}
+
+{{#if this.hasCustomTypes}}
+// Supporting Types
+{{#each this.customTypes}}
+type {{this.name}} = {
+  {{#each this.fields}}
+  {{this.name}}: {{this.type}}; // {{this.description}}
+  {{/each}}
+};
+{{/each}}
+{{/if}}
+```
+
+**Contract Validation**:
+- [{{#if this.hasAsyncMethods}}✓{{else}} {{/if}}] All methods return Promise<ContractResult<T>>
+- [{{#if this.hasProperErrorHandling}}✓{{else}} {{/if}}] Error handling patterns included
+- [{{#if this.hasInputValidation}}✓{{else}} {{/if}}] Input validation specified
+- [{{#if this.hasMetadataSupport}}✓{{else}} {{/if}}] Metadata support implemented
+- [{{#if this.hasDocumentation}}✓{{else}} {{/if}}] Method documentation provided
+
+**Issues Found**:
+{{#each this.issues}}
+- **{{this.severity}}**: {{this.description}}
+  - **Fix**: {{this.solution}}
+{{/each}}
+
+---
+{{/each}}
+{{else}}
+### 💡 Contract Generation Prerequisites
+
+Before generating contracts, ensure each seam has:
+
+1. **Clear Method Signatures**
+   ```typescript
+   methodName(input: InputType): Promise<ContractResult<OutputType>>
+   ```
+
+2. **Type Definitions**
+   ```typescript
+   interface InputType { /* properties */ }
+   interface OutputType { /* properties */ }
+   ```
+
+3. **Error Scenarios**
+   ```typescript
+   // Error handling in contract
+   if (!isValid(input)) {
+     return { success: false, error: "Validation failed" };
+   }
+   ```
+
+4. **SDD Compliance**
+   - All methods async (return Promise)
+   - ContractResult<T> return type
+   - Fail-fast error handling
+   - Metadata support
+{{/if}}
+
+---
+
+## 🧪 Integration Testing Readiness
+
+{{#if integrationTests}}
+### Test Scenario Validation
+
+{{#each integrationTests}}
+#### {{this.seamName}} Test Scenarios
+
+**Test Coverage**: {{this.coverage}}%  
+**Critical Path Tests**: {{this.criticalPathTests}}  
+**Error Scenario Tests**: {{this.errorScenarioTests}}
+
+##### Happy Path Testing
+{{#each this.happyPath}}
+- [{{#if this.implemented}}✓{{else}} {{/if}}] **{{this.scenario}}**
+  - Input: {{this.input}}
+  - Expected Output: {{this.expectedOutput}}
+  - Validation: {{this.validation}}
+{{/each}}
+
+##### Error Path Testing
+{{#each this.errorPath}}
+- [{{#if this.implemented}}✓{{else}} {{/if}}] **{{this.scenario}}**
+  - Trigger: {{this.trigger}}
+  - Expected Error: {{this.expectedError}}
+  - Recovery: {{this.recovery}}
+{{/each}}
+
+##### Performance Testing
+- [{{#if this.hasLoadTest}}✓{{else}} {{/if}}] **Load Testing**: {{default this.loadTestDescription "❌ Missing load test scenario"}}
+- [{{#if this.hasStressTest}}✓{{else}} {{/if}}] **Stress Testing**: {{default this.stressTestDescription "❌ Missing stress test scenario"}}
+- [{{#if this.hasLatencyTest}}✓{{else}} {{/if}}] **Latency Testing**: {{default this.latencyTestDescription "❌ Missing latency validation"}}
+
+**Test Implementation Status**:
+```typescript
+// Test template for {{this.seamName}}
+describe('{{this.seamName}} Integration', () => {
+  {{#each this.testMethods}}
+  it('{{this.description}}', async () => {
+    {{this.testCode}}
+  });
+  {{/each}}
+});
+```
+
+---
+{{/each}}
+{{else}}
+### 🎯 Integration Test Planning
+
+Plan integration tests for each seam to validate:
+
+1. **Happy Path Scenarios**
+   - Normal data flow through the seam
+   - Expected transformations work correctly
+   - Performance meets SLA requirements
+
+2. **Error Scenarios**
+   - Invalid input handling
+   - Network failures and timeouts
+   - Upstream service failures
+
+3. **Edge Cases**
+   - Boundary value testing
+   - Large data volumes
+   - Concurrent access patterns
+
+4. **Contract Compliance**
+   - All methods return ContractResult<T>
+   - Error messages are consistent
+   - Metadata is properly populated
+
+Example test structure:
+```typescript
+describe('SeamName Integration Tests', () => {
+  beforeEach(async () => {
+    // Setup seam manager and dependencies
+  });
+
+  it('should process valid input successfully', async () => {
+    const result = await seamManager.executeSeam('SeamName', validInput);
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+  });
+
+  it('should fail fast on invalid input', async () => {
+    const result = await seamManager.executeSeam('SeamName', invalidInput);
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('validation failed');
+  });
+});
+```
+{{/if}}
+
+---
+
+## 🚀 Implementation Readiness Assessment
+
+{{#if implementationReadiness}}
+### Overall Readiness Score
+
+**Project Readiness**: {{implementationReadiness.overallScore}}/100
+
+#### Component Readiness Breakdown
+| Component | Score | Status | Critical Issues |
+|-----------|-------|--------|-----------------|
+{{#each implementationReadiness.components}}
+| {{this.name}} | {{this.score}}/100 | {{this.status}} | {{this.criticalIssues}} |
+{{/each}}
+
+#### Seam Readiness Breakdown  
+| Seam | Definition | Contract | Testing | Status |
+|------|------------|----------|---------|--------|
+{{#each implementationReadiness.seams}}
+| {{this.name}} | {{this.definitionScore}}/25 | {{this.contractScore}}/25 | {{this.testingScore}}/25 | {{this.status}} |
+{{/each}}
+
+### Implementation Blockers
+{{#each implementationReadiness.blockers}}
+#### 🔴 {{this.severity}}: {{this.title}}
+**Impact**: {{this.impact}}  
+**Components Affected**: {{this.componentsAffected}}  
+**Resolution Strategy**: {{this.resolutionStrategy}}  
+**Estimated Effort**: {{this.estimatedEffort}}  
+**Dependencies**: {{this.dependencies}}
+
+**Action Items**:
+{{#each this.actionItems}}
+- [ ] {{this}}
+{{/each}}
+
+---
+{{/each}}
+
+### Go/No-Go Decision Matrix
+| Criterion | Weight | Score | Weighted Score | Status |
+|-----------|---------|-------|----------------|--------|
+{{#each implementationReadiness.criteria}}
+| {{this.name}} | {{this.weight}} | {{this.score}} | {{this.weightedScore}} | {{this.status}} |
+{{/each}}
+
+**Recommendation**: {{implementationReadiness.recommendation}}
+{{else}}
+### 💡 Implementation Readiness Evaluation
+
+Evaluate your project readiness across these dimensions:
+
+#### 1. Seam Definition Completeness (25 points)
+- [ ] All seams identified and documented
+- [ ] Communication patterns defined
+- [ ] Data flows mapped
+- [ ] Error scenarios identified
+
+#### 2. Contract Specification Quality (25 points)  
+- [ ] TypeScript interfaces defined
+- [ ] ContractResult<T> patterns implemented
+- [ ] Method signatures complete
+- [ ] Type safety validated
+
+#### 3. Integration Architecture (25 points)
+- [ ] Seam manager configured
+- [ ] Error handling patterns established
+- [ ] Performance requirements defined
+- [ ] Monitoring strategy planned
+
+#### 4. Testing Strategy (25 points)
+- [ ] Test scenarios documented
+- [ ] Happy path tests planned
+- [ ] Error scenario tests designed
+- [ ] Performance tests specified
+
+**Scoring Guide**:
+- **90-100**: Ready for immediate implementation
+- **75-89**: Minor issues to resolve first
+- **50-74**: Significant gaps need addressing
+- **Below 50**: Major design work required
+{{/if}}
+
+---
+
+## 📋 Pre-Implementation Action Items
+
+{{#if actionItems}}
+### Prioritized Action Items
+
+{{#each actionItems}}
+#### {{this.priority}} Priority: {{this.title}}
+**Category**: {{this.category}}  
+**Effort**: {{this.effort}}  
+**Owner**: {{this.owner}}  
+**Deadline**: {{this.deadline}}
+
+**Description**: {{this.description}}
+
+**Acceptance Criteria**:
+{{#each this.acceptanceCriteria}}
+- [ ] {{this}}
+{{/each}}
+
+**Dependencies**:
+{{#each this.dependencies}}
+- {{this}}
+{{/each}}
+
+---
+{{/each}}
+{{else}}
+### 🎯 Standard Pre-Implementation Checklist
+
+Complete these tasks before beginning implementation:
+
+#### High Priority (Must Complete)
+- [ ] **Seam Inventory**: Complete list of all seams with descriptions
+- [ ] **Contract Definitions**: TypeScript interfaces for all seam contracts
+- [ ] **Error Strategies**: Fail-fast patterns and recovery mechanisms
+- [ ] **Data Validation**: Input/output validation rules defined
+- [ ] **Performance SLAs**: Latency and throughput requirements
+
+#### Medium Priority (Should Complete)
+- [ ] **Integration Tests**: Test scenarios for critical seam paths
+- [ ] **Monitoring Plan**: Health checks and performance metrics
+- [ ] **Documentation**: Seam purpose and usage documentation
+- [ ] **Stub Implementation**: NotImplementedError templates ready
+- [ ] **Deployment Strategy**: Environment configuration and rollout plan
+
+#### Low Priority (Nice to Have)
+- [ ] **Performance Optimization**: Caching and efficiency improvements
+- [ ] **Advanced Error Handling**: Circuit breakers and retry logic
+- [ ] **Metrics Dashboard**: Real-time seam performance monitoring
+- [ ] **Load Testing**: Scalability and stress test scenarios
+- [ ] **Security Review**: Authentication and authorization patterns
+{{/if}}
+
+---
+
+## ✅ Final Validation Checklist
+
+### Pre-Contract Generation Validation
+- [ ] **All seams have complete definitions** with name, purpose, components
+- [ ] **Data types are fully specified** for inputs, outputs, and transformations
+- [ ] **Error scenarios are documented** with handling strategies
+- [ ] **Performance requirements are defined** with measurable SLAs
+- [ ] **Integration patterns are established** with seam manager
+
+### Contract Generation Readiness
+- [ ] **TypeScript interfaces designed** following SDD patterns
+- [ ] **ContractResult<T> pattern implemented** for all method returns
+- [ ] **Async method signatures defined** with proper Promise handling
+- [ ] **Error handling patterns integrated** with fail-fast principles
+- [ ] **Metadata support included** for debugging and monitoring
+
+### Implementation Preparation
+- [ ] **Seam manager configured** with all seam registrations
+- [ ] **Stub templates prepared** with NotImplementedError patterns
+- [ ] **Test scenarios documented** for integration validation
+- [ ] **Error handling infrastructure** ready for seam implementations
+- [ ] **Performance monitoring setup** for seam health tracking
+
+### Quality Assurance
+- [ ] **Code review process established** for seam implementations
+- [ ] **Integration testing strategy** defined and ready to execute
+- [ ] **Performance benchmarks set** with monitoring thresholds
+- [ ] **Documentation standards** established for seam documentation
+- [ ] **Deployment procedures** ready for seam rollout
+
+---
+
+**Generated by SDD MCP Server**  
+*Validate thoroughly before implementing - seams are the foundation of your architecture*

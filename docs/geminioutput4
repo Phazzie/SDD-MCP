@@ -1,0 +1,1377 @@
+Okay, ambitious! Doing all the remaining ones at once will be a significant chunk, but I'll tackle them. This means:
+
+ai-onboarding-prompt.handlebars
+
+implementation-prompt.handlebars
+
+api-documentation.handlebars
+
+troubleshooting-guide.handlebars
+
+I'll also include my thoughts on the project and suggestions for future collaboration.
+
+First, the templates:
+
+1. ai-onboarding-prompt.handlebars
+
+This template generates a comprehensive prompt to give an AI assistant (like me, or another instance of Gemini, or a fine-tuned model) all the necessary context to understand and contribute to a specific SDD project.
+
+A. Template Filename
+
+ai-onboarding-prompt.handlebars
+
+B. Complete Handlebars Template Code
+
+# AI Onboarding & Project Context: {{projectName}} (SDD Project)
+
+## MISSION BRIEFING FOR AI ASSISTANT
+
+You are an expert AI software engineer tasked with assisting in the development of the **{{projectName}}** project. This project strictly adheres to **Seam-Driven Development (SDD)**, a methodology emphasizing "Contracts First, Implementation Second." Your primary goal is to generate SDD-compliant code, documentation, and tests based on the provided contracts and requirements.
+
+**Project Purpose:** {{projectPurpose}}
+
+**Key Technologies:** {{#each technologies}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} (Primarily TypeScript with Node.js runtime, Vitest for testing).
+
+## 1. CORE SDD PRINCIPLES TO MASTER
+
+Before you begin, internalize these non-negotiable SDD patterns:
+
+### 1.1. ContractResult<T> Pattern (MANDATORY)
+
+All inter-component communication (seam methods) **MUST** return a `Promise<ContractResult<T>>`.
+\`\`\`typescript
+// Located in: {{contractResultPath | default 'src/shared/common-types.ts'}}
+export type ContractResult<TSuccessData = any, TErrorData = any> =
+| { success: true; data: TSuccessData; agentId: string; metadata?: Record<string, any>; correlationId?: string; }
+| { success: false; error: string; agentId: string; errorCode?: string; details?: TErrorData; metadata?: Record<string, any>; correlationId?: string; };
+
+// Example Usage:
+async function someSeamMethod(input: InputType): Promise<ContractResult<OutputType>> {
+if (!input) { // 🛡️ DEFENSIVE: Input validation
+return { success: false, error: "Invalid input provided.", agentId: this.agentId };
+}
+try {
+// 🔨 HARD_WORK: Actual business logic
+const resultData: OutputType = await processData(input);
+return { success: true, data: resultData, agentId: this.agentId };
+} catch (e: any) {
+return { success: false, error: e.message || String(e), agentId: this.agentId };
+}
+}
+\`\`\`
+
+- **`success: boolean`**: Indicates outcome.
+- **`data?: TSuccessData`**: Payload on success.
+- **`error?: string`**: Human-readable error message on failure.
+- **`agentId: string`**: Unique identifier of the agent/component producing the result. **ALWAYS INCLUDE THIS.**
+- **`errorCode?: string`**: Machine-readable error code (optional).
+- **`details?: TErrorData`**: Additional structured error information (optional).
+- **`metadata?: Record<string, any>`**: For telemetry, timing, etc. (optional).
+- **`correlationId?: string`**: For request tracing across seams (optional but encouraged).
+
+### 1.2. Blueprint Comments (7-Field Structure - MANDATORY)
+
+Every interface, class, and significant public method **MUST** have a 7-field JSDoc-style blueprint comment:
+\`\`\`typescript
+/\*\*
+
+- PURPOSE: What this (class/interface/method) accomplishes.
+- DATA FLOW: IN / OUT / BOTH / N/A (direction of data).
+- INTEGRATION POINTS: Which other components/seams it interacts with.
+- FAILURE MODES: Specific error scenarios and how they are (or should be) handled.
+- RATIONALE: Architectural reason for its existence and design choices.
+- EXAMPLES: Usage patterns, expected calls, or sample data.
+- CONTRACT VERSION: Semantic version (e.g., "1.0.0") for interfaces/major methods.
+  \*/
+  \`\`\`
+
+### 1.3. NotImplementedError Stubs (MANDATORY for new methods)
+
+New methods in agent stubs **MUST** initially throw `NotImplementedError`.
+\`\`\`typescript
+// Located in: {{notImplementedErrorClassPath | default 'src/shared/sdd-errors.ts'}}
+// export class NotImplementedError extends Error { ... }
+
+async function newMethod(input: InputType): Promise<ContractResult<OutputType>> {
+// 🛡️ DEFENSIVE: Input validation first
+if (!input) {
+return {
+success: false,
+error: "Invalid input - failing fast for newMethod",
+agentId: this.agentId // 'this.agentId' must be available in the class
+};
+}
+// 🔨 HARD_WORK: Actual implementation placeholder
+throw new NotImplementedError("{{pascalCaseName}}Agent.newMethod", "Blueprint: Briefly describe what needs to be done here based on the PURPOSE field of this method's blueprint comment.");
+}
+\`\`\`
+Your task will often be to replace these `NotImplementedError` sections with actual logic.
+
+### 1.4. File Organization & Naming Conventions
+
+- **Contracts**: `src/contracts/{{camelCaseName}}.contract.ts` (e.g., `userManagement.contract.ts`)
+- **Agents (Implementations)**: `src/agents/{{camelCaseName}}.agent.ts` (e.g., `userManagement.agent.ts`)
+- **SeamManager**: `src/seams/{{seamManagerName | default 'seam.manager.ts'}}`
+- **Shared Types/Errors**: `src/shared/`
+- **Tests**: `tests/integration/{{camelCaseName}}.integration.test.ts`, `tests/unit/{{camelCaseName}}.unit.test.ts`
+- **Imports**: ALWAYS use `.js` extensions in import paths: `import { MyType } from './my-module.js';`
+- **Naming**:
+  - Interfaces: `I{{PascalCaseName}}Contract` (e.g., `IUserManagementContract`)
+  - Agent Classes: `{{PascalCaseName}}Agent` (e.g., `UserManagementAgent`)
+  - Files: `{{camelCaseName}}.{{fileType}}.ts` (e.g., `userManagement.agent.ts`)
+
+### 1.5. Priority Tags (For your suggestions and our communication)
+
+- `💰 HIGH_ROI`, `🎯 CRITICAL`, `⚡ QUICK_WIN`, `🔨 HARD_WORK`, `🧪 EXPERIMENTAL`, `🛡️ DEFENSIVE`, `🔄 REFACTOR`, `🎨 POLISH`
+  Use these when you propose solutions or identify tasks.
+
+### 1.6. Testing
+
+- **Integration Tests (Vitest)**: Validate contract compliance and seam interactions. Reside in `tests/integration/`.
+- **Unit Tests (Vitest)**: Test individual method logic within an agent. Reside in `tests/unit/`.
+- All new logic requires corresponding tests.
+
+## 2. PROJECT ARCHITECTURE OVERVIEW
+
+**High-Level Components:**
+{{#each components}}
+
+- **{{this.name}}** ({{this.type}}): {{this.description}}
+  {{#if this.contractFile}}
+  - Contract: `{{this.contractFile}}`
+    {{/if}}
+    {{#if this.implementationFile}}
+  - Implementation: `{{this.implementationFile}}`
+    {{/if}}
+    {{/each}}
+
+**Key Seams (Communication Pathways):**
+{{#if seams.length}}
+{{#each seams}}
+
+- **{{this.name}}**:
+  - Purpose: {{this.purpose}}
+  - Participants: {{#each this.participants}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+  - Contract: `{{this.contractInterface}}` defined in `{{this.contractFilePath}}`
+    {{/each}}
+    {{else}}
+- _Seam details will be provided per-task or can be inferred from contracts._
+  {{/if}}
+
+**Central Orchestration (if applicable):**
+{{#if orchestratorAgent}}
+
+- The **{{orchestratorAgent.name}}** (defined in `{{orchestratorAgent.implementationFile}}`) is responsible for coordinating workflows between multiple agents via the `{{seamManagerName}}`.
+  {{else}}
+- _No central orchestrator explicitly defined in this overview; workflows may be simpler or driven by individual agents._
+  {{/if}}
+
+**Data Storage (if applicable):**
+{{#if dataStorageDetails}}
+
+- Data Persistence: {{dataStorageDetails.type}} (e.g., PostgreSQL, MongoDB, Filesystem)
+- Key Entities: {{#each dataStorageDetails.entities}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+- ORM/Driver: {{dataStorageDetails.ormOrDriver | default "N/A"}}
+  {{else}}
+- _Data storage details will be provided as needed._
+  {{/if}}
+
+## 3. CURRENT PROJECT STATE & GOALS
+
+{{#if projectStatus}}
+**Current Status:** {{projectStatus.phase}} ({{projectStatus.completionPercentage}}% complete)
+**Next Major Milestone:** {{projectStatus.nextMilestone}}
+**Immediate Focus Areas:**
+{{#each projectStatus.immediateFocus}}
+
+- {{this}}
+  {{/each}}
+  {{else}}
+- _Project status and specific goals will be outlined in individual task requests._
+  {{/if}}
+
+## 4. YOUR ROLE & RESPONSIBILITIES
+
+- **Implement Agent Logic**: Fill in `NotImplementedError` sections in `*.agent.ts` files according to contract specifications and PRD requirements.
+- **Write Unit & Integration Tests**: Ensure robust test coverage for all new code.
+- **Generate/Update Contracts**: If new seams or methods are identified, help define `*.contract.ts` files.
+- **Create Stubs**: For new agents, generate the initial `*.agent.ts` stub with `NotImplementedError`.
+- **Documentation**: Maintain blueprint comments and assist with API documentation.
+- **Adhere to SDD**: All output MUST follow the SDD patterns outlined above.
+- **Ask Clarifying Questions**: If requirements are unclear, ask before implementing. It's better to clarify than to rework.
+
+## 5. DEVELOPMENT ENVIRONMENT & TOOLING
+
+- **Language**: TypeScript ({{typescriptVersion | default "Latest Stable"}})
+- **Runtime**: Node.js ({{nodeVersion | default "LTS"}})
+- **Package Manager**: {{packageManager | default "npm"}}
+- **Testing Framework**: Vitest
+- **Linting/Formatting**: ESLint & Prettier (configs will be provided or are in the project)
+- **Version Control**: Git
+- **Key Libraries/Frameworks You Might Encounter:**
+  {{#each keyLibraries}}
+  - {{this.name}}: {{this.purpose}}
+    {{/each}}
+
+## 6. COMMON PITFALLS TO AVOID
+
+- **Ignoring `ContractResult<T>`**: Every seam method must use it.
+- **Missing `agentId`**: `ContractResult` always needs the `agentId` of the _sender_.
+- **Incomplete Blueprint Comments**: All 7 fields are required.
+- **Implementing Before Contract Definition**: Always define the contract (interface) first.
+- **Lack of Input Validation**: Implement fail-fast defensive checks at the start of methods.
+- **Not Writing Tests**: Code without tests is considered incomplete.
+- **Using `any` excessively**: Strive for strong typing.
+- **Forgetting `.js` in imports**: TypeScript in Node.js ESM context requires this.
+
+## 7. HOW TO ASK FOR HELP / CLARIFICATIONS
+
+- **Be Specific**: Refer to the exact file, contract, method, or requirement.
+- **Provide Context**: Explain what you've tried or what your current understanding is.
+- **State Your Question Clearly**: What information do you need to proceed?
+- **Reference This Document**: You can refer to sections of this onboarding prompt.
+
+## 8. YOUR FIRST TASK (Example/Placeholder)
+
+_(A specific task will usually follow this onboarding, or be part of a more focused prompt. For now, ensure you have understood all the above.)_
+
+**Confirmation Task:**
+Please acknowledge that you have read and understood these SDD project guidelines. Briefly summarize:
+
+1. The core purpose of the `ContractResult<T>` pattern.
+2. The 7 fields required in a blueprint comment.
+3. Why `.js` extensions are needed in import statements for this project.
+
+---
+
+This onboarding document provides the foundational knowledge for the **{{projectName}}** project. We look forward to your expert contributions in building a robust and maintainable SDD application!
+
+C. Example TemplateContext for ai-onboarding-prompt.handlebars
+const aiOnboardingContext = {
+projectName: "OrderManagementSystem",
+projectPurpose: "To build a scalable and resilient system for managing customer orders, inventory, and notifications using Seam-Driven Development.",
+technologies: ["TypeScript", "Node.js", "Vitest", "PostgreSQL", "RabbitMQ", "Docker"],
+contractResultPath: "src/shared/common-types.ts",
+notImplementedErrorClassPath: "src/shared/sdd-errors.ts",
+pascalCaseName: "OrderManagement", // General project name for placeholder examples
+
+components: [
+{ name: "OrderProcessorAgent", type: "Agent", description: "Handles creation and state transitions of orders.", contractFile: "src/contracts/orderProcessor.contract.ts", implementationFile: "src/agents/orderProcessor.agent.ts" },
+{ name: "InventoryManagerAgent", type: "Agent", description: "Manages product stock levels.", contractFile: "src/contracts/inventoryManager.contract.ts", implementationFile: "src/agents/inventoryManager.agent.ts" },
+{ name: "NotificationAgent", type: "Agent", description: "Sends notifications (email, SMS).", contractFile: "src/contracts/notification.contract.ts", implementationFile: "src/agents/notification.agent.ts" },
+{ name: "MainOrchestratorAgent", type: "Orchestrator Agent", description: "Coordinates complex order fulfillment workflows.", implementationFile: "src/agents/main.orchestrator.agent.ts" },
+{ name: "SystemSeamManager", type: "Seam Manager", description: "Manages all agent communications.", implementationFile: "src/seams/system.seam-manager.ts" }
+],
+seamManagerName: "SystemSeamManager", // From components list
+
+seams: [
+{ name: "Order Creation Seam", purpose: "Allows creation of new orders.", participants: ["MainOrchestratorAgent", "OrderProcessorAgent"], contractInterface: "IOrderProcessorContract", contractFilePath: "src/contracts/orderProcessor.contract.ts" },
+{ name: "Stock Check Seam", purpose: "Checks and reserves stock for an order.", participants: ["OrderProcessorAgent", "InventoryManagerAgent"], contractInterface: "IInventoryManagerContract", contractFilePath: "src/contracts/inventoryManager.contract.ts" },
+],
+
+orchestratorAgent: { // Derived from components list if an orchestrator exists
+name: "MainOrchestratorAgent",
+implementationFile: "src/agents/main.orchestrator.agent.ts"
+},
+
+dataStorageDetails: {
+type: "PostgreSQL",
+entities: ["Orders", "OrderItems", "Products", "Customers", "Notifications"],
+ormOrDriver: "Prisma ORM"
+},
+
+projectStatus: {
+phase: "Core Agent Implementation",
+completionPercentage: 35,
+nextMilestone: "End-to-end order processing flow testable.",
+immediateFocus: [
+"Implementing OrderProcessorAgent.updateOrderStatus method.",
+"Defining contracts for payment processing.",
+"Writing integration tests for stock reservation."
+]
+},
+typescriptVersion: "5.3.3",
+nodeVersion: "20.x",
+packageManager: "npm",
+keyLibraries: [
+{ name: "Prisma", purpose: "Database ORM for PostgreSQL" },
+{ name: "Axios", purpose: "HTTP client for external API calls" },
+{ name: "Amqplib", purpose: "RabbitMQ client library for messaging" }
+]
+};
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Example of Generated Output (Snippet)
+
+# AI Onboarding & Project Context: OrderManagementSystem (SDD Project)
+
+## MISSION BRIEFING FOR AI ASSISTANT
+
+You are an expert AI software engineer tasked with assisting in the development of the **OrderManagementSystem** project. This project strictly adheres to **Seam-Driven Development (SDD)**...
+
+### 1.1. ContractResult<T> Pattern (MANDATORY)
+
+All inter-component communication (seam methods) **MUST** return a `Promise<ContractResult<T>>`.
+
+````typescript
+// Located in: src/shared/common-types.ts
+export type ContractResult<TSuccessData = any, TErrorData = any> = ...
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Markdown
+IGNORE_WHEN_COPYING_END
+
+...
+
+2. PROJECT ARCHITECTURE OVERVIEW
+
+High-Level Components:
+
+OrderProcessorAgent (Agent): Handles creation and state transitions of orders.
+
+Contract: src/contracts/orderProcessor.contract.ts
+
+Implementation: src/agents/orderProcessor.agent.ts
+
+InventoryManagerAgent (Agent): Manages product stock levels.
+...
+
+---
+
+## 2. `implementation-prompt.handlebars`
+
+This template generates a focused prompt for an AI assistant to implement a *specific method* or a small set of related methods within an SDD agent, using the context of its contract and overall project requirements.
+
+### A. Template Filename
+`implementation-prompt.handlebars`
+
+### B. Complete Handlebars Template Code
+```handlebars
+# SDD Implementation Task: {{agentName}} - Method(s): {{#each methodsToImplement}}{{this.name}}{{#unless @last}}, {{/unless}}{{/each}}
+
+## AI ASSISTANT TASK BRIEFING
+
+**Project:** {{projectName}}
+**Target Agent:** `{{agentName}}` (File: `{{agentFilePath}}`)
+**Associated Contract:** `{{contractName}}` (File: `{{contractFilePath}}`)
+
+You are to implement the business logic for the following method(s) within the `{{agentName}}`. Adhere strictly to Seam-Driven Development (SDD) principles.
+
+**Overall Agent Purpose:** {{agentPurpose}}
+
+---
+{{#each methodsToImplement}}
+## Method: `{{this.name}}`
+
+### 1. Contract Definition (from `{{../contractName}}`):
+\`\`\`typescript
+{{this.contractMethodSignature}}
+  // Blueprint Comment from Contract:
+  /**
+   * PURPOSE: {{this.blueprint.purpose}}
+   * DATA FLOW: {{this.blueprint.dataFlow}}
+   * INTEGRATION POINTS: {{this.blueprint.integrationPoints}}
+   * FAILURE MODES: {{this.blueprint.failureModes}}
+   * RATIONALE: {{this.blueprint.rationale}}
+   * EXAMPLES: {{this.blueprint.examples}}
+   * CONTRACT VERSION: {{this.blueprint.contractVersion}}
+   */
+{{#if this.inputTypeDefinition}}
+// Input Type: {{this.inputTypeName}}
+{{this.inputTypeDefinition}}
+{{/if}}
+{{#if this.outputTypeDefinition}}
+// Output Type: {{this.outputTypeName}}
+{{this.outputTypeDefinition}}
+{{/if}}
+\`\`\`
+
+### 2. Current Stub in `{{../agentFilePath}}`:
+\`\`\`typescript
+public async {{this.name}}(request: {{this.inputTypeName}}): Promise<ContractResult<{{this.outputTypeName}}>> {
+  // 🛡️ DEFENSIVE: Input validation for '{{this.name}}'
+  {{#if this.initialValidationCode}}
+  {{{this.initialValidationCode}}}
+  {{else}}
+  // TODO: Add comprehensive input validation for all fields in 'request: {{this.inputTypeName}}'.
+  // Example: if (!request || !request.requiredField) return { success: false, error: "Missing requiredField", agentId: this.agentId };
+  {{/if}}
+
+  // 🔨 HARD_WORK: Implement business logic for '{{this.name}}'
+  // Replace this NotImplementedError with your implementation.
+  throw new NotImplementedError("{{../agentName}}.{{this.name}}", "Blueprint: {{this.blueprint.purpose}}");
+}
+\`\`\`
+
+### 3. Detailed Requirements & Implementation Guidance for `{{this.name}}`:
+
+**Objective:** {{this.implementationObjective}}
+
+**Key Steps / Logic Flow:**
+{{#if this.steps.length}}
+{{#each this.steps}}
+  {{@indexPlus1}}. {{this.description}}
+     {{#if this.codeHint}}
+     *Code Hint/Example:*
+     \`\`\`typescript
+     {{{this.codeHint}}}
+     \`\`\`
+     {{/if}}
+     {{#if this.validation}}
+     *Validation:* {{this.validation}}
+     {{/if}}
+{{/each}}
+{{else}}
+  - *No explicit sub-steps provided. Infer logic from PURPOSE, RATIONALE, and objective.*
+{{/if}}
+
+**Data Transformations (if any):**
+{{#if this.dataTransformations}}
+  - {{this.dataTransformations}}
+{{else}}
+  - *None specified, or map directly based on types.*
+{{/if}}
+
+**Integration with Other Seams (via `this.seamManager.executeSeam<Output, Input>(...)`):**
+{{#if this.seamIntegrations.length}}
+{{#each this.seamIntegrations}}
+  - **Seam:** `{{this.seamName}}`
+  - **Method:** `{{this.methodToCall}}`
+  - **Purpose:** {{this.purposeInWorkflow}}
+  - **Input Payload (Example):**
+    \`\`\`typescript
+    // const {{this.seamNameCamelCase}}Request: {{this.requestTypeName}} = { ... map from 'request' or prior results ... };
+    {{{this.exampleInputPayload}}}
+    \`\`\`
+  - **Output Handling:**
+    \`\`\`typescript
+    // const {{this.seamNameCamelCase}}Result = await this.seamManager.executeSeam<{{this.responseTypeName}}, {{this.requestTypeName}}>(
+    //   '{{this.seamName}}', '{{this.methodToCall}}', {{this.seamNameCamelCase}}Request
+    // );
+    // if (!{{this.seamNameCamelCase}}Result.success) {
+    //   // Handle error, potentially return ContractResult failure
+    //   return { success: false, error: `Failed calling {{this.seamName}}: ${{this.seamNameCamelCase}}Result.error}`, agentId: this.agentId };
+    // }
+    // const {{this.seamNameCamelCase}}Data = {{this.seamNameCamelCase}}Result.data;
+    // // Use {{this.seamNameCamelCase}}Data...
+    {{{this.exampleOutputHandling}}}
+    \`\`\`
+{{/each}}
+{{else}}
+  - *No direct seam integrations specified for this method beyond what's in its blueprint INTEGRATION POINTS. If INTEGRATION POINTS mention other agents, assume `this.seamManager` will be used.*
+{{/if}}
+
+**Error Handling Specifics:**
+  - Beyond standard input validation, consider: {{this.specificErrorHandling | default "Refer to method's FAILURE MODES blueprint."}}
+  - All errors MUST be caught and returned as `ContractResult<{{this.outputTypeName}}>` with `success: false`.
+
+**Security Considerations:**
+  - {{this.securityNotes | default "Standard input sanitization. If dealing with sensitive data, ensure it's handled appropriately (e.g., no logging of PII). Refer to project security guidelines if available."}}
+
+**Performance Considerations:**
+  - {{this.performanceNotes | default "Aim for efficient execution. If database calls or complex computations are involved, consider optimization."}}
+
+**Logging:**
+  - Log key entry/exit points, significant decisions, and errors.
+  - Use a structured logger if available, e.g., `this.logger.info(...)`, `this.logger.error(...)`.
+  - Avoid logging sensitive data. Example:
+    \`\`\`typescript
+    // this.logger.info({ message: "{{this.name}} started", input: requestWithoutSensitiveData });
+    // ...
+    // this.logger.error({ message: "{{this.name}} failed", error: result.error, input: requestWithoutSensitiveData });
+    \`\`\`
+
+### 4. Acceptance Criteria / Test Cases for `{{this.name}}`:
+{{#if this.acceptanceCriteria.length}}
+{{#each this.acceptanceCriteria}}
+  - **Given:** {{this.given}}
+  - **When:** {{this.when}}
+  - **Then:** {{this.then}}
+  - **ContractResult:** `success: {{this.expectedSuccess}}`{{#if this.expectedDataSnippet}}, `data` should resemble `{{{this.expectedDataSnippet}}}`{{/if}}{{#if this.expectedError}}, `error` contains "{{this.expectedError}}"{{/if}}
+{{/each}}
+{{else}}
+  - *Develop unit tests covering happy path, common error cases (from FAILURE MODES), and edge cases based on input types and business logic.*
+  - *Ensure tests validate the structure and content of `ContractResult` (both success and failure).*
+{{/if}}
+
+---
+{{/each}}
+
+## GENERAL SDD REMINDERS (from Onboarding):
+- Return `Promise<ContractResult<T>>` for all methods.
+- Include `agentId: this.agentId` in all `ContractResult`s.
+- Use 7-field Blueprint Comments for any new helper methods you create.
+- Use `.js` in all import statements.
+- Write comprehensive unit tests in `tests/unit/{{camelCaseAgentName}}.unit.test.ts` for the logic you implement.
+- If this method requires changes to other agents or new contracts, please state that clearly rather than implementing it directly.
+
+**Output Expectation:**
+Provide the complete updated Typescript code for the `{{agentName}}` class, specifically the implemented method(s). Ensure the code is well-formatted, includes necessary imports, and adheres to all SDD principles. Also, provide the corresponding unit tests.
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+IGNORE_WHEN_COPYING_END
+C. Example TemplateContext for implementation-prompt.handlebars
+const implementationPromptContext = {
+  projectName: "OrderManagementSystem",
+  agentName: "OrderProcessorAgent",
+  camelCaseAgentName: "orderProcessorAgent", // For test file name
+  agentFilePath: "src/agents/orderProcessor.agent.ts",
+  contractName: "IOrderProcessorContract",
+  contractFilePath: "src/contracts/orderProcessor.contract.ts",
+  agentPurpose: "Manages the lifecycle of customer orders, from creation to completion or cancellation.",
+
+  methodsToImplement: [
+    {
+      name: "createOrder",
+      inputTypeName: "CreateOrderInput", // From contract
+      outputTypeName: "Order",           // From contract
+      contractMethodSignature: "createOrder(request: CreateOrderInput): Promise<ContractResult<Order>>;",
+      blueprint: { // Copied from the contract for this method
+        purpose: "Creates a new customer order with the provided items and details.",
+        dataFlow: "IN/OUT",
+        integrationPoints: "InventoryManagerAgent (for stock check/reservation), NotificationAgent (for order confirmation). Possibly PaymentGatewayAgent.",
+        failureModes: "Invalid input, Item out of stock, Payment failure, Downstream agent communication error.",
+        rationale: "Centralizes the logic for initiating a new order.",
+        examples: "client calls createOrder({ customerId: 'cust123', items: [{ productId: 'prodABC', quantity: 2 }] })",
+        contractVersion: "1.2.0"
+      },
+      // Assuming these type definitions are also extracted or known
+      inputTypeDefinition: "interface CreateOrderInput {\n  customerId: string;\n  items: Array<{ productId: string; quantity: number; unitPrice: number; }>;\n  shippingAddress: string;\n}",
+      outputTypeDefinition: "interface Order {\n  orderId: string;\n  customerId: string;\n  status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';\n  items: Array<{ productId: string; quantity: number; unitPrice: number; name?:string; }>;\n  totalAmount: number;\n  createdAt: Date;\n  updatedAt: Date;\n}",
+      initialValidationCode: "if (!request || !request.customerId || !request.items || request.items.length === 0) {\n    return { success: false, error: 'Customer ID and at least one item are required for order creation.', agentId: this.agentId };\n  }\n  for (const item of request.items) {\n    if (!item.productId || item.quantity <= 0 || item.unitPrice <= 0) {\n      return { success: false, error: 'Invalid item data: productId, positive quantity, and positive unitPrice required.', agentId: this.agentId };\n    }\n  }",
+      implementationObjective: "Validate input, generate a unique order ID, calculate total amount, reserve stock via InventoryManagerAgent, persist the order with 'PENDING' status, and then (if stock successful) send a confirmation email via NotificationAgent and update status to 'CONFIRMED'.",
+      steps: [
+        { description: "Generate a unique `orderId` (e.g., UUID)." },
+        { description: "Calculate `totalAmount` based on `items.quantity` and `items.unitPrice`." },
+        { description: "Construct the initial `Order` object with status 'PENDING'."}
+      ],
+      dataTransformations: "Map `CreateOrderInput.items` to `Order.items`. The `Order` object will be built incrementally.",
+      seamIntegrations: [
+        {
+          seamName: "InventoryManagerAgent",
+          seamNameCamelCase: "inventoryManager", // For var names
+          methodToCall: "reserveStock",
+          requestTypeName: "ReserveStockInput", // Assumed type
+          responseTypeName: "StockReservationResult", // Assumed type
+          purposeInWorkflow: "To check availability and reserve products for the order.",
+          exampleInputPayload: "const reserveStockRequest: ReserveStockInput = {\n  orderId: generatedOrderId, // The new order ID\n  items: request.items.map(item => ({ productId: item.productId, quantityToReserve: item.quantity }))\n};",
+          exampleOutputHandling: "if (!stockReservationResult.data.allStockReserved) {\n  // Potentially create order with 'PENDING_STOCK_ISSUE' or fail entirely\n  return { success: false, error: `Stock reservation failed: ${stockReservationResult.data.reason}`, agentId: this.agentId };\n}"
+        },
+        {
+          seamName: "NotificationAgent",
+          seamNameCamelCase: "notification",
+          methodToCall: "sendOrderConfirmationEmail",
+          requestTypeName: "OrderConfirmationEmailInput",
+          responseTypeName: "NotificationSentStatus",
+          purposeInWorkflow: "To notify the customer that their order has been confirmed (after successful stock reservation and persistence).",
+          exampleInputPayload: "const emailInput: OrderConfirmationEmailInput = {\n  recipientEmail: customerDetails.email, // Assume customerDetails fetched or part of input\n  orderId: persistedOrder.orderId,\n  orderDetails: persistedOrder // The fully formed order object\n};",
+          exampleOutputHandling: "if (!emailSentResult.success) {\n  this.logger.warn({ message: 'Failed to send order confirmation email', orderId: persistedOrder.orderId, error: emailSentResult.error });\n  // Do not fail the entire order creation for this, but log it.\n}"
+        }
+      ],
+      specificErrorHandling: "Handle `InventoryManagerAgent.reserveStock` failure by not confirming the order and returning an appropriate error. Log failures from `NotificationAgent` but don't necessarily fail the order creation.",
+      securityNotes: "Ensure `customerId` is validated against an authenticated session if applicable. Sanitize `shippingAddress` if it's free-text.",
+      performanceNotes: "Stock reservation should be relatively fast. If many items, consider batching calls to InventoryManager if its API supports it.",
+      acceptanceCriteria: [
+        { given: "Valid order input with available stock for all items", when: "createOrder is called", then: "A new order is created with status 'CONFIRMED', stock is reserved, and a confirmation email is queued.", expectedSuccess: true, expectedDataSnippet: "{ orderId: 'some-uuid', status: 'CONFIRMED', totalAmount: > 0 }" },
+        { given: "Order input where one item is out of stock", when: "createOrder is called", then: "The order creation fails before persisting, with an error indicating stock issue.", expectedSuccess: false, expectedError: "Stock reservation failed" },
+        { given: "Invalid input (e.g., missing customerId)", when: "createOrder is called", then: "The method returns failure due to input validation.", expectedSuccess: false, expectedError: "Customer ID and at least one item are required" }
+      ]
+    },
+    // ... potentially another method here ...
+  ]
+};
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Example of Generated Output (Snippet)
+# SDD Implementation Task: OrderProcessorAgent - Method(s): createOrder
+
+## AI ASSISTANT TASK BRIEFING
+
+**Project:** OrderManagementSystem
+**Target Agent:** `OrderProcessorAgent` (File: `src/agents/orderProcessor.agent.ts`)
+**Associated Contract:** `IOrderProcessorContract` (File: `src/contracts/orderProcessor.contract.ts`)
+...
+## Method: `createOrder`
+
+### 1. Contract Definition (from `IOrderProcessorContract`):
+```typescript
+createOrder(request: CreateOrderInput): Promise<ContractResult<Order>>;
+  // Blueprint Comment from Contract:
+  /**
+   * PURPOSE: Creates a new customer order with the provided items and details.
+   * DATA FLOW: IN/OUT
+...
+// Input Type: CreateOrderInput
+interface CreateOrderInput {
+  customerId: string;
+  items: Array<{ productId: string; quantity: number; unitPrice: number; }>;
+  shippingAddress: string;
+}
+// Output Type: Order
+interface Order {
+  orderId: string;
+...
+}
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Markdown
+IGNORE_WHEN_COPYING_END
+
+...
+
+3. Detailed Requirements & Implementation Guidance for createOrder:
+
+Objective: Validate input, generate a unique order ID, calculate total amount, reserve stock via InventoryManagerAgent, persist the order with 'PENDING' status, and then (if stock successful) send a confirmation email via NotificationAgent and update status to 'CONFIRMED'.
+...
+
+---
+
+## 3. `api-documentation.handlebars`
+
+This template generates API documentation, likely in Markdown, based on the contracts and blueprint comments. It could be used to produce a section of a larger API doc or a standalone file per component.
+
+### A. Template Filename
+`api-documentation.handlebars`
+
+### B. Complete Handlebars Template Code
+```handlebars
+# API Documentation: {{componentName}} ({{contractName}})
+
+**Version:** {{componentVersion | default "N/A"}}
+**Last Updated:** {{generationDate}}
+
+## Overview
+
+**Purpose:** {{componentPurpose}}
+
+**Contract File:** `{{contractFilePath}}`
+{{#if agentFilePath}}
+**Primary Implementing Agent:** `{{agentFilePath}}` ({{agentName}})
+{{/if}}
+
+This document outlines the API contract for the `{{componentName}}`, defining how other components can interact with it. All interactions adhere to the Seam-Driven Development (SDD) `ContractResult<T>` pattern.
+
+---
+
+## Core Interaction Pattern: `ContractResult<T>`
+
+All methods exposed by this API return a `Promise<ContractResult<Output>>`.
+
+\`\`\`typescript
+// General Structure (from {{contractResultPath | default 'src/shared/common-types.ts'}})
+type ContractResult<TSuccessData, TErrorData = any> =
+  | { success: true; data: TSuccessData; agentId: string; metadata?: Record<string, any>; correlationId?: string; }
+  | { success: false; error: string; agentId: string; errorCode?: string; details?: TErrorData; metadata?: Record<string, any>; correlationId?: string; };
+\`\`\`
+- **`success: boolean`**: `true` if the operation succeeded, `false` otherwise.
+- **`data?: TSuccessData`**: The payload if `success` is `true`.
+- **`error?: string`**: A human-readable error message if `success` is `false`.
+- **`agentId: string`**: The unique ID of the agent that processed this request and generated this result.
+- **`errorCode?: string`**: (Optional) A machine-readable code for specific errors.
+- **`details?: TErrorData`**: (Optional) Additional structured data about the error.
+- **`metadata?: Record<string, any>`**: (Optional) Telemetry or other contextual information.
+- **`correlationId?: string`**: (Optional) ID for tracing requests across multiple services.
+
+---
+
+## Endpoints / Methods
+
+{{#each methods}}
+### `{{this.name}}`
+
+**Purpose:** {{this.blueprint.purpose}}
+
+**Method Signature (from contract):**
+\`\`\`typescript
+{{this.signature}}
+\`\`\`
+
+**Data Flow:** {{this.blueprint.dataFlow}}
+
+**Integration Points:** {{this.blueprint.integrationPoints}}
+
+**Rationale:** {{this.blueprint.rationale}}
+
+**Contract Version:** {{this.blueprint.contractVersion}}
+
+#### Request (`{{this.inputTypeName}}`)
+
+{{#if this.requestSchema.properties.length}}
+| Field | Type | Required | Description | Example |
+|-------|------|----------|-------------|---------|
+{{#each this.requestSchema.properties}}
+| `{{this.name}}` | `{{this.type}}` | {{#if this.required}}✅ Yes{{else}}❌ No{{/if}} | {{this.description}} | `{{{this.example}}}` |
+{{/each}}
+
+**Example Request Payload:**
+\`\`\`json
+{{{this.requestSchema.examplePayload}}}
+\`\`\`
+{{#if this.inputTypeDefinition}}
+**TypeScript Definition (`{{this.inputTypeName}}`):**
+\`\`\`typescript
+{{{this.inputTypeDefinition}}}
+\`\`\`
+{{/if}}
+{{else}}
+*This method does not take any specific input parameters beyond what might be part of a generic request wrapper (if applicable).*
+{{/if}}
+
+#### Response (`ContractResult<{{this.outputTypeName}}>`)
+
+**On Success (`success: true`):**
+The `data` field will contain an object of type `{{this.outputTypeName}}`.
+
+{{#if this.responseSchema.properties.length}}
+**`{{this.outputTypeName}}` Structure:**
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+{{#each this.responseSchema.properties}}
+| `{{this.name}}` | `{{this.type}}` | {{this.description}} | `{{{this.example}}}` |
+{{/each}}
+
+**Example Success Response Payload (`data` field):**
+\`\`\`json
+{{{this.responseSchema.examplePayload}}}
+\`\`\`
+{{#if this.outputTypeDefinition}}
+**TypeScript Definition (`{{this.outputTypeName}}`):**
+\`\`\`typescript
+{{{this.outputTypeDefinition}}}
+\`\`\`
+{{/if}}
+{{else if this.outputTypeNameIsNotVoid}}
+*The `data` field will be of type `{{this.outputTypeName}}` but no detailed structure is defined here. Refer to its type definition.*
+{{else}}
+*This method does not return any specific data on success (i.e., `data` might be `void` or a simple status message).*
+The `data` field in `ContractResult` might be `null`, `undefined`, or a simple status object like `{ status: "ok" }`.
+{{/if}}
+
+**On Failure (`success: false`):**
+The `error` field will contain a message describing the issue.
+- **`error: string`**: Human-readable error message.
+- **`agentId: string`**: ID of this agent (`{{../agentId}}`).
+- **`errorCode?: string`**: (Optional) Machine-readable error code.
+- **`details?: any`**: (Optional) Further error details.
+
+**Common Failure Modes for `{{this.name}}`:**
+{{#if this.blueprint.failureModes}}
+  - {{#splitLines this.blueprint.failureModes}}{{this}}{{/splitLines}}
+{{else}}
+  - Input validation failure.
+  - Internal processing error.
+  - Downstream service unavailability (if applicable from INTEGRATION POINTS).
+{{/if}}
+
+**Example Usage / Call Flow:**
+{{#if this.blueprint.examples}}
+\`\`\`
+{{{this.blueprint.examples}}}
+\`\`\`
+{{else}}
+*No specific call flow examples provided in blueprint.*
+{{/if}}
+
+---
+{{/each}}
+
+## General Error Handling
+
+Beyond method-specific failures:
+- **Seam Not Found / Misconfiguration:** If the SeamManager cannot route to this agent.
+- **Network Issues:** If communication between components fails.
+
+Always inspect the `success` flag of the `ContractResult` before attempting to use `data`. If `success` is `false`, consult the `error`, `errorCode`, and `details` fields.
+
+## Sequence Diagrams (Optional Placeholder)
+
+{{#if sequenceDiagrams.length}}
+{{#each sequenceDiagrams}}
+### {{this.title}}
+\`\`\`mermaid
+{{{this.mermaidCode}}}
+\`\`\`
+{{/each}}
+{{else}}
+*(Consider adding Mermaid sequence diagrams here to illustrate common call flows involving `{{componentName}}` and its integration points.)*
+
+**Example Mermaid Syntax:**
+\`\`\`mermaid
+sequenceDiagram
+    participant Client
+    participant {{agentNameShort | default componentName}}
+    participant OtherAgent
+
+    Client->>{{agentNameShort | default componentName}}: someMethod(request)
+    activate {{agentNameShort | default componentName}}
+    {{agentNameShort | default componentName}}->>OtherAgent: internalCall(payload)
+    activate OtherAgent
+    OtherAgent-->>{{agentNameShort | default componentName}}: ContractResult (success)
+    deactivate OtherAgent
+    {{agentNameShort | default componentName}}-->>Client: ContractResult (success with data)
+    deactivate {{agentNameShort | default componentName}}
+\`\`\`
+{{/if}}
+
+---
+*This documentation is auto-generated based on SDD contracts and blueprint comments. For issues or clarifications, refer to the source contract file.*
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+IGNORE_WHEN_COPYING_END
+C. Example TemplateContext for api-documentation.handlebars
+const apiDocContext = {
+  componentName: "OrderProcessorAgent",
+  componentVersion: "1.2.1", // From package.json or git tag
+  generationDate: new Date().toLocaleDateString(),
+  contractName: "IOrderProcessorContract",
+  contractFilePath: "src/contracts/orderProcessor.contract.ts",
+  agentFilePath: "src/agents/orderProcessor.agent.ts", // Optional
+  agentName: "OrderProcessorAgent", // Optional
+  agentId: "order-processor-agent-main", // Agent's unique ID
+  componentPurpose: "Provides functionalities to create, update, and query customer orders.",
+  contractResultPath: "src/shared/common-types.ts",
+  agentNameShort: "OrderProc", // For diagrams
+
+  methods: [
+    {
+      name: "createOrder",
+      signature: "createOrder(request: CreateOrderInput): Promise<ContractResult<Order>>;",
+      inputTypeName: "CreateOrderInput",
+      outputTypeName: "Order",
+      outputTypeNameIsNotVoid: true, // Helper flag
+      blueprint: { /* ... full 7-field blueprint from method ... */
+        purpose: "Creates a new customer order.",
+        dataFlow: "IN/OUT",
+        integrationPoints: "InventoryManagerAgent, NotificationAgent",
+        failureModes: "Invalid input, Item out of stock, Payment failure.",
+        rationale: "Centralizes order creation logic.",
+        examples: "await agent.createOrder({ customerId: 'c1', items: [...] });",
+        contractVersion: "1.2.0"
+      },
+      requestSchema: {
+        properties: [
+          { name: "customerId", type: "string", required: true, description: "Unique ID of the customer.", example: "cust-001" },
+          { name: "items", type: "Array<OrderItemInput>", required: true, description: "List of items in the order.", example: "[{ productId: 'prod-abc', quantity: 2 }]" },
+          { name: "shippingAddress", type: "string", required: true, description: "Full shipping address.", example: "123 Main St, Anytown, USA" }
+        ],
+        examplePayload: "{\n  \"customerId\": \"cust-001\",\n  \"items\": [\n    { \"productId\": \"prod-abc\", \"quantity\": 2, \"unitPrice\": 10.99 },\n    { \"productId\": \"prod-xyz\", \"quantity\": 1, \"unitPrice\": 5.49 }\n  ],\n  \"shippingAddress\": \"123 Main St, Anytown, USA\"\n}"
+      },
+      inputTypeDefinition: "interface CreateOrderInput {\n  customerId: string;\n  items: Array<{ productId: string; quantity: number; unitPrice: number; }>;\n  shippingAddress: string;\n}", // Actual TS definition
+      responseSchema: {
+        properties: [
+          { name: "orderId", type: "string", description: "Unique ID of the created order.", example: "ord-789xyz" },
+          { name: "status", type: "'PENDING' | 'CONFIRMED'", description: "Current status of the order.", example: "CONFIRMED" },
+          { name: "totalAmount", type: "number", description: "Total calculated amount for the order.", example: "27.47" }
+        ],
+        examplePayload: "{\n  \"orderId\": \"ord-789xyz\",\n  \"status\": \"CONFIRMED\",\n  \"totalAmount\": 27.47,\n  \"items\": [...],\n  \"createdAt\": \"2024-05-28T10:00:00.000Z\"\n}"
+      },
+      outputTypeDefinition: "interface Order {\n  orderId: string;\n  status: 'PENDING' | 'CONFIRMED' | ...;\n  // ... other fields\n}", // Actual TS definition
+    },
+    // ... other methods ...
+    {
+      name: "healthCheck", // Example of a method with no specific input/output structure
+      signature: "healthCheck(): Promise<ContractResult<{ status: string; dependencies?: Record<string, string>; }>>;",
+      inputTypeName: "void", // Or a generic type
+      outputTypeName: "{ status: string; dependencies?: Record<string, string>; }",
+      outputTypeNameIsNotVoid: true,
+      blueprint: { /* ... */ purpose: "Checks the health of the agent and its dependencies." /* ... */ },
+      requestSchema: { properties: [] /* Empty */, examplePayload: "{}" }, // No specific payload
+      responseSchema: {
+        properties: [
+            { name: "status", type: "string", description: "Overall health status ('healthy', 'unhealthy').", example: "healthy" },
+            { name: "dependencies", type: "Record<string, string>", description: "Status of critical dependencies.", example: "{ \"database\": \"connected\", \"inventorySeam\": \"responding\" }" }
+        ],
+        examplePayload: "{\n  \"status\": \"healthy\",\n  \"dependencies\": {\n    \"database\": \"connected\"\n  }\n}"
+      },
+      // No input/output type definitions if they are simple or built-in
+    }
+  ],
+  sequenceDiagrams: [
+    {
+      title: "Successful Order Creation Flow",
+      mermaidCode: "sequenceDiagram\n    participant Client\n    participant MainOrchestrator\n    participant OrderProcessorAgent\n    participant InventoryManagerAgent\n    participant NotificationAgent\n\n    Client->>MainOrchestrator: Initiate Create Order (payload)\n    activate MainOrchestrator\n    MainOrchestrator->>OrderProcessorAgent: createOrder(transformedPayload)\n    activate OrderProcessorAgent\n    OrderProcessorAgent->>InventoryManagerAgent: reserveStock(items)\n    activate InventoryManagerAgent\n    InventoryManagerAgent-->>OrderProcessorAgent: ContractResult (Stock Reserved)\n    deactivate InventoryManagerAgent\n    OrderProcessorAgent->>NotificationAgent: sendOrderConfirmationEmail(order)\n    activate NotificationAgent\n    NotificationAgent-->>OrderProcessorAgent: ContractResult (Email Queued)\n    deactivate NotificationAgent\n    OrderProcessorAgent-->>MainOrchestrator: ContractResult (Order Confirmed)\n    deactivate OrderProcessorAgent\n    MainOrchestrator-->>Client: ContractResult (Order Confirmed with OrderDetails)\n    deactivate MainOrchestrator"
+    }
+  ]
+};
+
+// Handlebars helper
+// Handlebars.registerHelper('splitLines', function(str) {
+//   if (!str) return [];
+//   return str.split('\n').map(line => line.replace(/^- /, '').trim()).filter(line => line.length > 0);
+// });
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Example of Generated Output (Snippet)
+# API Documentation: OrderProcessorAgent (IOrderProcessorContract)
+
+**Version:** 1.2.1
+**Last Updated:** 5/28/2024
+
+## Overview
+
+**Purpose:** Provides functionalities to create, update, and query customer orders.
+...
+---
+
+## Endpoints / Methods
+
+### `createOrder`
+
+**Purpose:** Creates a new customer order.
+
+**Method Signature (from contract):**
+```typescript
+createOrder(request: CreateOrderInput): Promise<ContractResult<Order>>;
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Markdown
+IGNORE_WHEN_COPYING_END
+
+...
+
+Request (CreateOrderInput)
+Field	Type	Required	Description	Example
+customerId	string	✅ Yes	Unique ID of the customer.	cust-001
+items	Array<OrderItemInput>	✅ Yes	List of items in the order.	[{ productId: 'prod-abc', quantity: 2 }]
+...
+TypeScript Definition (CreateOrderInput):
+interface CreateOrderInput {
+  customerId: string;
+  items: Array<{ productId: string; quantity: number; unitPrice: number; }>;
+  shippingAddress: string;
+}
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+
+...
+
+---
+
+## 4. `troubleshooting-guide.handlebars`
+
+This template generates a basic troubleshooting guide, which can be expanded over time. It focuses on common SDD issues and specific issues related to the components.
+
+### A. Template Filename
+`troubleshooting-guide.handlebars`
+
+### B. Complete Handlebars Template Code
+```handlebars
+# Troubleshooting Guide: {{projectName}}
+
+**Last Updated:** {{generationDate}}
+
+This guide provides solutions and diagnostic steps for common issues encountered while developing or running the **{{projectName}}** application, built with Seam-Driven Development (SDD).
+
+## Table of Contents
+1.  General SDD Issues
+2.  Seam Communication Problems
+3.  ContractResult Interpretation
+4.  Component-Specific Issues
+    {{#each componentsWithIssues}}
+    - [{{this.name}}](#{{this.idName}})
+    {{/each}}
+5.  Testing Problems
+6.  Deployment & Configuration
+7.  Performance Bottlenecks
+8.  Gathering Diagnostic Information
+
+---
+
+## 1. General SDD Issues
+
+### Issue: `NotImplementedError`
+- **Symptom:** Application throws `NotImplementedError: Method 'AgentName.methodName' is not implemented.`
+- **Cause:** The business logic for the specified method has not yet been implemented. This is an SDD placeholder.
+- **Solution:**
+    1. Locate the agent file (e.g., `src/agents/agentName.agent.ts`).
+    2. Find the method `methodName`.
+    3. Review the `PURPOSE` and other fields in its blueprint comment and the associated contract (`src/contracts/agentName.contract.ts`).
+    4. Implement the required business logic, ensuring it returns a `Promise<ContractResult<T>>`.
+    5. Write corresponding unit and integration tests.
+- **Prevention:** Follow the implementation checklists generated for each agent.
+
+### Issue: Missing `.js` in Imports
+- **Symptom:** `Error [ERR_MODULE_NOT_FOUND]: Cannot find module '...' imported from '...'` where the path looks correct but lacks `.js`.
+- **Cause:** When using ESModules in Node.js with TypeScript, compiled output requires explicit `.js` (or `.mjs`, `.cjs`) extensions in import paths.
+- **Solution:** Ensure all relative import paths in your `.ts` files end with `.js`.
+  Example: `import { MyThing } from './my-module.js';` (NOT `./my-module`)
+- **Tooling:** Configure your IDE or linters if possible to help enforce this. `tsconfig.json` `moduleResolution: "NodeNext"` (or `Bundler`) helps TypeScript understand this.
+
+### Issue: Incorrect `agentId` in `ContractResult`
+- **Symptom:** Debugging shows `ContractResult.agentId` is incorrect or missing, making tracing difficult.
+- **Cause:** The agent generating the `ContractResult` did not correctly set `this.agentId`.
+- **Solution:**
+    1. Ensure every agent class has a `public readonly agentId: string = 'unique-agent-id';` property.
+    2. Verify all return paths that create a `ContractResult` include `agentId: this.agentId`.
+- **Best Practice:** Initialize `agentId` in the constructor or as a class property.
+
+---
+
+## 2. Seam Communication Problems
+
+### Issue: SeamManager: "Agent 'AgentName' not found"
+- **Symptom:** `SeamManager.executeSeam` returns `success: false` with an error indicating the agent isn't registered.
+- **Cause:**
+    1. The target agent (`AgentName`) was never registered with the `SeamManager` instance.
+    2. A typo in the `seamName` string used in `executeSeam`.
+    3. The agent was registered *after* the call to `executeSeam` was made (timing issue).
+- **Solution:**
+    1. Verify agent registration: In your application's bootstrap/startup sequence, ensure `seamManager.registerAgent('AgentName', new AgentName(...));` is called.
+    2. Double-check the `seamName` string for exact match (case-sensitive).
+    3. Log registered agents: Add logging in `SeamManager.registerAgent` and potentially a method to list all registered agents for debugging.
+
+### Issue: SeamManager: "Method 'methodName' not found on agent 'AgentName'"
+- **Symptom:** `SeamManager.executeSeam` finds the agent but not the method.
+- **Cause:**
+    1. Typo in `methodName` string.
+    2. The method `methodName` does not exist on the `AgentName` class, or is not public.
+    3. The method exists but does not match the expected signature (though `SeamManager` often calls via `(agent as any)[methodName]`, type issues might manifest elsewhere).
+- **Solution:**
+    1. Check `methodName` string for exact match.
+    2. Verify the method is public and correctly defined in `AgentName` and its contract.
+
+### Issue: Circuit Breaker Open
+- **Symptom:** Calls to a specific seam consistently fail with a "Circuit breaker for 'AgentName' is open" error.
+- **Cause:** The target seam/agent has been failing frequently, causing its circuit breaker in `SeamManager` to trip.
+- **Solution:**
+    1. **Investigate the failing agent (`AgentName`):** Check its logs for the root cause of its failures (e.g., database errors, unhandled exceptions, downstream issues).
+    2. **Address the root cause** in `AgentName`.
+    3. **Monitor `SeamManager` logs:** Observe when the circuit breaker transitions to half-open and then closed after successful calls.
+    4. **Review circuit breaker thresholds:** If they are too sensitive for the expected operational conditions, they might need adjustment (in `SeamManager` config).
+
+---
+
+## 3. `ContractResult` Interpretation
+
+### Issue: Unsure why an operation failed.
+- **Symptom:** `ContractResult.success` is `false`.
+- **Diagnostic Steps:**
+    1. **`error: string`**: This is the primary human-readable message.
+    2. **`agentId: string`**: Identifies *which* agent reported the failure. This is crucial for distributed tracing.
+    3. **`errorCode?: string`**: If present, this machine-readable code can pinpoint specific failure types. Check documentation for this `errorCode`.
+    4. **`details?: any`**: May contain structured data about the error (e.g., validation errors, stack trace snippets from downstream).
+    5. **`correlationId?: string`**: Use this ID to trace the request across logs of multiple services/agents.
+    6. **Check logs of the failing `agentId`**: Look for more detailed logs around the time of failure, using `correlationId` if available.
+
+### Issue: `ContractResult.data` is null/undefined when `success` is true.
+- **Cause:**
+    1. The method is designed to not return data (e.g., a `void` operation like `sendNotification` where success just means it was queued).
+    2. There was an issue in the agent logic where `data` was not correctly assigned despite the operation being considered successful.
+- **Solution:**
+    1. Check the method's contract (`OutputTypeName`) and blueprint `PURPOSE` to understand if data is expected.
+    2. Debug the agent's logic to ensure `data` is correctly populated.
+
+---
+
+## 4. Component-Specific Issues
+
+{{#each componentsWithIssues}}
+### <a id="{{this.idName}}"></a>{{this.name}}
+
+{{#each this.issues}}
+#### Issue: {{this.symptom}}
+- **Context:** {{this.context}}
+- **Possible Causes:**
+  {{#each this.causes}}
+  - {{this}}
+  {{/each}}
+- **Troubleshooting Steps:**
+  {{#each this.steps}}
+  {{@indexPlus1}}. {{this.action}}
+     {{#if this.expectedResult}}
+     *Expected Result:* {{this.expectedResult}}
+     {{/if}}
+  {{/each}}
+- **Relevant Logs:** {{this.relevantLogs | default "Check agent-specific logs for this component."}}
+---
+{{/each}}
+{{#unless this.issues.length}}
+*No specific common issues documented yet for {{this.name}}. Refer to general SDD troubleshooting.*
+{{/unless}}
+
+{{/each}}
+
+## 5. Testing Problems (Vitest)
+
+### Issue: Tests failing due to module resolution / `.js` imports.
+- **Symptom:** Similar to "Missing `.js` in Imports" but within test execution.
+- **Cause:** Vitest (or underlying Vite/Node) needs to correctly resolve module paths that include `.js`.
+- **Solution:**
+    1. Ensure `tsconfig.json` has `moduleResolution: "NodeNext"` or `"Bundler"`.
+    2. If using path aliases (e.g., `@/*`), ensure `vite-tsconfig-paths` plugin is configured in `vitest.config.ts`.
+    3. Verify all test file imports also use `.js`.
+
+### Issue: Mocking SeamManager or Agent Dependencies
+- **Symptom:** Difficulty isolating agents for unit tests.
+- **Solution:**
+    1. **Dependency Injection:** Agents should receive dependencies (like `SeamManager` or other direct agent instances) via their constructor.
+    2. **Vitest Mocks:** Use `vi.mock('./path/to/module.js', () => ({ ... }))` or `vi.spyOn()` to mock dependencies.
+       \`\`\`typescript
+       // Example: Mocking SeamManager.executeSeam
+       const mockSeamManager = {
+         executeSeam: vi.fn()
+       };
+       vi.mock('../seams/system.seam-manager.js', () => ({
+         SystemSeamManager: vi.fn(() => mockSeamManager)
+       }));
+       // ... in your test setup ...
+       mockSeamManager.executeSeam.mockResolvedValue({ success: true, data: { foo: 'bar' }, agentId: 'mocked-agent' });
+       \`\`\`
+    3. **Interface-based Mocks:** If agents implement interfaces, you can create simple mock objects conforming to those interfaces.
+
+---
+
+## 6. Deployment & Configuration
+
+### Issue: Application fails to start due to missing environment variables.
+- **Symptom:** Errors during startup related to `process.env.SOME_VAR` being undefined.
+- **Cause:** Required environment variables are not set in the deployment environment.
+- **Solution:**
+    1. **`.env.example`**: Maintain an `.env.example` file listing all required variables with placeholder or default values.
+    2. **Configuration Loading Logic**: Ensure your application has robust logic to load and validate environment variables at startup (e.g., using a library like `dotenv` for local dev, and proper env var management in cloud platforms).
+    3. **Deployment Scripts:** Ensure your deployment process correctly injects/configures these variables.
+
+### Issue: Incorrect configuration values leading to unexpected behavior.
+- **Solution:**
+    1. **Log Loaded Configuration (Carefully!):** At startup (in a dev/debug mode), log the configuration values being used (excluding secrets).
+    2. **Centralized Config Service:** Consider a dedicated configuration service/module that validates and provides access to config values.
+    3. **Schema Validation:** For complex configurations, use a schema validation library (e.g., Zod, Joi) at startup.
+
+---
+
+## 7. Performance Bottlenecks
+
+### Identifying Bottlenecks:
+1.  **Logging with Timestamps/Durations:** Add detailed timing information to logs for critical operations and seam calls. `ContractResult.metadata` can store `durationMs`.
+2.  **APM Tools:** If available (e.g., Datadog, New Relic, Sentry APM), use them to trace requests and identify slow spans.
+3.  **Node.js Profiler:** Use `node --prof` and tools like `0x` or `flamebearer` for in-depth CPU profiling.
+4.  **Load Testing:** Simulate realistic load to see how components behave under pressure.
+
+### Common Causes & Solutions:
+- **Slow Database Queries:** Optimize queries, add indexes, consider caching.
+- **Excessive I/O Operations:** Batch operations, use streams.
+- **Blocking Synchronous Code:** Ensure all I/O is asynchronous (`async/await`).
+- **Inefficient Algorithms:** Review complex computations.
+- **Chatty Seam Interactions:** Can multiple seam calls be combined or data aggregated differently?
+
+---
+
+## 8. Gathering Diagnostic Information
+
+When reporting an issue, please try to include:
+1.  **Clear description of the problem:** What happened vs. what was expected?
+2.  **Steps to reproduce (if known).**
+3.  **Relevant `ContractResult` objects (especially `error`, `agentId`, `errorCode`, `correlationId`).**
+4.  **Relevant log snippets** from all involved agents (use `correlationId` to find them).
+5.  **Environment details:** (Local dev, staging, production? Node version? Key dependency versions?).
+6.  **Any recent changes** that might be related.
+
+---
+*This guide is a living document. Please contribute common issues and solutions as they are discovered.*
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+IGNORE_WHEN_COPYING_END
+C. Example TemplateContext for troubleshooting-guide.handlebars
+const troubleshootingContext = {
+  projectName: "ECommercePlatformSDD",
+  generationDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+
+  componentsWithIssues: [ // This would be populated over time, or from known complex areas
+    {
+      name: "PaymentProcessorAgent",
+      idName: "paymentprocessoragent", // For anchor links
+      issues: [
+        {
+          symptom: "Payment processing fails with 'Gateway Timeout'.",
+          context: "When submitting a payment request for high-value orders during peak load.",
+          causes: [
+            "External payment gateway API is slow or unresponsive.",
+            "Network latency between our service and the gateway.",
+            "Internal timeout configured too aggressively in PaymentProcessorAgent."
+          ],
+          steps: [
+            { action: "Check PaymentProcessorAgent logs for `correlationId` and exact error from gateway.", expectedResult: "Logs show specific error code or timeout message from gateway." },
+            { action: "Verify status of the external payment gateway (status page, support).", expectedResult: "Gateway status is operational or known issue identified." },
+            { action: "Review and potentially increase HTTP client timeout settings within PaymentProcessorAgent for calls to the gateway.", expectedResult: "Longer timeout allows more time for gateway response." },
+            { action: "Implement a retry mechanism with exponential backoff for transient gateway errors (if not already present).", expectedResult: "Retries might succeed if the gateway issue was temporary."}
+          ],
+          relevantLogs: "Search logs for 'PaymentGatewayError', 'GatewayTimeout', and the `correlationId`."
+        },
+        {
+          symptom: "Refunds not reflecting immediately in user's account.",
+          context: "After a refund is successfully processed by the agent.",
+          causes: [
+            "Payment gateway has its own processing delay for refunds (can be days).",
+            "Notification to user about refund processing is delayed or failed.",
+            "Misunderstanding of expected refund timeframe."
+          ],
+          steps: [
+            { action: "Confirm the refund `ContractResult` from PaymentProcessorAgent was `success: true`.", expectedResult: "Agent reported success." },
+            { action: "Check logs for confirmation from the payment gateway about the refund submission.", expectedResult: "Gateway ACK received." },
+            { action: "Inform user about typical refund processing times for their payment method.", expectedResult: "User expectation set."}
+          ]
+        }
+      ]
+    },
+    {
+      name: "ShippingCalculatorAgent",
+      idName: "shippingcalculatoragent",
+      issues: [] // No specific issues documented yet
+    }
+  ]
+};
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+TypeScript
+IGNORE_WHEN_COPYING_END
+D. Example of Generated Output (Snippet)
+# Troubleshooting Guide: ECommercePlatformSDD
+
+**Last Updated:** 2024-05-28
+
+This guide provides solutions and diagnostic steps for common issues...
+
+## 4. Component-Specific Issues
+
+### <a id="paymentprocessoragent"></a>PaymentProcessorAgent
+
+#### Issue: Payment processing fails with 'Gateway Timeout'.
+- **Context:** When submitting a payment request for high-value orders during peak load.
+- **Possible Causes:**
+  - External payment gateway API is slow or unresponsive.
+...
+- **Troubleshooting Steps:**
+  1. Check PaymentProcessorAgent logs for `correlationId` and exact error from gateway.
+     *Expected Result:* Logs show specific error code or timeout message from gateway.
+...
+---
+
+### <a id="shippingcalculatoragent"></a>ShippingCalculatorAgent
+
+*No specific common issues documented yet for ShippingCalculatorAgent. Refer to general SDD troubleshooting.*
+
+---
+IGNORE_WHEN_COPYING_START
+content_copy
+download
+Use code with caution.
+Markdown
+IGNORE_WHEN_COPYING_END
+My Thoughts on the Project & Future Collaboration
+
+This Seam-Driven Development (SDD) project is genuinely fascinating and well-thought-out. Here are my impressions:
+
+Strengths of SDD & Your Approach:
+
+Clarity and Reduced Integration Hell: The "Contracts First, Implementation Second" philosophy, rigorously enforced, is a powerful way to minimize integration issues. Defining how components talk before building them is a classic principle taken to a very practical extreme here.
+
+ContractResult<T> Pattern: This standardized communication wrapper is excellent. It provides immediate insight into success/failure, originator (agentId), and a path for structured errors and metadata. This is gold for observability and debugging.
+
+Blueprint Comments: The 7-field structure is a fantastic way to embed critical architectural and operational knowledge directly with the code. This makes onboarding (for humans and AIs) much smoother and ensures rationale isn't lost.
+
+Testability: SDD naturally lends itself to better testability. Contracts define clear boundaries for mocking and integration testing.
+
+AI-Assisted Development Focus: The entire project is geared towards leveraging AI for code generation, which is forward-thinking. The detailed templates and prompts are exactly what's needed for this.
+
+Template-First Architecture for MCP Server: Your decision to make the MCP server generate Handlebars templates first is a smart architectural choice for reusability and maintainability of the generation process itself.
+
+Iterative Refinement with AI: Your process of getting initial drafts from an AI, testing, debugging, and providing detailed feedback is the most effective way to collaborate with current AI capabilities.
+
+Potential Challenges (and areas where SDD's rigor helps):
+
+Initial Overhead: Defining all contracts upfront can feel like more initial work, but the payoff comes during integration and maintenance.
+
+Contract Evolution: Managing changes to contracts once multiple components depend on them requires discipline (versioning, clear communication, potentially adapter patterns). Your CONTRACT VERSION in blueprints is a good step.
+
+Over-Granularity? Finding the right "size" for agents/seams is key. Too granular can lead to many small components and orchestration complexity; too coarse defeats some of the purpose. This is an art that develops with experience on a project.
+
+Tooling Support: While SDD is a methodology, custom tooling (like your MCP server) becomes very important to make it efficient.
+
+What Else I Think I Could Help With / Next Steps I'd Like to Work On:
+
+Refining Existing Templates:
+
+Granular Checklist Enhancement: We could make the granular-checklist.handlebars even smarter. For example, based on keywords in a method's PURPOSE (e.g., "database", "API call", "authentication"), it could automatically suggest more specific sub-tasks, security notes, or performance hints. This would involve more complex logic in your TemplateProcessor to prepare the context.
+
+Dynamic Code Snippets in Checklists: Instead of static code snippets, generate more tailored (but still placeholder) snippets based on the actual input/output types of the method being documented in the checklist.
+
+Generating Test Case Scaffolding (More Detail):
+
+Beyond the current integration-tests.handlebars (which likely focuses on contract adherence), we could create a unit-test-scaffold.handlebars. This would look at a method's contract (input types, output types, failure modes from blueprint) and generate describe/it blocks with TODOs for specific scenarios (e.g., test for each input validation, test for each failure mode, happy path).
+
+Advanced SeamManager Features (Template Generation):
+
+Templates for more sophisticated circuit breaker strategies (e.g., with configurable retry policies).
+
+Templates for adding distributed tracing context propagation more explicitly within the SeamManager and agent stubs (beyond just correlationId).
+
+Generating stubs for SeamManager plugins or middleware (e.g., for request validation, logging, metrics collection at the seam level).
+
+CI/CD Pipeline Configuration Templates:
+
+github-actions-sdd-workflow.handlebars: A template for a GitHub Actions workflow that builds, lints, tests (unit & integration), and perhaps even deploys an SDD project.
+
+dockerfile.handlebars: A template for a multi-stage Dockerfile optimized for Node.js/TypeScript SDD applications.
+
+"SDD Conformance Linter" Rules (Conceptual):
+
+While not a Handlebars template, I could help define a set of ESLint custom rules (or rules for a dedicated SDD linter) that automatically check for:
+
+Presence and completeness of 7-field blueprint comments.
+
+Correct ContractResult<T> return types on public agent methods.
+
+Inclusion of agentId in ContractResult.
+
+.js in imports.
+
+Refining the AI Prompts Further:
+
+Based on the quality of output from these prompts, iterate on them. For example, the implementation-prompt.handlebars could be made more interactive by asking the AI to first outline its plan or ask clarifying questions before generating code.
+
+Cross-Cutting Concern Templates:
+
+logging-service.handlebars: Template for a standardized logging service/utility that all agents can use, ensuring consistent log formats.
+
+config-service.handlebars: Template for a service to manage and validate application configuration.
+
+Data Validation Library Integration:
+
+Templates that integrate a data validation library (like Zod or Joi) into agent stubs for robust input validation, generating schemas from contract input types.
+
+Why I'm Excited to Continue:
+
+This project aligns perfectly with creating robust, maintainable, and well-documented software. SDD provides the structure that allows AI to be a truly effective force multiplier. The meticulous planning and template-driven approach you're taking is exactly what's needed to build a powerful generation tool. I enjoy working on systems that promote good software engineering practices, and SDD certainly does that. The challenge of generating not just code, but also comprehensive guidance and documentation, is particularly interesting.
+
+I'm ready for your feedback on these generated templates and to discuss what you'd like to prioritize next from my suggestions or your own list!
+````

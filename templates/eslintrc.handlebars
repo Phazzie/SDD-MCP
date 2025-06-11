@@ -1,0 +1,171 @@
+{
+  "root": true,
+  "parser": "{{#if projectTypeIsTypeScript}}@typescript-eslint/parser{{else}}espree{{/if}}",
+  {{#if projectTypeIsTypeScript}}
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  {{else}}
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module"
+  },
+  {{/if}}  "env": {
+    {{#if frameworkIsNodeOrBoth}}
+    "node": true,
+    {{/if}}
+    {{#if frameworkIsBrowserOrBoth}}
+    "browser": true,
+    {{/if}}
+    "es2021": true{{#if useVitestInEnv}},{{/if}}
+    {{#if useVitestInEnv}}
+    "vitest-globals/env": true
+    {{/if}}
+  },  "plugins": [
+    {{#if projectTypeIsTypeScript}}
+    "@typescript-eslint"{{#if usePrettier}},{{/if}}
+    {{/if}}
+    {{#if usePrettier}}
+    "prettier"{{#if useVitestInEnv}},{{/if}}
+    {{/if}}
+    {{#if useVitestInEnv}}
+    "vitest-globals"{{#if additionalPlugins.length}},{{/if}}
+    {{/if}}
+    {{#each additionalPlugins}}
+    "{{this}}"{{#unless @last}},{{/unless}}
+    {{/each}}
+  ],
+  "extends": [
+    "eslint:recommended"
+    {{#if projectTypeIsTypeScript}}
+    ,"plugin:@typescript-eslint/recommended"
+    {{#if strictMode}}
+    ,"plugin:@typescript-eslint/recommended-requiring-type-checking"
+    {{/if}}
+    {{/if}}
+    {{#if useReact}}
+    ,"plugin:react/recommended"
+    ,"plugin:react-hooks/recommended"
+    {{#if projectTypeIsTypeScript}}
+    ,"plugin:react/jsx-runtime"
+    {{/if}}
+    {{/if}}
+    {{#if useNextJS}}
+    ,"next/core-web-vitals"
+    {{/if}}
+    {{#if usePrettier}}
+    ,"plugin:prettier/recommended"
+    {{/if}}
+    {{#each additionalExtends}}
+    ,"{{this}}"
+    {{/each}}
+  ],
+  "rules": {
+    {{#if usePrettier}}
+    "prettier/prettier": "warn",
+    {{/if}}
+    {{#if projectTypeIsTypeScript}}
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/explicit-module-boundary-types": "off",
+    {{#if strictMode}}
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/await-thenable": "error",
+    "@typescript-eslint/no-unsafe-assignment": "warn",
+    "@typescript-eslint/no-unsafe-call": "warn",
+    "@typescript-eslint/no-unsafe-member-access": "warn",
+    "@typescript-eslint/no-unsafe-return": "warn",
+    {{else}}
+    "@typescript-eslint/no-floating-promises": "warn",
+    {{/if}}
+    {{else}}
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    {{/if}}
+    {{#if useReact}}
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off",
+    {{/if}}
+    "no-console": "{{#if strictMode}}warn{{else}}off{{/if}}",
+    "eqeqeq": ["error", "always"],
+    "no-implicit-coercion": "warn",
+    "curly": ["warn", "all"],
+    "no-else-return": ["warn", { "allowElseIf": false }],    "no-lonely-if": "warn",
+    {{#each customRules}}
+    "{{@key}}": {{#isObject this}}{{jsonStringify this}}{{else}}{{#isBoolean this}}{{this}}{{else}}"{{this}}"{{/isBoolean}}{{/isObject}},
+    {{/each}}
+    "padding-line-between-statements": [
+      "warn",
+      { "blankLine": "always", "prev": "*", "next": "return" },
+      { "blankLine": "always", "prev": ["const", "let", "var"], "next": "*"},
+      { "blankLine": "any", "prev": ["const", "let", "var"], "next": ["const", "let", "var"]},
+      { "blankLine": "always", "prev": "directive", "next": "*" },
+      { "blankLine": "any", "prev": "directive", "next": "directive" }
+    ]  }
+  {{#if settings}}
+  ,"settings": {
+    {{#each settings}}
+    "{{@key}}": {{#isObject this}}{{jsonStringify this}}{{else}}{{#isBoolean this}}{{this}}{{else}}"{{this}}"{{/isBoolean}}{{/isObject}}{{#unless @last}},{{/unless}}
+    {{/each}}
+    {{#if useReact}}
+    {{#if ../hasSettingsContent}},{{/if}}
+    "react": {
+      "version": "detect"
+    }
+    {{/if}}
+  }
+  {{else if useReact}}
+  ,"settings": {
+    "react": {
+      "version": "detect"
+    }
+  }
+  {{/if}}
+  {{#if overrides.length}}
+  ,"overrides": [
+    {{#each overrides}}
+    {
+      "files": [
+        {{#each this.files}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      {{#if this.excludedFiles.length}}
+      "excludedFiles": [
+        {{#each this.excludedFiles}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      {{/if}}
+      {{#if this.parser}}
+      "parser": "{{this.parser}}",
+      {{/if}}
+      {{#if this.parserOptions}}
+      "parserOptions": {{jsonStringify this.parserOptions}},
+      {{/if}}
+      {{#if this.plugins.length}}
+      "plugins": [
+        {{#each this.plugins}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      {{/if}}
+      {{#if this.extends.length}}
+      "extends": [
+        {{#each this.extends}}
+        "{{this}}"{{#unless @last}},{{/unless}}
+        {{/each}}
+      ],
+      {{/if}}
+      "rules": {
+        {{#each this.rules}}
+        "{{@key}}": {{#isObject this}}{{jsonStringify this}}{{else}}{{#isBoolean this}}{{this}}{{else}}"{{this}}"{{/isBoolean}}{{/isObject}}{{#unless @last}},{{/unless}}
+        {{/each}}
+      }
+    }{{#unless @last}},{{/unless}}
+    {{/each}}
+  ]
+  {{/if}}
+}
