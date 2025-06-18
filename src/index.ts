@@ -34,6 +34,8 @@ import { handleEnhancedSeamAnalysis } from "./tools/enhanced-seam-analysis-tool.
 import { handleGenerateInteractionMatrix } from "./tools/generate-interaction-matrix-tool.js";
 import { handleValidateSeamReadiness } from "./tools/validate-seam-readiness-tool.js";
 
+// 🤝 AI COLLABORATION: Import AI Communication Bridge Tool
+
 // Initialize SDD Foundation Agents
 const configManager = new ConfigManagerStub();
 const errorHandler = new ErrorHandlerStub();
@@ -108,6 +110,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         "generate_interaction_matrix",
         "analyze_data_flows",
         "validate_seam_readiness",
+        "ai_communication_bridge",
       ].includes(name)
     ) {
       const result = await toolRegistry.executeTool(name, args);
@@ -1009,7 +1012,8 @@ describe('${pascalCaseName} Integration Tests', () => {
 
 function generateIntegrationTests(
   seams: SeamDefinition[],
-  contracts: ContractGenerationResult[]
+  contracts: ContractGenerationResult[],
+  aiCommunicationBridgeTool: unknown
 ): string[] {
   return seams.map(
     (seam, index) =>

@@ -15,6 +15,8 @@ import { TOOL_MODULE_CONTRACT as analyzeDataFlowsTool } from "./tools/analyze-da
 import { TOOL_MODULE_CONTRACT as enhancedSeamAnalysisTool } from "./tools/enhanced-seam-analysis-tool.js";
 import { TOOL_MODULE_CONTRACT as generateInteractionMatrixTool } from "./tools/generate-interaction-matrix-tool.js";
 import { TOOL_MODULE_CONTRACT as validateSeamReadinessTool } from "./tools/validate-seam-readiness-tool.js";
+// 🤝 AI COLLABORATION: Import AI Communication Bridge Tool
+import { TOOL_MODULE_CONTRACT as aiCommunicationBridgeTool } from "./tools/ai-communication-bridge-tool.js";
 
 /**
  * @function setupToolRegistry
@@ -72,11 +74,22 @@ export async function setupToolRegistry(): Promise<ToolRegistry> {
       );
     }
 
+    // AI Communication Bridge Tool
+    const aiCommunicationResult = await registry.registerTool(
+      aiCommunicationBridgeTool
+    );
+    if (!aiCommunicationResult.success) {
+      throw new Error(
+        `Failed to register AI communication bridge tool: ${aiCommunicationResult.error}`
+      );
+    }
+
     console.log("✅ Tool Registry Setup Complete:");
     console.log("   - Enhanced Seam Analysis Tool");
     console.log("   - Analyze Data Flows Tool");
     console.log("   - Generate Interaction Matrix Tool");
     console.log("   - Validate Seam Readiness Tool");
+    console.log("   - AI Communication Bridge Tool");
 
     return registry;
   } catch (error) {
