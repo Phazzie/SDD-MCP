@@ -545,6 +545,21 @@ export interface LegacyToolModernizationContract {
 // Schema placeholders for legacy compatibility
 export const CreateStubInputSchema = {};
 export const CreateStubOutputSchema = {};
+
+// =============================================================================
+// NEW CONTRACTS
+// =============================================================================
+
+export interface SddValidateComplianceToolContract {
+  validateCompliance(options: {
+    file_path: string;
+  }): Promise<ContractResult<any>>;
+}
+
+export interface SddIntroductionTutorialToolContract {
+  getTutorialSection(section: string): Promise<ContractResult<string>>;
+}
+
 // =============================================================================
 // END OF CONTRACTS
 // =============================================================================

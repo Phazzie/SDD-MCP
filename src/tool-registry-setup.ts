@@ -18,6 +18,13 @@ import { TOOL_MODULE_CONTRACT as validateSeamReadinessTool } from "./tools/valid
 // 🤝 AI COLLABORATION: Import AI Communication Bridge Tool
 import { TOOL_MODULE_CONTRACT as aiCommunicationBridgeTool } from "./tools/ai-communication-bridge-tool.js";
 
+// 🔌 INTEGRATION: Import Legacy SDD Tool Wrappers
+import { legacySDDToolWrappers } from "./adapters/legacy-sdd-tool-wrappers.js";
+
+// Import legacy tool functions from index.ts
+// NOTE: These functions need to be properly imported once they're exported from index.ts
+// For now, we'll use dynamic imports in the setup function
+
 /**
  * @function setupToolRegistry
  * @description Creates and configures the tool registry with all enhanced tools

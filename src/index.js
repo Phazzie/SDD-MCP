@@ -5,203 +5,384 @@
  * Provides AI assistants with Seam-Driven Development tools
  * Based on proven real-world SDD methodology
  */
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+var __awaiter =
+  (this && this.__awaiter) ||
+  function (thisArg, _arguments, P, generator) {
+    function adopt(value) {
+      return value instanceof P
+        ? value
+        : new P(function (resolve) {
+            resolve(value);
+          });
+    }
     return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      function fulfilled(value) {
+        try {
+          step(generator.next(value));
+        } catch (e) {
+          reject(e);
+        }
+      }
+      function rejected(value) {
+        try {
+          step(generator["throw"](value));
+        } catch (e) {
+          reject(e);
+        }
+      }
+      function step(result) {
+        result.done
+          ? resolve(result.value)
+          : adopt(result.value).then(fulfilled, rejected);
+      }
+      step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
-};
+  };
 Object.defineProperty(exports, "__esModule", { value: true });
 const index_js_1 = require("@modelcontextprotocol/sdk/server/index.js");
 const stdio_js_1 = require("@modelcontextprotocol/sdk/server/stdio.js");
 const types_js_1 = require("@modelcontextprotocol/sdk/types.js");
+const sddValidateComplianceTool = require("./tools/sdd-validate-compliance-tool.js");
+const sddIntroductionTutorialTool = require("./tools/sdd-introduction-tutorial-tool.js");
 // Server configuration
 const SERVER_INFO = {
-    name: "sdd-mcp-server",
-    version: "1.0.0",
-    description: "Seam-Driven Development tools for AI-assisted software development"
+  name: "sdd-mcp-server",
+  version: "1.0.0",
+  description:
+    "Seam-Driven Development tools for AI-assisted software development",
 };
 // Create the MCP server instance
-const server = new index_js_1.Server({
+const server = new index_js_1.Server(
+  {
     name: SERVER_INFO.name,
     version: SERVER_INFO.version,
-}, {
+  },
+  {
     capabilities: {
-        tools: {},
+      tools: {},
     },
-});
+  }
+);
 // Tool 1: Analyze Requirements and Identify Seams
-server.setRequestHandler(types_js_1.ListToolsRequestSchema, () => __awaiter(void 0, void 0, void 0, function* () {
+server.setRequestHandler(types_js_1.ListToolsRequestSchema, () =>
+  __awaiter(void 0, void 0, void 0, function* () {
     return {
-        tools: [
-            {
-                name: "sdd_analyze_requirements",
-                description: "Analyze PRD/requirements and identify all component seams for SDD implementation",
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        prdText: {
-                            type: "string",
-                            description: "The Product Requirements Document or project description text"
-                        },
-                        designNotes: {
-                            type: "string",
-                            description: "Optional additional design notes or constraints"
-                        }
-                    },
-                    required: ["prdText"]
-                }
+      tools: [
+        {
+          name: "enhanced_seam_analysis",
+          description:
+            "Analyze requirements using enhanced pattern recognition and AI-powered seam identification",
+          inputSchema: {
+            type: "object",
+            properties: {
+              requirementsText: {
+                type: "string",
+                description: "Requirements or PRD text to analyze",
+              },
+              designNotes: {
+                type: "string",
+                description: "Optional design notes or constraints",
+              },
+              analysisDepth: {
+                type: "string",
+                enum: ["basic", "detailed", "comprehensive"],
+                description: "Depth of analysis to perform",
+              },
+              focusAreas: {
+                type: "array",
+                items: {
+                  type: "string",
+                  enum: [
+                    "data_flows",
+                    "integrations",
+                    "dependencies",
+                    "cross_cutting_concerns",
+                  ],
+                },
+                description: "Areas to focus analysis on",
+              },
             },
-            {
-                name: "sdd_generate_contract",
-                description: "Generate a single contract using proven SDD patterns (ContractResult<T>, blueprint comments)",
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        seam: {
-                            type: "object",
-                            description: "Seam definition containing name, participants, dataFlow, purpose",
-                            properties: {
-                                name: { type: "string" },
-                                participants: { type: "array", items: { type: "string" } },
-                                dataFlow: { type: "string", enum: ["IN", "OUT", "BOTH"] },
-                                purpose: { type: "string" },
-                                contractInterface: { type: "string" }
-                            },
-                            required: ["name", "participants", "dataFlow", "purpose"]
-                        }
-                    },
-                    required: ["seam"]
-                }
+            required: ["requirementsText"],
+          },
+        },
+        {
+          name: "sdd_generate_contract",
+          description:
+            "Generate a single contract using proven SDD patterns (ContractResult<T>, blueprint comments)",
+          inputSchema: {
+            type: "object",
+            properties: {
+              seam: {
+                type: "object",
+                description:
+                  "Seam definition containing name, participants, dataFlow, purpose",
+                properties: {
+                  name: { type: "string" },
+                  participants: { type: "array", items: { type: "string" } },
+                  dataFlow: { type: "string", enum: ["IN", "OUT", "BOTH"] },
+                  purpose: { type: "string" },
+                  contractInterface: { type: "string" },
+                },
+                required: ["name", "participants", "dataFlow", "purpose"],
+              },
             },
-            {
-                name: "sdd_create_stub",
-                description: "Create implementation stub with blueprint comments and NotImplementedError patterns",
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        contractCode: {
-                            type: "string",
-                            description: "The contract interface code to create a stub for"
-                        },
-                        componentName: {
-                            type: "string",
-                            description: "Name of the component (e.g., UserAgent, AuthAgent)"
-                        }
-                    },
-                    required: ["contractCode", "componentName"]
-                }
+            required: ["seam"],
+          },
+        },
+        {
+          name: "sdd_create_stub",
+          description:
+            "Create implementation stub with blueprint comments and NotImplementedError patterns",
+          inputSchema: {
+            type: "object",
+            properties: {
+              contractCode: {
+                type: "string",
+                description: "The contract interface code to create a stub for",
+              },
+              componentName: {
+                type: "string",
+                description:
+                  "Name of the component (e.g., UserAgent, AuthAgent)",
+              },
             },
-            {
-                name: "sdd_orchestrate_full_workflow",
-                description: "Complete SDD workflow: PRD → Seams → Contracts → Stubs → Tests → Ready for Implementation",
-                inputSchema: {
-                    type: "object",
-                    properties: {
-                        prdText: {
-                            type: "string",
-                            description: "The Product Requirements Document or project description"
-                        },
-                        designNotes: {
-                            type: "string",
-                            description: "Optional design notes or constraints"
-                        },
-                        projectName: {
-                            type: "string",
-                            description: "Name of the project being built"
-                        }
-                    },
-                    required: ["prdText", "projectName"]
-                }
-            }
-        ]
+            required: ["contractCode", "componentName"],
+          },
+        },
+        {
+          name: "sdd_orchestrate_full_workflow",
+          description:
+            "Complete SDD workflow: PRD → Seams → Contracts → Stubs → Tests → Ready for Implementation",
+          inputSchema: {
+            type: "object",
+            properties: {
+              prdText: {
+                type: "string",
+                description:
+                  "The Product Requirements Document or project description",
+              },
+              designNotes: {
+                type: "string",
+                description: "Optional design notes or constraints",
+              },
+              projectName: {
+                type: "string",
+                description: "Name of the project being built",
+              },
+            },
+            required: ["prdText", "projectName"],
+          },
+        },
+        {
+          name: "sdd_visualize_architecture",
+          description:
+            "Generate Mermaid diagrams showing seam connections with color-coded implementation status",
+          inputSchema: {
+            type: "object",
+            properties: {
+              seams: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    participants: { type: "array", items: { type: "string" } },
+                    dataFlow: { type: "string", enum: ["IN", "OUT", "BOTH"] },
+                    purpose: { type: "string" },
+                  },
+                  required: ["name", "participants", "dataFlow", "purpose"],
+                },
+                description: "Array of seam definitions to visualize",
+              },
+              projectName: {
+                type: "string",
+                description: "Name of the project being visualized",
+              },
+            },
+            required: ["seams", "projectName"],
+          },
+        },
+        {
+          name: "sdd_validate_compliance",
+          description:
+            "Validate SDD compliance: contract completeness, blueprint comments, ContractResult usage, test coverage",
+          inputSchema: {
+            type: "object",
+            properties: {
+              projectPath: {
+                type: "string",
+                description: "Path to the project directory to validate",
+              },
+              strictMode: {
+                type: "boolean",
+                description: "Enable strict compliance checking",
+              },
+            },
+            required: ["projectPath"],
+          },
+        },
+        {
+          name: "sdd_introduction_tutorial",
+          description:
+            "Get section of the Seam-Driven Development introduction tutorial",
+          inputSchema: {
+            type: "object",
+            properties: {
+              section: {
+                type: "string",
+                description: "The section of the tutorial to retrieve",
+              },
+            },
+            required: ["section"],
+          },
+        },
+      ],
     };
-}));
+  })
+);
 // Tool implementations
-server.setRequestHandler(types_js_1.CallToolRequestSchema, (request) => __awaiter(void 0, void 0, void 0, function* () {
+server.setRequestHandler(types_js_1.CallToolRequestSchema, (request) =>
+  __awaiter(void 0, void 0, void 0, function* () {
     const { name, arguments: args } = request.params;
     try {
-        switch (name) {
-            case "sdd_analyze_requirements":
-                return yield analyzeRequirements(args);
-            case "sdd_generate_contract":
-                return yield generateContract(args);
-            case "sdd_create_stub":
-                return yield createStub(args);
-            case "sdd_orchestrate_full_workflow":
-                return yield orchestrateFullWorkflow(args);
-            default:
-                throw new Error(`Unknown tool: ${name}`);
-        }
+      switch (name) {
+        case "enhanced_seam_analysis":
+          return yield enhancedSeamAnalysis(args);
+        case "sdd_generate_contract":
+          return yield generateContract(args);
+        case "sdd_create_stub":
+          return yield createStub(args);
+        case "sdd_orchestrate_full_workflow":
+          return yield orchestrateFullWorkflow(args);
+        case "sdd_visualize_architecture":
+          return yield visualizeArchitecture(args);
+        case "sdd_validate_compliance":
+          return yield validateCompliance(args);
+        case "sdd_introduction_tutorial":
+          return yield sddIntroductionTutorialTool.getTutorialSection(args);
+        default:
+          throw new Error(`Unknown tool: ${name}`);
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error in ${name}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          },
+        ],
+        isError: true,
+      };
     }
-    catch (error) {
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `Error in ${name}: ${error instanceof Error ? error.message : String(error)}`
-                }
-            ],
-            isError: true
-        };
-    }
-}));
+  })
+);
 // Core SDD Functions Implementation
-function analyzeRequirements(args) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { prdText, designNotes } = args;
-        // AI-powered seam identification
-        const seams = identifySeamsFromPRD(prdText, designNotes);
-        const result = {
-            identifiedSeams: seams,
-            seamCount: seams.length,
-            analysisComplete: true,
-            recommendations: [
-                "Review identified seams for completeness",
-                "Ensure all data flows are captured",
-                "Validate seam boundaries make sense for your domain"
-            ]
-        };
+function enhancedSeamAnalysis(args) {
+  return __awaiter(this, void 0, void 0, function* () {
+    const {
+      requirementsText,
+      designNotes,
+      analysisDepth = "detailed",
+      focusAreas,
+    } = args;
+
+    try {
+      // 🔗 SEAM: Import and use enhanced analysis tool
+      const { handleEnhancedSeamAnalysis } = yield import(
+        "./tools/enhanced-seam-analysis-tool.js"
+      );
+
+      // Call enhanced analysis with mapped parameters
+      const analysisArgs = {
+        requirementsText,
+        designNotes,
+        analysisDepth,
+        focusAreas,
+      };
+
+      const result = yield handleEnhancedSeamAnalysis(analysisArgs);
+
+      if (!result.success) {
         return {
-            content: [
-                {
-                    type: "text",
-                    text: `## SDD Seam Analysis Complete
+          content: [
+            {
+              type: "text",
+              text: `## Enhanced Seam Analysis Failed\n\nError: ${result.error}\n\nPlease check your requirements text and try again.`,
+            },
+          ],
+        };
+      }
 
-**Identified ${seams.length} seams from your requirements:**
+      const analysis = result.data;
 
-${seams.map((seam, i) => `
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## Enhanced SDD Seam Analysis Complete
+
+**AI-Powered Analysis Results:**
+
+**Identified ${
+              analysis.identifiedSeams?.length || 0
+            } seams with enhanced intelligence:**
+
+${
+  analysis.identifiedSeams
+    ? analysis.identifiedSeams
+        .map(
+          (seam, i) => `
 ### ${i + 1}. ${seam.name}
 - **Purpose**: ${seam.purpose}
-- **Participants**: ${seam.participants.join(', ')}  
+- **Participants**: ${seam.participants.join(", ")}  
 - **Data Flow**: ${seam.dataFlow}
+- **Confidence Score**: ${seam.confidenceScore || "N/A"}
 - **Contract Interface**: ${seam.contractInterface}
-`).join('\n')}
+`
+        )
+        .join("\n")
+    : "No seams identified"
+}
+
+**AI Enhancements:**
+- **Analysis Depth**: ${analysisDepth}
+- **Pattern Recognition**: Enhanced seam boundary detection
+- **Confidence Scoring**: AI-powered reliability assessment
+- **Focus Areas**: ${focusAreas ? focusAreas.join(", ") : "General analysis"}
 
 **Next Steps:**
 1. Generate contracts for each seam using \`sdd_generate_contract\`
 2. Or use \`sdd_orchestrate_full_workflow\` for complete automation
 
-**Analysis Details:**
-${JSON.stringify(result, null, 2)}`
-                }
-            ]
-        };
-    });
+**Enhanced Analysis Details:**
+${JSON.stringify(analysis, null, 2)}`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## Enhanced Seam Analysis Error\n\nFailed to load enhanced analysis tool: ${error.message}\n\nPlease ensure the enhanced seam analysis tool is properly installed.`,
+          },
+        ],
+      };
+    }
+  });
 }
 function generateContract(args) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { seam } = args;
-        // Use your proven contract template patterns
-        const contractResult = generateContractFromSeam(seam);
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `## Generated Contract: ${seam.name}
+  return __awaiter(this, void 0, void 0, function* () {
+    const { seam } = args;
+    // Use your proven contract template patterns
+    const contractResult = generateContractFromSeam(seam);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `## Generated Contract: ${seam.name}
 
 **File**: \`${contractResult.fileName}\`
 
@@ -213,28 +394,28 @@ ${contractResult.contractCode}
 ${contractResult.blueprintComments}
 
 **Type Aliases:**
-${contractResult.typeAliases.join(', ')}
+${contractResult.typeAliases.join(", ")}
 
 **Key Features:**
 - ✅ ContractResult<T> pattern for standardized error handling
 - ✅ Blueprint comments for AI implementation guidance  
 - ✅ Type aliases for template precision
 - ✅ AgentId tracking for debugging
-- ✅ Health check method for integration testing`
-                }
-            ]
-        };
-    });
+- ✅ Health check method for integration testing`,
+        },
+      ],
+    };
+  });
 }
 function createStub(args) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { contractCode, componentName } = args;
-        const stubResult = generateStubFromContract(contractCode, componentName);
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `## Generated Implementation Stub: ${componentName}
+  return __awaiter(this, void 0, void 0, function* () {
+    const { contractCode, componentName } = args;
+    const stubResult = generateStubFromContract(contractCode, componentName);
+    return {
+      content: [
+        {
+          type: "text",
+          text: `## Generated Implementation Stub: ${componentName}
 
 **File**: \`${stubResult.fileName}\`
 
@@ -254,47 +435,60 @@ ${stubResult.testTemplate}
 - ✅ NotImplementedError with agentId tracking
 - ✅ Blueprint comments guide AI implementation
 - ✅ Logging structure ready for step-by-step tracking
-- ✅ Contract test template for validation`
-                }
-            ]
-        };
-    });
+- ✅ Contract test template for validation`,
+        },
+      ],
+    };
+  });
 }
 function orchestrateFullWorkflow(args) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { prdText, designNotes, projectName } = args;
-        // Complete SDD workflow automation
-        const seams = identifySeamsFromPRD(prdText, designNotes);
-        const contracts = seams.map(seam => generateContractFromSeam(seam));
-        const stubs = contracts.map(contract => generateStubFromContract(contract.contractCode, extractComponentName(contract.fileName)));
-        const integrationTests = generateIntegrationTests(seams, contracts);
-        const projectStructure = {
-            contracts,
-            stubs,
-            integrationTests,
-            readyForImplementation: true,
-            readinessScore: calculateReadinessScore(contracts, stubs, integrationTests)
-        };
-        return {
-            content: [
-                {
-                    type: "text",
-                    text: `# 🎯 SDD Project: ${projectName} - READY FOR IMPLEMENTATION
+  return __awaiter(this, void 0, void 0, function* () {
+    const { prdText, designNotes, projectName } = args;
+    // Complete SDD workflow automation
+    const seams = identifySeamsFromPRD(prdText, designNotes);
+    const contracts = seams.map((seam) => generateContractFromSeam(seam));
+    const stubs = contracts.map((contract) =>
+      generateStubFromContract(
+        contract.contractCode,
+        extractComponentName(contract.fileName)
+      )
+    );
+    const integrationTests = generateIntegrationTests(seams, contracts);
+    const projectStructure = {
+      contracts,
+      stubs,
+      integrationTests,
+      readyForImplementation: true,
+      readinessScore: calculateReadinessScore(
+        contracts,
+        stubs,
+        integrationTests
+      ),
+    };
+    return {
+      content: [
+        {
+          type: "text",
+          text: `# 🎯 SDD Project: ${projectName} - READY FOR IMPLEMENTATION
 
 ## Project Structure Generated
 
 ### 📋 Contracts (${contracts.length})
-${contracts.map(c => `- \`${c.fileName}\``).join('\n')}
+${contracts.map((c) => `- \`${c.fileName}\``).join("\n")}
 
 ### 🔧 Implementation Stubs (${stubs.length})  
-${stubs.map(s => `- \`${s.fileName}\``).join('\n')}
+${stubs.map((s) => `- \`${s.fileName}\``).join("\n")}
 
 ### 🧪 Integration Tests (${integrationTests.length})
-${integrationTests.map((test, i) => `- Integration Test ${i + 1}`).join('\n')}
+${integrationTests.map((test, i) => `- Integration Test ${i + 1}`).join("\n")}
 
 ## 📊 Project Readiness: ${projectStructure.readinessScore}/100
 
-**Status**: ${projectStructure.readyForImplementation ? '✅ READY FOR IMPLEMENTATION' : '⚠️ NEEDS ATTENTION'}
+**Status**: ${
+            projectStructure.readyForImplementation
+              ? "✅ READY FOR IMPLEMENTATION"
+              : "⚠️ NEEDS ATTENTION"
+          }
 
 ## 🚀 Next Steps for Implementation
 
@@ -307,89 +501,116 @@ ${integrationTests.map((test, i) => `- Integration Test ${i + 1}`).join('\n')}
 
 ## Generated Files Preview
 
-${contracts.slice(0, 2).map(contract => `
+${contracts
+  .slice(0, 2)
+  .map(
+    (contract) => `
 ### ${contract.fileName}
 \`\`\`typescript
 ${contract.contractCode.substring(0, 500)}...
 \`\`\`
-`).join('\n')}
+`
+  )
+  .join("\n")}
 
-**Complete project structure is ready for development!**`
-                }
-            ]
-        };
-    });
+**Complete project structure is ready for development!**`,
+        },
+      ],
+    };
+  });
 }
 // Helper functions for SDD logic
 function identifySeamsFromPRD(prdText, designNotes) {
-    // AI-powered seam identification logic
-    // This is where the magic happens - analyzing requirements to find component boundaries
-    // For now, implementing basic pattern recognition
-    // In production, this would use more sophisticated NLP/AI analysis
-    const commonPatterns = [
-        { keywords: ['user', 'login', 'auth', 'signup'], component: 'UserAgent' },
-        { keywords: ['data', 'store', 'database', 'persist'], component: 'DataStoreAgent' },
-        { keywords: ['email', 'notification', 'message'], component: 'NotificationAgent' },
-        { keywords: ['orchestrat', 'coordinate', 'main', 'control'], component: 'OrchestratorAgent' },
-        { keywords: ['ui', 'interface', 'frontend', 'display'], component: 'UIAgent' }
-    ];
-    const foundComponents = new Set();
-    const text = (prdText + ' ' + (designNotes || '')).toLowerCase();
-    for (const pattern of commonPatterns) {
-        if (pattern.keywords.some(keyword => text.includes(keyword))) {
-            foundComponents.add(pattern.component);
-        }
+  // AI-powered seam identification logic
+  // This is where the magic happens - analyzing requirements to find component boundaries
+  // For now, implementing basic pattern recognition
+  // In production, this would use more sophisticated NLP/AI analysis
+  const commonPatterns = [
+    { keywords: ["user", "login", "auth", "signup"], component: "UserAgent" },
+    {
+      keywords: ["data", "store", "database", "persist"],
+      component: "DataStoreAgent",
+    },
+    {
+      keywords: ["email", "notification", "message"],
+      component: "NotificationAgent",
+    },
+    {
+      keywords: ["orchestrat", "coordinate", "main", "control"],
+      component: "OrchestratorAgent",
+    },
+    {
+      keywords: ["ui", "interface", "frontend", "display"],
+      component: "UIAgent",
+    },
+  ];
+  const foundComponents = new Set();
+  const text = (prdText + " " + (designNotes || "")).toLowerCase();
+  for (const pattern of commonPatterns) {
+    if (pattern.keywords.some((keyword) => text.includes(keyword))) {
+      foundComponents.add(pattern.component);
     }
-    // Generate seams between found components
-    const components = Array.from(foundComponents);
-    const seams = [];
-    // Create seams based on common interaction patterns
-    if (components.includes('UIAgent') && components.includes('OrchestratorAgent')) {
-        seams.push({
-            name: 'UI-Orchestrator Seam',
-            participants: ['UIAgent', 'OrchestratorAgent'],
-            dataFlow: 'BOTH',
-            purpose: 'Handle user interactions and coordinate system responses',
-            contractInterface: 'IUIOrchestrationContract'
-        });
-    }
-    if (components.includes('OrchestratorAgent') && components.includes('DataStoreAgent')) {
-        seams.push({
-            name: 'Orchestrator-DataStore Seam',
-            participants: ['OrchestratorAgent', 'DataStoreAgent'],
-            dataFlow: 'BOTH',
-            purpose: 'Manage data persistence and retrieval operations',
-            contractInterface: 'IDataAccessContract'
-        });
-    }
-    if (components.includes('UserAgent')) {
-        seams.push({
-            name: 'User Management Seam',
-            participants: ['UserAgent', 'DataStoreAgent'],
-            dataFlow: 'BOTH',
-            purpose: 'Handle user authentication, authorization, and profile management',
-            contractInterface: 'IUserManagementContract'
-        });
-    }
-    if (components.includes('NotificationAgent')) {
-        seams.push({
-            name: 'Notification Seam',
-            participants: ['OrchestratorAgent', 'NotificationAgent'],
-            dataFlow: 'OUT',
-            purpose: 'Send notifications and messages to users',
-            contractInterface: 'INotificationContract'
-        });
-    }
-    return seams;
+  }
+  // Generate seams between found components
+  const components = Array.from(foundComponents);
+  const seams = [];
+  // Create seams based on common interaction patterns
+  if (
+    components.includes("UIAgent") &&
+    components.includes("OrchestratorAgent")
+  ) {
+    seams.push({
+      name: "UI-Orchestrator Seam",
+      participants: ["UIAgent", "OrchestratorAgent"],
+      dataFlow: "BOTH",
+      purpose: "Handle user interactions and coordinate system responses",
+      contractInterface: "IUIOrchestrationContract",
+    });
+  }
+  if (
+    components.includes("OrchestratorAgent") &&
+    components.includes("DataStoreAgent")
+  ) {
+    seams.push({
+      name: "Orchestrator-DataStore Seam",
+      participants: ["OrchestratorAgent", "DataStoreAgent"],
+      dataFlow: "BOTH",
+      purpose: "Manage data persistence and retrieval operations",
+      contractInterface: "IDataAccessContract",
+    });
+  }
+  if (components.includes("UserAgent")) {
+    seams.push({
+      name: "User Management Seam",
+      participants: ["UserAgent", "DataStoreAgent"],
+      dataFlow: "BOTH",
+      purpose:
+        "Handle user authentication, authorization, and profile management",
+      contractInterface: "IUserManagementContract",
+    });
+  }
+  if (components.includes("NotificationAgent")) {
+    seams.push({
+      name: "Notification Seam",
+      participants: ["OrchestratorAgent", "NotificationAgent"],
+      dataFlow: "OUT",
+      purpose: "Send notifications and messages to users",
+      contractInterface: "INotificationContract",
+    });
+  }
+  return seams;
 }
 function generateContractFromSeam(seam) {
-    const componentName = seam.name.replace(/[-\s]/g, '').replace('Seam', '');
-    const pascalCaseName = componentName.charAt(0).toUpperCase() + componentName.slice(1);
-    // Use your proven contract template pattern
-    const contractCode = `/**
+  const componentName = seam.name.replace(/[-\s]/g, "").replace("Seam", "");
+  const pascalCaseName =
+    componentName.charAt(0).toUpperCase() + componentName.slice(1);
+  // Use your proven contract template pattern
+  const contractCode = `/**
  * PURPOSE: Defines the contract for ${seam.purpose}
- * DATA FLOW: ${seam.dataFlow} - ${seam.participants.join(' ↔ ')} 
- * INTEGRATION POINTS: ${seam.participants.map(p => `Called by: ${p}`).join(', ')}
+ * DATA FLOW: ${seam.dataFlow} - ${seam.participants.join(" ↔ ")} 
+ * INTEGRATION POINTS: ${seam.participants
+   .map((p) => `Called by: ${p}`)
+   .join(", ")}
  * FAILURE MODES: 
  * - Invalid input data: Returns ValidationError
  * - Dependency unavailable: Returns DependencyError
@@ -454,22 +675,30 @@ export interface I${pascalCaseName}Agent {
    */
   checkHealth(): Promise<ContractResult<{status: 'healthy' | 'unhealthy', details?: string}>>;
 }`;
-    const blueprintComments = `Blueprint comments generated for ${pascalCaseName}:
+  const blueprintComments = `Blueprint comments generated for ${pascalCaseName}:
 - PURPOSE: Clear contract definition
 - DATA FLOW: Standardized request/response pattern
 - INTEGRATION POINTS: Health check for testing
 - FAILURE MODES: Comprehensive error handling
 - LOGGING: Structured for debugging`;
-    return {
-        contractCode,
-        blueprintComments,
-        typeAliases: [`${pascalCaseName}Input`, `${pascalCaseName}Output`, `${pascalCaseName}Request`, `${pascalCaseName}Response`],
-        fileName: `${pascalCaseName.toLowerCase()}.contract.ts`
-    };
+  return {
+    contractCode,
+    blueprintComments,
+    typeAliases: [
+      `${pascalCaseName}Input`,
+      `${pascalCaseName}Output`,
+      `${pascalCaseName}Request`,
+      `${pascalCaseName}Response`,
+    ],
+    fileName: `${pascalCaseName.toLowerCase()}.contract.ts`,
+  };
 }
 function generateStubFromContract(contractCode, componentName) {
-    const pascalCaseName = componentName.charAt(0).toUpperCase() + componentName.slice(1).replace('Agent', '') + 'Agent';
-    const stubCode = `/**
+  const pascalCaseName =
+    componentName.charAt(0).toUpperCase() +
+    componentName.slice(1).replace("Agent", "") +
+    "Agent";
+  const stubCode = `/**
  * IMPLEMENTATION STUB: ${pascalCaseName}
  * PURPOSE: Provides skeletal implementation with proper SDD patterns
  * STATUS: STUB - Needs implementation
@@ -477,18 +706,29 @@ function generateStubFromContract(contractCode, componentName) {
  */
 
 import { AgentId, ContractResult, AgentError, createAgentError } from "./types";
-import { I${pascalCaseName.replace('Agent', '')}Agent, ${pascalCaseName.replace('Agent', '')}Request, ${pascalCaseName.replace('Agent', '')}Response } from "./${pascalCaseName.toLowerCase().replace('agent', '')}.contract";
+import { I${pascalCaseName.replace("Agent", "")}Agent, ${pascalCaseName.replace(
+    "Agent",
+    ""
+  )}Request, ${pascalCaseName.replace(
+    "Agent",
+    ""
+  )}Response } from "./${pascalCaseName
+    .toLowerCase()
+    .replace("agent", "")}.contract";
 
-export class ${pascalCaseName} implements I${pascalCaseName.replace('Agent', '')}Agent {
+export class ${pascalCaseName} implements I${pascalCaseName.replace(
+    "Agent",
+    ""
+  )}Agent {
   private readonly agentId: AgentId;
   
   constructor(agentId: AgentId = "${pascalCaseName.toLowerCase()}-001") {
     this.agentId = agentId;
   }
   
-  async handle${pascalCaseName.replace('Agent', '')}Request(
-    request: ${pascalCaseName.replace('Agent', '')}Request
-  ): Promise<ContractResult<${pascalCaseName.replace('Agent', '')}Response>> {
+  async handle${pascalCaseName.replace("Agent", "")}Request(
+    request: ${pascalCaseName.replace("Agent", "")}Request
+  ): Promise<ContractResult<${pascalCaseName.replace("Agent", "")}Response>> {
     // Step 1: Log entry
     console.log(\`[\${this.agentId}] Processing \${request.requestId || 'unknown'} request\`);
     
@@ -552,7 +792,7 @@ export class ${pascalCaseName} implements I${pascalCaseName.replace('Agent', '')
     };
   }
 }`;
-    const testTemplate = `// Integration test template for ${pascalCaseName}
+  const testTemplate = `// Integration test template for ${pascalCaseName}
 import { ${pascalCaseName} } from "./${pascalCaseName.toLowerCase()}";
 
 describe('${pascalCaseName} Integration Tests', () => {
@@ -572,7 +812,10 @@ describe('${pascalCaseName} Integration Tests', () => {
       requestId: 'test-001'
     };
     
-    const result = await agent.handle${pascalCaseName.replace('Agent', '')}Request(request);
+    const result = await agent.handle${pascalCaseName.replace(
+      "Agent",
+      ""
+    )}Request(request);
     
     // Initially will fail with NotImplementedError - that's expected!
     expect(result.isSuccess).toBe(false);
@@ -586,43 +829,214 @@ describe('${pascalCaseName} Integration Tests', () => {
     expect(result.data?.status).toBe('healthy');
   });
 });`;
-    return {
-        stubCode,
-        blueprintComments: `Implementation stub generated with SDD best practices:
+  return {
+    stubCode,
+    blueprintComments: `Implementation stub generated with SDD best practices:
 - NotImplementedError with agentId tracking
 - Structured logging for debugging
 - Proper error handling patterns
 - Health check implementation
 - Integration test template provided`,
-        testTemplate,
-        fileName: `${pascalCaseName.toLowerCase()}.ts`
-    };
+    testTemplate,
+    fileName: `${pascalCaseName.toLowerCase()}.ts`,
+  };
 }
 function generateIntegrationTests(seams, contracts) {
-    return seams.map((seam, index) => `Integration Test ${index + 1}: Validate ${seam.name} - ${seam.participants.join(' ↔ ')} connection works`);
+  return seams.map(
+    (seam, index) =>
+      `Integration Test ${index + 1}: Validate ${
+        seam.name
+      } - ${seam.participants.join(" ↔ ")} connection works`
+  );
 }
 function extractComponentName(fileName) {
-    return fileName.replace('.contract.ts', '').replace(/[-_]/g, '');
+  return fileName.replace(".contract.ts", "").replace(/[-_]/g, "");
 }
 function calculateReadinessScore(contracts, stubs, integrationTests) {
-    let score = 0;
-    // Contract completeness (40 points)
-    score += contracts.length * 10; // 10 points per contract
-    // Stub completeness (40 points) 
-    score += stubs.length * 10; // 10 points per stub
-    // Integration test coverage (20 points)
-    score += integrationTests.length * 5; // 5 points per integration test
-    return Math.min(score, 100);
+  let score = 0;
+  // Contract completeness (40 points)
+  score += contracts.length * 10; // 10 points per contract
+  // Stub completeness (40 points)
+  score += stubs.length * 10; // 10 points per stub
+  // Integration test coverage (20 points)
+  score += integrationTests.length * 5; // 5 points per integration test
+  return Math.min(score, 100);
+}
+// Visualize Architecture Tool
+function visualizeArchitecture(args) {
+  return __awaiter(this, void 0, void 0, function* () {
+    try {
+      const { SddVisualizeArchitectureTool } = yield import(
+        "./tools/legacy/sdd-visualize-architecture-tool.js"
+      );
+      const tool = new SddVisualizeArchitectureTool();
+      const result = yield tool.execute(args);
+
+      if (!result.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `## Architecture Visualization Failed\n\nError: ${result.error}`,
+            },
+          ],
+        };
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## Architecture Visualization Complete
+
+**Project**: ${args.projectName}
+
+### Mermaid Diagram
+\`\`\`mermaid
+${result.data.mermaidDiagram}
+\`\`\`
+
+### Component Summary
+${result.data.componentSummary
+  .map(
+    (comp) =>
+      `- **${comp.name}**: ${comp.connections} connections, Status: ${comp.status}`
+  )
+  .join("\n")}
+
+### Architecture Description
+${result.data.textualDescription}
+`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## Visualization Error\n\nFailed to load visualization tool: ${error.message}`,
+          },
+        ],
+      };
+    }
+  });
+}
+// Validate Compliance Tool
+function validateCompliance(args) {
+  return __awaiter(this, void 0, void 0, function* () {
+    try {
+      const { ValidateComplianceAgent } = yield import(
+        "./tools/legacy/sdd-validate-compliance-tool.js"
+      );
+      const agent = new ValidateComplianceAgent();
+
+      // Validate input first
+      const inputValidation = yield agent.validateInput(args);
+      if (!inputValidation.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `## Compliance Validation Failed\n\nInput Error: ${inputValidation.error}`,
+            },
+          ],
+        };
+      }
+
+      // Execute compliance validation
+      const result = yield agent.execute(inputValidation.data);
+
+      if (!result.success) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `## Compliance Validation Failed\n\nError: ${result.error}\n\n**Note**: This tool needs implementation. Claude Opus can help implement the missing functionality.`,
+            },
+          ],
+        };
+      }
+
+      const validation = result.data;
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## SDD Compliance Validation Results
+
+**Project Path**: ${args.projectPath}
+**Overall Compliance**: ${
+              validation.compliant ? "✅ COMPLIANT" : "❌ NON-COMPLIANT"
+            }
+
+### Contract Completeness: ${validation.contractCompleteness.score}/100
+${
+  validation.contractCompleteness.missing.length > 0
+    ? `**Missing Contracts**:
+${validation.contractCompleteness.missing
+  .map((item) => `- ${item}`)
+  .join("\n")}`
+    : "✅ All contracts present"
+}
+
+### Blueprint Comments: ${validation.blueprintComments.coverage}% Coverage
+${
+  validation.blueprintComments.missing.length > 0
+    ? `**Missing Blueprint Comments**:
+${validation.blueprintComments.missing.map((item) => `- ${item}`).join("\n")}`
+    : "✅ All components have blueprint comments"
+}
+
+### ContractResult Usage: ${
+              validation.contractResultUsage.consistent
+                ? "✅ Consistent"
+                : "❌ Inconsistent"
+            }
+${
+  validation.contractResultUsage.violations.length > 0
+    ? `**Violations**:
+${validation.contractResultUsage.violations
+  .map((item) => `- ${item}`)
+  .join("\n")}`
+    : ""
+}
+
+### Test Coverage: ${validation.testCoverage.percentage}%
+${
+  validation.testCoverage.missingTests.length > 0
+    ? `**Missing Tests**:
+${validation.testCoverage.missingTests.map((item) => `- ${item}`).join("\n")}`
+    : "✅ Full test coverage"
+}
+
+### Recommendations
+${validation.overallRecommendations.map((rec) => `- ${rec}`).join("\n")}
+`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `## Compliance Validation Error\n\nError: ${error.message}\n\n**Note**: Validation tool needs implementation. This is perfect for Claude Opus to implement!`,
+          },
+        ],
+      };
+    }
+  });
 }
 // Start the server
 function main() {
-    return __awaiter(this, void 0, void 0, function* () {
-        const transport = new stdio_js_1.StdioServerTransport();
-        yield server.connect(transport);
-        console.error("SDD MCP Server running on stdio");
-    });
+  return __awaiter(this, void 0, void 0, function* () {
+    const transport = new stdio_js_1.StdioServerTransport();
+    yield server.connect(transport);
+    console.error("SDD MCP Server running on stdio");
+  });
 }
 main().catch((error) => {
-    console.error("Fatal error in main():", error);
-    process.exit(1);
+  console.error("Fatal error in main():", error);
+  process.exit(1);
 });

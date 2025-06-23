@@ -10,7 +10,7 @@ import type {
   SeamValidationResult,
   ToolModuleContract,
 } from "../contracts.js";
-import { SDDError } from "../contracts.js";
+// import { SDDError } from "../contracts.js"; // Removed - not available in contracts
 
 export interface ValidateSeamReadinessTool {
   name: "validate_seam_readiness";
