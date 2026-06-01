@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+      - feature/enhanced-seam-analysis
+
+jobs:
+  build:
+    name: Build and validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests if implemented
+        run: |
+          TEST_SCRIPT=$(node -p "require('./package.json').scripts?.test || ''")
+          if [ "$TEST_SCRIPT" = "echo \"Error: no test specified\" && exit 1" ]; then
+            echo "No real test script configured; skipping npm test."
+          elif [ -n "$TEST_SCRIPT" ]; then
+            npm test
+          else
+            echo "No test script configured; skipping npm test."
+          fi
