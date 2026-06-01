@@ -1,0 +1,294 @@
+src/agents/config-manager.ts(9,3): error TS2305: Module '"../contracts.js"' has no exported member 'AgentId'.
+src/agents/config-manager.ts(12,3): error TS2305: Module '"../contracts.js"' has no exported member 'ServerConfig'.
+src/agents/config-manager.ts(139,31): error TS2339: Property 'message' does not exist on type 'string'.
+src/agents/config-manager.ts(210,31): error TS2339: Property 'message' does not exist on type 'string'.
+src/agents/config-manager.ts(479,50): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/agents/config-manager.ts(527,33): error TS2339: Property 'message' does not exist on type 'string'.
+src/agents/config-manager.ts(550,29): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'PathLike'.
+src/agents/content-driven-test-system.ts(193,9): error TS2322: Type 'SDDError' is not assignable to type 'string'.
+src/agents/content-driven-test-system.ts(193,16): error TS2352: Conversion of type '{ category: string; message: string; agentId: string; timestamp: string; details: { originalError: string; }; suggestions: string[]; severity: string; }' to type 'SDDError' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'name' is missing in type '{ category: string; message: string; agentId: string; timestamp: string; details: { originalError: string; }; suggestions: string[]; severity: string; }' but required in type 'SDDError'.
+src/agents/content-driven-test-system.ts(305,9): error TS2322: Type 'SDDError' is not assignable to type 'string'.
+src/agents/content-driven-test-system.ts(305,16): error TS2352: Conversion of type '{ category: string; message: string; agentId: string; timestamp: string; details: { scenarioId: string; originalError: string; }; suggestions: string[]; severity: string; }' to type 'SDDError' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'name' is missing in type '{ category: string; message: string; agentId: string; timestamp: string; details: { scenarioId: string; originalError: string; }; suggestions: string[]; severity: string; }' but required in type 'SDDError'.
+src/agents/content-driven-test-system.ts(403,9): error TS2322: Type 'SDDError' is not assignable to type 'string'.
+src/agents/content-driven-test-system.ts(403,16): error TS2352: Conversion of type '{ category: string; message: string; agentId: string; timestamp: string; details: { originalError: string; }; suggestions: string[]; severity: string; }' to type 'SDDError' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'name' is missing in type '{ category: string; message: string; agentId: string; timestamp: string; details: { originalError: string; }; suggestions: string[]; severity: string; }' but required in type 'SDDError'.
+src/agents/content-driven-test-system.ts(450,21): error TS2352: Conversion of type 'string' to type 'SDDError' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+src/agents/content-driven-test-system.ts(451,17): error TS2339: Property 'category' does not exist on type 'SDDError'.
+src/agents/content-driven-test-system.ts(454,17): error TS2339: Property 'severity' does not exist on type 'SDDError'.
+src/agents/content-driven-test-system.ts(459,17): error TS2339: Property 'suggestions' does not exist on type 'SDDError'.
+src/agents/content-driven-test-system.ts(459,36): error TS7006: Parameter 'actualSuggestion' implicitly has an 'any' type.
+src/agents/dev-utilities.ts(6,10): error TS2305: Module '"../contracts.js"' has no exported member 'AgentId'.
+src/agents/dev-utilities.ts(6,35): error TS2305: Module '"../contracts.js"' has no exported member 'createSDDError'.
+src/agents/enhanced-seam-analyzer-with-utilities.ts(11,3): error TS2305: Module '"../contracts.js"' has no exported member 'createSDDError'.
+src/agents/enhanced-seam-analyzer-with-utilities.ts(176,45): error TS2339: Property 'validationsPassed' does not exist on type 'SeamValidationResult'.
+src/agents/enhanced-seam-analyzer.ts(33,3): error TS2724: '"../contracts.js"' has no exported member named 'EnhancedSeamAnalysisInput'. Did you mean 'EnhancedSeamAnalysis'?
+src/agents/enhanced-seam-analyzer.ts(34,3): error TS2724: '"../contracts.js"' has no exported member named 'EnhancedSeamAnalysisOutput'. Did you mean 'EnhancedSeamAnalysis'?
+src/agents/enhanced-seam-analyzer.ts(41,3): error TS2305: Module '"../contracts.js"' has no exported member 'SeamDetail'.
+src/agents/enhanced-seam-analyzer.ts(104,61): error TS2345: Argument of type '{ level: string; method: string; inputReceived: EnhancedSeamAnalysisInput; }' is not assignable to parameter of type 'string'.
+src/agents/enhanced-seam-analyzer.ts(123,47): error TS2345: Argument of type '{ method: string; inputReceived: any; description: string; }' is not assignable to parameter of type 'string'.
+src/agents/enhanced-seam-analyzer.ts(168,61): error TS2345: Argument of type '{ level: string; method: string; textReceived: string; depthReceived: "basic" | "detailed" | "comprehensive"; }' is not assignable to parameter of type 'string'.
+src/agents/enhanced-seam-analyzer.ts(188,47): error TS2345: Argument of type '{ method: string; textReceived: string; depthReceived: "basic" | "detailed" | "comprehensive"; description: string; }' is not assignable to parameter of type 'string'.
+src/agents/enhanced-seam-analyzer.ts(236,61): error TS2345: Argument of type '{ level: string; method: string; textReceived: string; focusAreasReceived: ("data_flows" | "integrations" | "dependencies" | "cross_cutting_concerns")[] | undefined; }' is not assignable to parameter of type 'string'.
+src/agents/enhanced-seam-analyzer.ts(256,47): error TS2345: Argument of type '{ method: string; textReceived: string; focusAreasReceived: ("data_flows" | "integrations" | "dependencies" | "cross_cutting_concerns")[] | undefined; description: string; }' is not assignable to parameter of type 'string'.
+src/agents/error-handler.ts(9,3): error TS2305: Module '"../contracts.js"' has no exported member 'AgentId'.
+src/agents/error-handler.ts(11,3): error TS2305: Module '"../contracts.js"' has no exported member 'DiagnosticInfo'.
+src/agents/error-handler.ts(12,3): error TS2305: Module '"../contracts.js"' has no exported member 'ErrorContext'.
+src/agents/error-handler.ts(103,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'SDDError'.
+src/agents/error-handler.ts(114,9): error TS2322: Type 'SDDError' is not assignable to type 'string'.
+src/agents/error-handler.ts(172,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'SDDError'.
+src/agents/error-handler.ts(183,9): error TS2322: Type 'SDDError' is not assignable to type 'string'.
+src/agents/error-handler.ts(219,31): error TS2339: Property 'category' does not exist on type 'SDDError'.
+src/agents/error-handler.ts(234,7): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'SDDError'.
+src/agents/error-handler.ts(250,7): error TS2322: Type 'SDDError' is not assignable to type 'string'.
+src/agents/error-handler.ts(280,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'SDDError'.
+src/agents/error-handler.ts(292,9): error TS2322: Type 'SDDError' is not assignable to type 'string'.
+src/agents/error-handler.ts(359,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'SDDError'.
+src/agents/error-handler.ts(370,9): error TS2322: Type 'SDDError' is not assignable to type 'string'.
+src/agents/error-handler.ts(421,15): error TS2339: Property 'severity' does not exist on type 'SDDError'.
+src/agents/mcp-intelligence-bridge.ts(93,11): error TS2322: Type '{ category: string; message: string; agentId: string; seamName: string; timestamp: string; details: { healthCheck: string | undefined; }; }' is not assignable to type 'string'.
+src/agents/mcp-intelligence-bridge.ts(117,9): error TS2322: Type '{ category: string; message: string; agentId: string; seamName: string; timestamp: string; }' is not assignable to type 'string'.
+src/agents/mcp-intelligence-bridge.ts(172,9): error TS2322: Type '{ category: string; message: string; agentId: string; seamName: string; timestamp: string; }' is not assignable to type 'string'.
+src/agents/mcp-intelligence-bridge.ts(235,13): error TS2322: Type '{ category: string; message: string; agentId: string; seamName: string; timestamp: string; details: { method: never; availableMethods: string[]; }; }' is not assignable to type 'string'.
+src/agents/mcp-intelligence-bridge.ts(264,9): error TS2322: Type '{ category: string; message: string; agentId: string; seamName: string; timestamp: string; details: { method: keyof IEnhancedSeamAnalyzer; input: any; }; }' is not assignable to type 'string'.
+src/agents/mcp-tool-registry.ts(8,3): error TS2305: Module '"../contracts.js"' has no exported member 'AgentId'.
+src/agents/mcp-tool-registry.ts(10,3): error TS2305: Module '"../contracts.js"' has no exported member 'IMCPToolRegistry'.
+src/agents/mcp-tool-registry.ts(11,3): error TS2305: Module '"../contracts.js"' has no exported member 'RegisteredTool'.
+src/agents/mcp-tool-registry.ts(12,3): error TS2724: '"../contracts.js"' has no exported member named 'ToolRegistration'. Did you mean 'ToolRegistrationError'?
+src/agents/mcp-tool-registry.ts(13,3): error TS2724: '"../contracts.js"' has no exported member named 'ValidationError'. Did you mean 'SeamValidationError'?
+src/agents/mcp-tool-registry.ts(14,3): error TS2724: '"../contracts.js"' has no exported member named 'ValidationResult'. Did you mean 'SeamValidationResult'?
+src/agents/mcp-tool-registry.ts(15,3): error TS2305: Module '"../contracts.js"' has no exported member 'createSDDError'.
+src/agents/mcp-tool-registry.ts(312,56): error TS2345: Argument of type '{ agentId: AgentId; operation: string; timestamp: string; }' is not assignable to parameter of type 'string'.
+src/agents/mcp-tool-registry.ts(397,56): error TS2345: Argument of type '{ agentId: AgentId; operation: string; timestamp: string; additionalInfo: { toolName: string; args: unknown; }; }' is not assignable to parameter of type 'string'.
+src/agents/mcp-tool-registry.ts(472,21): error TS7006: Parameter 'e' implicitly has an 'any' type.
+src/agents/mcp-tool-registry.ts(497,56): error TS2345: Argument of type '{ agentId: AgentId; operation: string; timestamp: string; additionalInfo: { toolName: string; args: unknown; }; }' is not assignable to parameter of type 'string'.
+src/agents/mcp-tool-registry.ts(534,56): error TS2345: Argument of type '{ agentId: AgentId; operation: string; timestamp: string; }' is not assignable to parameter of type 'string'.
+src/agents/mcp-tool-registry.ts(579,56): error TS2345: Argument of type '{ agentId: AgentId; operation: string; timestamp: string; }' is not assignable to parameter of type 'string'.
+src/agents/performance-tracker.ts(6,10): error TS2305: Module '"../contracts.js"' has no exported member 'AgentId'.
+src/agents/performance-tracker.ts(6,35): error TS2305: Module '"../contracts.js"' has no exported member 'createSDDError'.
+src/agents/sdd-analyzer-simple.ts(7,3): error TS2305: Module '"../contracts.js"' has no exported member 'AgentId'.
+src/agents/sdd-analyzer-simple.ts(12,3): error TS2305: Module '"../contracts.js"' has no exported member 'SeamDefinition'.
+src/agents/sdd-analyzer-simple.ts(20,3): error TS2416: Property 'analyzeRequirements' in type 'SDDAnalyzer' is not assignable to the same property in base type 'SDDFunctionContract'.
+  Type '(prd: string) => ContractResult<SeamDefinition[]>' is not assignable to type '(prd: string) => Promise<ContractResult<SeamDefinition[]>>'.
+    Type 'ContractResult<SeamDefinition[]>' is missing the following properties from type 'Promise<ContractResult<SeamDefinition[]>>': then, catch, finally, [Symbol.toStringTag]
+src/agents/sdd-analyzer-simple.ts(56,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<SeamDefinition[]>'.
+src/agents/sdd-analyzer-simple.ts(63,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<SeamDefinition[]>'.
+src/agents/sdd-analyzer-simple.ts(69,3): error TS2416: Property 'generateContract' in type 'SDDAnalyzer' is not assignable to the same property in base type 'SDDFunctionContract'.
+  Type '(seam: SeamDefinition) => ContractResult<ContractGenerationResult>' is not assignable to type '(seam: SeamDefinition) => Promise<ContractResult<ContractGenerationResult>>'.
+    Type 'ContractResult<ContractGenerationResult>' is missing the following properties from type 'Promise<ContractResult<ContractGenerationResult>>': then, catch, finally, [Symbol.toStringTag]
+src/agents/sdd-analyzer-simple.ts(93,13): error TS2741: Property 'fileName' is missing in type '{ contractCode: string; blueprintComments: string; typeAliases: string[]; agentId: AgentId; testTemplate: string; }' but required in type 'ContractGenerationResult'.
+src/agents/sdd-analyzer-simple.ts(110,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<ContractGenerationResult>'.
+src/agents/sdd-analyzer-simple.ts(117,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<ContractGenerationResult>'.
+src/agents/sdd-analyzer-simple.ts(123,3): error TS2416: Property 'createStub' in type 'SDDAnalyzer' is not assignable to the same property in base type 'SDDFunctionContract'.
+  Type '(contract: ContractGenerationResult) => ContractResult<StubGenerationResult>' is not assignable to type '(contract: ContractGenerationResult) => Promise<ContractResult<StubGenerationResult>>'.
+    Type 'ContractResult<StubGenerationResult>' is missing the following properties from type 'Promise<ContractResult<StubGenerationResult>>': then, catch, finally, [Symbol.toStringTag]
+src/agents/sdd-analyzer-simple.ts(163,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<StubGenerationResult>'.
+src/agents/sdd-analyzer-simple.ts(170,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<StubGenerationResult>'.
+src/agents/sdd-analyzer-simple.ts(176,3): error TS2416: Property 'orchestrateWorkflow' in type 'SDDAnalyzer' is not assignable to the same property in base type 'SDDFunctionContract'.
+  Type '(prd: string) => ContractResult<ProjectStructure>' is not assignable to type '(prd: string) => Promise<ContractResult<ProjectStructure>>'.
+    Type 'ContractResult<ProjectStructure>' is missing the following properties from type 'Promise<ContractResult<ProjectStructure>>': then, catch, finally, [Symbol.toStringTag]
+src/agents/sdd-analyzer-simple.ts(186,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<ProjectStructure>'.
+src/agents/sdd-analyzer-simple.ts(202,13): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<ProjectStructure>'.
+src/agents/sdd-analyzer-simple.ts(212,13): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<ProjectStructure>'.
+src/agents/sdd-analyzer-simple.ts(245,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<ProjectStructure>'.
+src/agents/sdd-analyzer-simple.ts(252,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<ProjectStructure>'.
+src/agents/sdd-analyzer-simple.ts(258,3): error TS2416: Property 'validateProject' in type 'SDDAnalyzer' is not assignable to the same property in base type 'SDDFunctionContract'.
+  Type '(structure: ProjectStructure) => ContractResult<any>' is not assignable to type '(structure: ProjectStructure) => Promise<ContractResult<any>>'.
+    Type 'ContractResult<any>' is missing the following properties from type 'Promise<ContractResult<any>>': then, catch, finally, [Symbol.toStringTag]
+src/agents/sdd-analyzer-simple.ts(316,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<any>'.
+src/agents/sdd-analyzer-simple.ts(323,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<any>'.
+src/agents/sdd-analyzer.ts(14,3): error TS2305: Module '"../contracts.js"' has no exported member 'AgentId'.
+src/agents/sdd-analyzer.ts(15,3): error TS2305: Module '"../contracts.js"' has no exported member 'ComplianceReport'.
+src/agents/sdd-analyzer.ts(18,3): error TS2305: Module '"../contracts.js"' has no exported member 'PatternReport'.
+src/agents/sdd-analyzer.ts(21,3): error TS2305: Module '"../contracts.js"' has no exported member 'SeamDefinition'.
+src/agents/sdd-analyzer.ts(309,39): error TS2339: Property 'message' does not exist on type 'string'.
+src/agents/sdd-analyzer.ts(334,37): error TS2339: Property 'message' does not exist on type 'string'.
+src/agents/sdd-analyzer.ts(358,33): error TS2339: Property 'message' does not exist on type 'string'.
+src/agents/sdd-analyzer.ts(434,37): error TS2339: Property 'message' does not exist on type 'string'.
+src/agents/sdd-analyzer.ts(453,41): error TS2339: Property 'message' does not exist on type 'string'.
+src/agents/sdd-analyzer.ts(470,34): error TS2339: Property 'message' does not exist on type 'string'.
+src/agents/template-processor.ts(8,3): error TS2305: Module '"../contracts.js"' has no exported member 'AgentId'.
+src/agents/template-processor.ts(10,3): error TS2305: Module '"../contracts.js"' has no exported member 'TemplateData'.
+src/agents/template-processor.ts(42,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(58,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(77,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(90,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(111,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(129,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(145,13): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(166,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(186,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(231,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<boolean>'.
+src/agents/template-processor.ts(250,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<boolean>'.
+src/agents/template-processor.ts(271,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<void>'.
+src/agents/template-processor.ts(283,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<void>'.
+src/agents/template-processor.ts(302,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<void>'.
+src/agents/template-processor.ts(457,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/template-processor.ts(466,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/validation-engine.ts(8,3): error TS2305: Module '"../contracts.js"' has no exported member 'AgentId'.
+src/agents/validation-engine.ts(9,3): error TS2305: Module '"../contracts.js"' has no exported member 'ComplianceReport'.
+src/agents/validation-engine.ts(11,3): error TS2305: Module '"../contracts.js"' has no exported member 'HealthReport'.
+src/agents/validation-engine.ts(12,3): error TS2305: Module '"../contracts.js"' has no exported member 'PatternReport'.
+src/agents/validation-engine.ts(45,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<unknown>'.
+src/agents/validation-engine.ts(63,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<unknown>'.
+src/agents/validation-engine.ts(84,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<unknown>'.
+src/agents/validation-engine.ts(145,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<ComplianceReport>'.
+src/agents/validation-engine.ts(165,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<ComplianceReport>'.
+src/agents/validation-engine.ts(230,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<HealthReport>'.
+src/agents/validation-engine.ts(253,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<HealthReport>'.
+src/agents/validation-engine.ts(312,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<PatternReport>'.
+src/agents/validation-engine.ts(332,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<PatternReport>'.
+src/agents/validation-engine.ts(583,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/agents/validation-engine.ts(592,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/contracts.ts(46,14): error TS2300: Duplicate identifier 'InvalidInputError'.
+src/contracts.ts(52,14): error TS2300: Duplicate identifier 'ToolNotFoundError'.
+src/contracts.ts(61,14): error TS2300: Duplicate identifier 'ToolVersionNotFoundError'.
+src/contracts.ts(71,14): error TS2300: Duplicate identifier 'ToolRegistrationError'.
+src/contracts.ts(220,14): error TS2300: Duplicate identifier 'InvalidInputError'.
+src/contracts.ts(230,14): error TS2300: Duplicate identifier 'ToolNotFoundError'.
+src/contracts.ts(243,14): error TS2300: Duplicate identifier 'ToolVersionNotFoundError'.
+src/contracts.ts(257,14): error TS2300: Duplicate identifier 'ToolRegistrationError'.
+src/contracts.ts(319,33): error TS2304: Cannot find name 'ServerHealth'.
+src/contracts.ts(328,60): error TS2304: Cannot find name 'SeamDefinition'.
+src/contracts.ts(332,11): error TS2304: Cannot find name 'SeamDefinition'.
+src/contracts.ts(362,11): error TS2304: Cannot find name 'TemplateData'.
+src/contracts.ts(384,58): error TS2304: Cannot find name 'ComplianceReport'.
+src/contracts.ts(389,29): error TS2304: Cannot find name 'HealthReport'.
+src/contracts.ts(392,61): error TS2304: Cannot find name 'PatternReport'.
+src/contracts.ts(403,14): error TS2304: Cannot find name 'ErrorContext'.
+src/contracts.ts(408,14): error TS2304: Cannot find name 'AgentId'.
+src/contracts.ts(417,48): error TS2304: Cannot find name 'DiagnosticInfo'.
+src/contracts.ts(426,40): error TS2304: Cannot find name 'ServerConfig'.
+src/contracts.ts(429,33): error TS2304: Cannot find name 'ServerConfig'.
+src/contracts.ts(447,12): error TS2304: Cannot find name 'AgentId'.
+src/contracts.ts(455,12): error TS2304: Cannot find name 'AgentId'.
+src/contracts.ts(460,10): error TS2304: Cannot find name 'SeamDefinition'.
+src/contracts.ts(467,32): error TS2304: Cannot find name 'ComplianceReport'.
+src/contracts.ts(467,51): error TS2304: Cannot find name 'HealthReport'.
+src/contracts.ts(467,66): error TS2304: Cannot find name 'PatternReport'.
+src/contracts.ts(503,10): error TS2304: Cannot find name 'SeamDefinition'.
+src/contracts.ts(622,20): error TS2304: Cannot find name 'SeamDefinition'.
+src/contracts.ts(658,15): error TS2304: Cannot find name 'SeamDefinition'.
+src/contracts.ts(687,19): error TS2304: Cannot find name 'SeamDefinition'.
+src/contracts.ts(688,21): error TS2304: Cannot find name 'ComplianceReport'.
+src/contracts.ts(689,17): error TS2304: Cannot find name 'HealthReport'.
+src/contracts.ts(690,18): error TS2304: Cannot find name 'PatternReport'.
+src/contracts.ts(699,20): error TS2304: Cannot find name 'AgentId'.
+src/contracts.ts(700,24): error TS2304: Cannot find name 'AgentId'.
+src/contracts.ts(705,29): error TS2304: Cannot find name 'AgentId'.
+src/contracts.ts(713,20): error TS2304: Cannot find name 'AgentId'.
+src/contracts.ts(726,20): error TS2304: Cannot find name 'AgentId'.
+src/index.ts(18,41): error TS2305: Module '"./contracts.js"' has no exported member 'SeamDefinition'.
+src/index.ts(493,34): error TS2339: Property 'message' does not exist on type 'never'.
+src/index.ts(707,5): error TS2304: Cannot find name 'cn'.
+src/index.ts(952,7): error TS2345: Argument of type '{ requirementsText: string; designNotes: string | undefined; analysisDepth: "detailed"; focusAreas: readonly ["data_flows", "integrations", "dependencies"]; }' is not assignable to parameter of type 'SeamAnalysisInput'.
+  Types of property 'focusAreas' are incompatible.
+    The type 'readonly ["data_flows", "integrations", "dependencies"]' is 'readonly' and cannot be assigned to the mutable type '("data_flows" | "integrations" | "cross_cutting" | "dependencies")[]'.
+src/index.ts(962,58): error TS2339: Property 'message' does not exist on type 'string'.
+src/index.ts(1078,10): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/index.ts(1392,32): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/index.ts(1579,35): error TS2339: Property 'confidenceScore' does not exist on type 'EnhancedSeamAnalysis'.
+src/index.ts(1580,34): error TS2339: Property 'patternMatches' does not exist on type 'EnhancedSeamAnalysis'.
+src/index.ts(1593,29): error TS2339: Property 'message' does not exist on type 'string'.
+src/index.ts(1633,38): error TS2339: Property 'components' does not exist on type 'InteractionMatrix'.
+src/index.ts(1636,15): error TS2339: Property 'interactions' does not exist on type 'InteractionMatrix'.
+src/index.ts(1638,6): error TS7006: Parameter 'interaction' implicitly has an 'any' type.
+src/index.ts(1663,29): error TS2339: Property 'message' does not exist on type 'string'.
+src/index.ts(1700,26): error TS2339: Property 'dataFlows' does not exist on type 'DataFlowAnalysis'.
+src/index.ts(1703,15): error TS2339: Property 'dataFlows' does not exist on type 'DataFlowAnalysis'.
+src/index.ts(1705,6): error TS7006: Parameter 'flow' implicitly has an 'any' type.
+src/index.ts(1719,18): error TS2339: Property 'location' does not exist on type 'string'.
+src/index.ts(1719,44): error TS2339: Property 'reason' does not exist on type 'string'.
+src/index.ts(1720,28): error TS2339: Property 'severity' does not exist on type 'string'.
+src/index.ts(1721,26): error TS2339: Property 'impact' does not exist on type 'string'.
+src/index.ts(1729,15): error TS2339: Property 'optimizationRecommendations' does not exist on type 'DataFlowAnalysis'.
+src/index.ts(1730,12): error TS7006: Parameter 'rec' implicitly has an 'any' type.
+src/index.ts(1744,29): error TS2339: Property 'message' does not exist on type 'string'.
+src/index.ts(1784,27): error TS2551: Property 'validatedSeams' does not exist on type 'SeamValidationResult'. Did you mean 'validSeams'?
+src/index.ts(1787,15): error TS2551: Property 'validatedSeams' does not exist on type 'SeamValidationResult'. Did you mean 'validSeams'?
+src/index.ts(1789,6): error TS7006: Parameter 'seam' implicitly has an 'any' type.
+src/index.ts(1797,38): error TS2339: Property 'overallReadiness' does not exist on type 'SeamValidationResult'.
+src/index.ts(1801,15): error TS2339: Property 'missingRequirements' does not exist on type 'SeamValidationResult'.
+src/index.ts(1801,41): error TS7006: Parameter 'req' implicitly has an 'any' type.
+src/index.ts(1820,29): error TS2339: Property 'message' does not exist on type 'string'.
+src/seams.ts(7,3): error TS2305: Module '"./contracts.js"' has no exported member 'AgentId'.
+src/seams.ts(8,3): error TS2305: Module '"./contracts.js"' has no exported member 'ComplianceReport'.
+src/seams.ts(11,3): error TS2305: Module '"./contracts.js"' has no exported member 'DiagnosticInfo'.
+src/seams.ts(12,3): error TS2305: Module '"./contracts.js"' has no exported member 'ErrorContext'.
+src/seams.ts(13,3): error TS2305: Module '"./contracts.js"' has no exported member 'HealthReport'.
+src/seams.ts(15,3): error TS2305: Module '"./contracts.js"' has no exported member 'SeamDefinition'.
+src/seams.ts(16,3): error TS2305: Module '"./contracts.js"' has no exported member 'ServerConfig'.
+src/seams.ts(17,3): error TS2305: Module '"./contracts.js"' has no exported member 'ServerHealth'.
+src/seams.ts(18,3): error TS2305: Module '"./contracts.js"' has no exported member 'TemplateData'.
+src/seams.ts(229,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<SeamDefinition[]>'.
+  Type 'undefined' is not assignable to type 'SeamDefinition[]'.
+src/seams.ts(237,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<SeamDefinition[]>'.
+  Type 'undefined' is not assignable to type 'SeamDefinition[]'.
+src/seams.ts(258,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<ContractGenerationResult>'.
+  Type 'undefined' is not assignable to type 'ContractGenerationResult'.
+src/seams.ts(266,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<ContractGenerationResult>'.
+  Type 'undefined' is not assignable to type 'ContractGenerationResult'.
+src/seams.ts(287,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<ProjectStructure>'.
+  Type 'undefined' is not assignable to type 'ProjectStructure'.
+src/seams.ts(295,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<ProjectStructure>'.
+  Type 'undefined' is not assignable to type 'ProjectStructure'.
+src/seams.ts(332,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<string>'.
+  Type 'undefined' is not assignable to type 'string'.
+src/seams.ts(340,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<string>'.
+  Type 'undefined' is not assignable to type 'string'.
+src/seams.ts(362,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<string>'.
+  Type 'undefined' is not assignable to type 'string'.
+src/seams.ts(370,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<string>'.
+  Type 'undefined' is not assignable to type 'string'.
+src/seams.ts(637,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<boolean>'.
+  Type 'undefined' is not assignable to type 'boolean'.
+src/seams.ts(645,7): error TS2322: Type 'ContractResult<undefined>' is not assignable to type 'ContractResult<boolean>'.
+  Type 'undefined' is not assignable to type 'boolean'.
+src/seams.ts(697,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<SeamConnection[]>'.
+src/seams.ts(707,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<SeamConnection[]>'.
+src/seams.ts(756,47): error TS2554: Expected 2 arguments, but got 1.
+src/seams.ts(761,46): error TS2554: Expected 2 arguments, but got 1.
+src/seams.ts(764,49): error TS2554: Expected 3 arguments, but got 1.
+src/stubs.ts(7,3): error TS2305: Module '"./contracts.js"' has no exported member 'AgentId'.
+src/stubs.ts(8,3): error TS2305: Module '"./contracts.js"' has no exported member 'ComplianceReport'.
+src/stubs.ts(13,3): error TS2305: Module '"./contracts.js"' has no exported member 'createDetailedError'.
+src/stubs.ts(14,3): error TS2305: Module '"./contracts.js"' has no exported member 'createSDDError'.
+src/stubs.ts(17,3): error TS2305: Module '"./contracts.js"' has no exported member 'DiagnosticInfo'.
+src/stubs.ts(18,3): error TS2305: Module '"./contracts.js"' has no exported member 'ErrorContext'.
+src/stubs.ts(20,3): error TS2305: Module '"./contracts.js"' has no exported member 'HealthReport'.
+src/stubs.ts(23,3): error TS2305: Module '"./contracts.js"' has no exported member 'PatternReport'.
+src/stubs.ts(28,3): error TS2305: Module '"./contracts.js"' has no exported member 'ServerConfig'.
+src/stubs.ts(29,3): error TS2305: Module '"./contracts.js"' has no exported member 'ServerHealth'.
+src/stubs.ts(31,3): error TS2305: Module '"./contracts.js"' has no exported member 'TemplateData'.
+src/stubs.ts(55,28): error TS2339: Property 'category' does not exist on type 'SDDError'.
+src/stubs.ts(65,5): error TS2322: Type 'SDDError | undefined' is not assignable to type 'string | undefined'.
+  Type 'SDDError' is not assignable to type 'string'.
+src/stubs.ts(441,3): error TS2305: Module '"./contracts.js"' has no exported member 'SeamDefinition'.
+src/template-processor.ts(9,15): error TS2305: Module '"./contracts.js"' has no exported member 'SeamDefinition'.
+src/template-processor.ts(229,18): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/template-processor.ts(507,8): error TS7006: Parameter 'p' implicitly has an 'any' type.
+src/tests/seam-integration.test.ts(23,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(35,11): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(44,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(53,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(102,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(111,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(147,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(156,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(187,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(196,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(232,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(241,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(272,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(281,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string>'.
+src/tests/seam-integration.test.ts(342,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string[]>'.
+src/tests/seam-integration.test.ts(351,9): error TS2353: Object literal may only specify known properties, and 'agentId' does not exist in type 'ContractResult<string[]>'.
+src/tools/analyze-data-flows-tool.ts(9,10): error TS2305: Module '"../contracts.js"' has no exported member 'validateSeamInput'.
+src/tools/analyze-data-flows-tool.ts(120,7): error TS2322: Type '{ category: string; message: string; agentId: string; seamName: string; timestamp: string; }' is not assignable to type 'string'.
+src/tools/enhanced-seam-analysis-tool.ts(9,10): error TS2305: Module '"../contracts.js"' has no exported member 'validateSeamInput'.
+src/tools/enhanced-seam-analysis-tool.ts(100,7): error TS2322: Type '{ category: string; message: string; agentId: string; seamName: string; timestamp: string; }' is not assignable to type 'string'.
+src/tools/generate-interaction-matrix-tool.ts(9,10): error TS2305: Module '"../contracts.js"' has no exported member 'validateSeamInput'.
+src/tools/generate-interaction-matrix-tool.ts(119,7): error TS2322: Type '{ category: string; message: string; agentId: string; seamName: string; timestamp: string; }' is not assignable to type 'string'.
+src/tools/validate-seam-readiness-tool.ts(9,10): error TS2305: Module '"../contracts.js"' has no exported member 'validateSeamInput'.
+src/tools/validate-seam-readiness-tool.ts(112,7): error TS2322: Type '{ category: string; message: string; agentId: string; seamName: string; timestamp: string; }' is not assignable to type 'string'.

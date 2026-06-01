@@ -31,6 +31,8 @@ Thumbs.db
 # Logs
 logs/
 *.log
+test_*.log
+tsc_errors.txt
 
 # Runtime data
 pids/
@@ -48,5 +50,15 @@ temp/
 # Optional npm cache directory
 .npm
 
-# Optional eslint cache
-.eslintcache
+# Backup files
+*.backup
+*.backup.*
+*.backup-old.*
+*.bak
+
+# Test output files
+test_output.log
+test_error.log
+
+# Copilot notes (keep structure but ignore content)
+copilot_endof_chat_notes/

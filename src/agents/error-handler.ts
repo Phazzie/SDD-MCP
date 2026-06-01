@@ -11,6 +11,7 @@ import {
   DiagnosticInfo,
   ErrorContext,
   ErrorHandlerContract,
+  SDDError, // Import SDDError
 } from "../contracts.js";
 import { seamManager } from "../seams.js";
 
@@ -59,12 +60,23 @@ export class ErrorHandler implements ErrorHandlerContract {
       await this.writeLogToFile(logEntry);
 
       // Log to console with appropriate level
-      this.logToConsole(logEntry); // Notify seam manager about error through error handling seam
-      await seamManager.errorHandling.communicateErrorReport(
-        context.agentId,
-        error,
-        context
-      );
+      this.logToConsole(logEntry);
+
+      // Notify seam manager about error through error handling seam
+      // This might be problematic if seamManager or its dependencies also use ErrorHandler
+      // and cause a loop. For now, assuming it's handled.
+      try {
+        await seamManager.errorHandling.communicateErrorReport(
+          context.agentId,
+          error,
+          context
+        );
+      } catch (seamError) {
+        console.error(
+          `❌ ${this.agentId}: Failed to communicate error report via seam:`,
+          seamError
+        );
+      }
 
       console.log(
         `🔍 ${this.agentId}: Handled ${errorCategory} error from ${context.agentId}`
@@ -72,8 +84,10 @@ export class ErrorHandler implements ErrorHandlerContract {
 
       return {
         success: true,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+        },
       };
     } catch (handlingError) {
       // Fallback error handling - don't throw from error handler
@@ -81,15 +95,28 @@ export class ErrorHandler implements ErrorHandlerContract {
         `❌ ${this.agentId}: Failed to handle error:`,
         handlingError
       );
+      const err =
+        handlingError instanceof Error
+          ? handlingError
+          : new Error(String(handlingError));
+      const sddError: SDDError = {
+        agentId: this.agentId,
+        category: "ProcessingError",
+        message: `ErrorHandler.handleError failed: ${err.message}`,
+        timestamp: new Date().toISOString(),
+        details: {
+          originalError: err.stack,
+          operation: "ErrorHandler.handleError.catch",
+        },
+      };
       return {
         success: false,
-        error: `Error handling failed: ${
-          handlingError instanceof Error
-            ? handlingError.message
-            : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        error: sddError,
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          operation: "ErrorHandler.handleError.catch",
+        },
       };
     }
   }
@@ -97,7 +124,7 @@ export class ErrorHandler implements ErrorHandlerContract {
   // Blueprint: Structured error logging with agent tracking
   async logError(
     agentId: AgentId,
-    error: string,
+    errorMessage: string, // Changed from 'error: string' to 'errorMessage: string' for clarity
     details?: any
   ): Promise<ContractResult<void>> {
     try {
@@ -106,11 +133,11 @@ export class ErrorHandler implements ErrorHandlerContract {
       const logEntry: ErrorLogEntry = {
         timestamp,
         agentId,
-        operation: "manual-log",
-        errorType: "ManualError",
-        errorMessage: error,
-        stackTrace: undefined,
-        category: "application",
+        operation: details?.operation || "manual-log",
+        errorType: details?.errorType || "ManualError",
+        errorMessage: errorMessage,
+        stackTrace: details?.stackTrace, // Allow passing stack trace
+        category: details?.category || "application", // Allow passing category
         additionalInfo: details,
       };
 
@@ -130,18 +157,35 @@ export class ErrorHandler implements ErrorHandlerContract {
 
       return {
         success: true,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        metadata: {
+          agentId: this.agentId, // Logged by ErrorHandler itself
+          timestamp: new Date().toISOString(),
+        },
       };
     } catch (loggingError) {
       console.error(`❌ ${this.agentId}: Failed to log error:`, loggingError);
+      const err =
+        loggingError instanceof Error
+          ? loggingError
+          : new Error(String(loggingError));
+      const sddError: SDDError = {
+        agentId: this.agentId,
+        category: "ProcessingError",
+        message: `ErrorHandler.logError failed: ${err.message}`,
+        timestamp: new Date().toISOString(),
+        details: {
+          originalError: err.stack,
+          operation: "ErrorHandler.logError.catch",
+        },
+      };
       return {
         success: false,
-        error: `Error logging failed: ${
-          loggingError instanceof Error ? loggingError.message : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        error: sddError,
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          operation: "ErrorHandler.logError.catch",
+        },
       };
     }
   }
@@ -149,25 +193,72 @@ export class ErrorHandler implements ErrorHandlerContract {
   // Blueprint: Create typed error result for specific return types
   createTypedErrorResult<T>(
     error: Error,
-    context: Partial<ErrorContext>,
+    context: Partial<ErrorContext>, // agentId, operation, additionalInfo
     fallbackData?: T
   ): ContractResult<T> {
     // Log the error internally
     this.logError(
       context.agentId || this.agentId,
-      error.message,
-      context
-    ).catch((logError) => {
-      console.error(`Failed to log error: ${logError}`);
+      error.message, // Pass message
+      {
+        // Pass structured details
+        originalErrorType: error.constructor.name,
+        operation: context.operation,
+        additionalDetails: context.additionalInfo,
+        stackTrace: error.stack, // Log stack trace
+        category: this.categorizeError(error), // Use internal categorization for logging
+      }
+    ).catch((logErr) => {
+      // Renamed variable to avoid conflict
+      // Minimal console log to avoid loops if logging itself fails
+      console.error(
+        `[ErrorHandler] CRITICAL: Failed to log error via this.logError: ${logErr}`
+      );
     });
+
+    let sddCategory: SDDError["category"] = "ProcessingError";
+    if (
+      error.name === "TypeError" ||
+      error.message.toLowerCase().includes("validation")
+    ) {
+      sddCategory = "ValidationError";
+    } else if (error.name === "ReferenceError") {
+      sddCategory = "ProcessingError"; // Could be a bug
+    } else if (error.name === "NotImplementedError") {
+      sddCategory = "NotImplementedError";
+    }
+    // More sophisticated mapping could be added here
+
+    const sddErrorInstance: SDDError = {
+      message: error.message,
+      agentId: context.agentId || this.agentId,
+      timestamp: new Date().toISOString(),
+      category: sddCategory,
+      details: {
+        originalErrorType: error.constructor.name,
+        operation: context.operation,
+        ...(context.additionalInfo || {}),
+      },
+      seamName: context.additionalInfo?.seamName,
+      severity: this.mapSeverity(this.categorizeError(error)), // Map internal category to severity
+      suggestions: this.getRecoverySuggestions(error.name).slice(0, 3), // Add some suggestions
+    };
 
     return {
       success: false,
       data: fallbackData,
-      error: error.message,
-      agentId: context.agentId || this.agentId,
-      timestamp: new Date().toISOString(),
-      metadata: context.additionalInfo,
+      error: sddErrorInstance,
+      metadata: {
+        agentId: context.agentId || this.agentId,
+        timestamp: new Date().toISOString(),
+        operation: context.operation,
+        ...(context.additionalInfo?.requestId && {
+          requestId: context.additionalInfo.requestId,
+        }),
+        ...(context.additionalInfo?.seamName && {
+          seamName: context.additionalInfo.seamName,
+        }),
+      },
     };
   }
 
@@ -175,21 +266,35 @@ export class ErrorHandler implements ErrorHandlerContract {
   async suggestRecovery(errorType: string): Promise<ContractResult<string[]>> {
     try {
       const suggestions = this.getRecoverySuggestions(errorType);
-
       return {
         success: true,
         data: suggestions,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+        },
       };
     } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      const sddError: SDDError = {
+        agentId: this.agentId,
+        category: "ProcessingError",
+        message: `Failed to suggest recovery: ${err.message}`,
+        timestamp: new Date().toISOString(),
+        details: {
+          originalError: err.stack,
+          operation: "suggestRecovery.catch",
+          errorType,
+        },
+      };
       return {
         success: false,
-        error: `Failed to suggest recovery: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        error: sddError,
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          operation: "suggestRecovery.catch",
+        },
       };
     }
   }
@@ -200,21 +305,26 @@ export class ErrorHandler implements ErrorHandlerContract {
       const now = Date.now();
       const recentErrors = this.errorLog
         .filter((entry) => now - new Date(entry.timestamp).getTime() < 3600000) // Last hour
-        .map((entry) => `${entry.agentId}: ${entry.errorMessage}`)
+        .map(
+          (entry) =>
+            `${entry.agentId} (${entry.operation || "N/A"}): ${
+              entry.errorMessage
+            }`
+        )
         .slice(-10); // Last 10 errors
 
       const errorCount = this.errorLog.length;
+      // ... (rest of the diagnostic logic remains the same)
+      let systemHealth: "good" | "degraded" | "critical";
       const criticalErrors = this.errorLog.filter(
         (entry) => entry.category === "critical"
       ).length;
-      const recentCritical = recentErrors.filter((error) =>
-        this.errorLog.some(
-          (entry) =>
-            error.includes(entry.errorMessage) && entry.category === "critical"
-        )
+      const recentCritical = this.errorLog.filter(
+        (entry) =>
+          new Date(entry.timestamp).getTime() > now - 3600000 &&
+          entry.category === "critical"
       ).length;
 
-      let systemHealth: "good" | "degraded" | "critical";
       if (recentCritical > 0) {
         systemHealth = "critical";
       } else if (recentErrors.length > 5) {
@@ -238,17 +348,31 @@ export class ErrorHandler implements ErrorHandlerContract {
       return {
         success: true,
         data: diagnostics,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+        },
       };
     } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      const sddError: SDDError = {
+        agentId: this.agentId,
+        category: "ProcessingError",
+        message: `Failed to collect diagnostics: ${err.message}`,
+        timestamp: new Date().toISOString(),
+        details: {
+          originalError: err.stack,
+          operation: "collectDiagnostics.catch",
+        },
+      };
       return {
         success: false,
-        error: `Failed to collect diagnostics: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        error: sddError,
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          operation: "collectDiagnostics.catch",
+        },
       };
     }
   }
@@ -260,10 +384,14 @@ export class ErrorHandler implements ErrorHandlerContract {
     const errorMessage = error.message.toLowerCase();
     const errorType = error.constructor.name;
 
-    // Critical system errors
+    if (errorType === "NotImplementedError") {
+      // SDD Specific
+      return "info";
+    }
     if (
-      errorType === "TypeError" &&
-      errorMessage.includes("cannot read property")
+      errorType === "SyntaxError" ||
+      (errorType === "TypeError" &&
+        errorMessage.includes("cannot read property"))
     ) {
       return "critical";
     }
@@ -278,23 +406,35 @@ export class ErrorHandler implements ErrorHandlerContract {
     }
     if (
       errorMessage.includes("permission") ||
-      errorMessage.includes("access")
+      errorMessage.includes("access denied")
     ) {
+      // More specific
       return "critical";
     }
-    if (errorType === "SyntaxError") {
-      return "critical";
-    }
-
-    // Application-level errors
-    if (errorType === "NotImplementedError") {
-      return "info";
-    }
-
+    // Default for other errors
     return "application";
   }
 
-  private getRecoverySuggestions(errorType: string): string[] {
+  // Helper method to map internal category to SDDError.severity
+  private mapSeverity(
+    internalCategory: ReturnType<typeof this.categorizeError>
+  ): SDDError["severity"] {
+    switch (internalCategory) {
+      case "critical":
+        return "critical";
+      case "warning":
+        return "high";
+      case "info":
+        return "low";
+      case "application":
+        return "medium";
+      default:
+        return "medium";
+    }
+  }
+
+  private getRecoverySuggestions(errorTypeOrName: string): string[] {
+    // ... (getRecoverySuggestions logic remains the same)
     const suggestions: Record<string, string[]> = {
       ENOENT: [
         "Check if the file path is correct",
@@ -309,36 +449,37 @@ export class ErrorHandler implements ErrorHandlerContract {
       ],
       TypeError: [
         "Check for null or undefined values",
-        "Verify object structure",
-        "Ensure proper initialization",
+        "Verify object structure and types",
+        "Ensure proper initialization of variables",
         "Add null checks before property access",
       ],
       ReferenceError: [
-        "Check variable declarations",
-        "Verify import statements",
-        "Ensure proper scope",
-        "Check for typos in variable names",
+        "Check variable declarations and spelling",
+        "Verify import statements and paths",
+        "Ensure proper scope for variables",
       ],
       SyntaxError: [
-        "Check code syntax",
-        "Verify JSON structure",
-        "Look for missing brackets or commas",
-        "Validate template syntax",
+        "Check code syntax for typos or structural errors",
+        "Verify JSON structure if parsing JSON",
+        "Look for missing brackets, commas, or quotes",
+        "Validate template syntax if processing templates",
       ],
       NotImplementedError: [
-        "Complete the implementation",
-        "Check SDD implementation strategy",
-        "Implement required methods",
-        "Follow contract specifications",
+        // SDD Specific
+        "Complete the method implementation as per blueprint/contract",
+        "Check SDD implementation strategy and task list",
+        "Follow contract specifications for expected behavior",
       ],
     };
 
     return (
-      suggestions[errorType] || [
+      suggestions[errorTypeOrName] ||
+      suggestions[errorTypeOrName.toUpperCase()] || [
+        // Check for common error codes like ENOENT
         "Review error message for details",
-        "Check logs for additional context",
-        "Verify configuration settings",
-        "Restart the service if needed",
+        "Check application logs for additional context",
+        "Verify configuration settings related to the operation",
+        "If persistent, consult documentation or support channels",
       ]
     );
   }
@@ -347,17 +488,24 @@ export class ErrorHandler implements ErrorHandlerContract {
     systemHealth: "good" | "degraded" | "critical",
     recentErrors: string[]
   ): string[] {
+    // ... (generateRecommendations logic remains the same)
     const recommendations: string[] = [];
 
     if (systemHealth === "critical") {
       recommendations.push(
         "🔴 System health is critical - immediate attention required"
       );
-      recommendations.push("Review recent errors and apply fixes");
-      recommendations.push("Consider restarting affected services");
+      recommendations.push(
+        "Review recent critical errors and apply fixes urgently"
+      );
+      recommendations.push(
+        "Consider restarting affected services if necessary and safe"
+      );
     } else if (systemHealth === "degraded") {
       recommendations.push("🟡 System health is degraded - monitor closely");
-      recommendations.push("Investigate recurring error patterns");
+      recommendations.push(
+        "Investigate recurring error patterns to identify root causes"
+      );
     } else {
       recommendations.push("✅ System health is good");
     }
@@ -366,15 +514,25 @@ export class ErrorHandler implements ErrorHandlerContract {
     const errorPatterns = this.analyzeErrorPatterns(recentErrors);
     recommendations.push(...errorPatterns);
 
+    if (
+      recommendations.length === 1 &&
+      recommendations[0] === "✅ System health is good"
+    ) {
+      return ["No specific recommendations at this time. System is stable."];
+    }
+
     return recommendations;
   }
 
   private analyzeErrorPatterns(recentErrors: string[]): string[] {
+    // ... (analyzeErrorPatterns logic remains the same)
     const patterns: string[] = [];
+    if (!recentErrors || recentErrors.length === 0) return patterns;
 
-    // Check for repeated errors
-    const errorCounts = recentErrors.reduce((counts, error) => {
-      counts[error] = (counts[error] || 0) + 1;
+    const errorCounts = recentErrors.reduce((counts, errorStr) => {
+      // Extract primary message for better grouping
+      const coreMessage = errorStr.split(":")[1]?.trim() || errorStr;
+      counts[coreMessage] = (counts[coreMessage] || 0) + 1;
       return counts;
     }, {} as Record<string, number>);
 
@@ -382,65 +540,82 @@ export class ErrorHandler implements ErrorHandlerContract {
       ([, count]) => count > 2
     );
     if (repeatedErrors.length > 0) {
-      patterns.push("🔄 Repeated errors detected - investigate root cause");
+      patterns.push(
+        `🔄 Repeated errors detected (${repeatedErrors
+          .map((e) => `'${e[0]}'`)
+          .join(", ")}) - investigate root cause`
+      );
     }
 
-    // Check for configuration issues
-    if (
-      recentErrors.some(
-        (error) => error.includes("config") || error.includes("Config")
-      )
-    ) {
-      patterns.push("⚙️ Configuration issues detected - review settings");
+    if (recentErrors.some((e) => e.toLowerCase().includes("config"))) {
+      patterns.push(
+        "⚙️ Potential configuration issues detected - review settings"
+      );
     }
-
-    // Check for template issues
+    if (recentErrors.some((e) => e.toLowerCase().includes("template"))) {
+      patterns.push(
+        "📄 Potential template issues detected - verify template files and syntax"
+      );
+    }
     if (
       recentErrors.some(
-        (error) => error.includes("template") || error.includes("Template")
+        (e) =>
+          e.toLowerCase().includes("permission") ||
+          e.toLowerCase().includes("access")
       )
     ) {
-      patterns.push("📄 Template issues detected - verify template files");
+      patterns.push(
+        "🛡️ Potential permission issues detected - check file/resource access rights"
+      );
+    }
+    if (recentErrors.some((e) => e.toLowerCase().includes("not implemented"))) {
+      patterns.push(
+        "🚧 'NotImplementedError' detected - check for incomplete SDD stubs or features."
+      );
     }
 
     return patterns;
   }
 
   private async writeLogToFile(entry: ErrorLogEntry): Promise<void> {
+    // ... (writeLogToFile logic remains the same)
     try {
-      // Ensure log directory exists
       const logDir = path.dirname(this.logPath);
       await fs.mkdir(logDir, { recursive: true });
-
-      // Format log entry
-      const logLine = JSON.stringify(entry) + "\n";
-
-      // Append to log file
+      const logLine = JSON.stringify(entry) + "\\n";
       await fs.appendFile(this.logPath, logLine);
     } catch (error) {
-      // Don't throw from logging - just log to console
-      console.error(`Failed to write to log file: ${error}`);
+      console.error(
+        `[ErrorHandler] CRITICAL: Failed to write to log file ${this.logPath}: ${error}`
+      );
     }
   }
 
   private logToConsole(entry: ErrorLogEntry): void {
-    const prefix = `[${entry.timestamp}] ${entry.agentId}`;
+    // ... (logToConsole logic remains the same)
+    const prefix = `[${entry.timestamp}] [${entry.agentId}${
+      entry.operation ? `/${entry.operation}` : ""
+    }]`;
 
     switch (entry.category) {
       case "critical":
-        console.error(`🔴 ${prefix}: ${entry.errorMessage}`);
+        console.error(`🔴 ${prefix} CRITICAL: ${entry.errorMessage}`);
         break;
       case "warning":
-        console.warn(`🟡 ${prefix}: ${entry.errorMessage}`);
+        console.warn(`🟡 ${prefix} WARNING: ${entry.errorMessage}`);
         break;
       case "info":
-        console.info(`ℹ️ ${prefix}: ${entry.errorMessage}`);
+        console.info(`ℹ️ ${prefix} INFO: ${entry.errorMessage}`);
         break;
-      default:
-        console.log(`📝 ${prefix}: ${entry.errorMessage}`);
+      default: // application
+        console.log(`📝 ${prefix} APP_ERROR: ${entry.errorMessage}`);
     }
 
-    if (entry.stackTrace && entry.category === "critical") {
+    if (
+      entry.stackTrace &&
+      (entry.category === "critical" || entry.category === "application")
+    ) {
+      // Also log stack for application errors if available
       console.error(entry.stackTrace);
     }
   }
@@ -449,14 +624,16 @@ export class ErrorHandler implements ErrorHandlerContract {
   async healthCheck(): Promise<ContractResult<string>> {
     try {
       const checks = [];
+      const now = Date.now();
 
       // Check log file access
       try {
         const logDir = path.dirname(this.logPath);
-        await fs.access(logDir);
+        await fs.access(logDir); // Check if dir exists and is accessible
+        // Try a test write if possible, or check permissions more deeply
         checks.push("✅ Log directory accessible");
       } catch {
-        checks.push("⚠️ Log directory not accessible");
+        checks.push("⚠️ Log directory not accessible or does not exist");
       }
 
       // Check memory usage
@@ -465,42 +642,84 @@ export class ErrorHandler implements ErrorHandlerContract {
         checks.push(
           `✅ Memory log healthy (${memoryLogSize}/${this.maxLogEntries})`
         );
-      } else {
+      } else if (memoryLogSize < this.maxLogEntries) {
         checks.push(
           `⚠️ Memory log approaching limit (${memoryLogSize}/${this.maxLogEntries})`
+        );
+      } else {
+        checks.push(
+          `❌ Memory log full or over limit (${memoryLogSize}/${this.maxLogEntries}) - oldest logs might be lost`
         );
       }
 
       // Check recent error rate
-      const recentErrors = this.errorLog.filter(
-        (entry) => Date.now() - new Date(entry.timestamp).getTime() < 3600000
+      const recentErrorEntries = this.errorLog.filter(
+        (entry) => new Date(entry.timestamp).getTime() > now - 3600000 // Last hour
       );
 
-      if (recentErrors.length < 10) {
-        checks.push("✅ Error rate is normal");
+      if (recentErrorEntries.length < 10) {
+        checks.push(
+          `✅ Error rate normal (${recentErrorEntries.length} in last hour)`
+        );
+      } else if (recentErrorEntries.length < 50) {
+        checks.push(
+          `🟡 Elevated error rate (${recentErrorEntries.length} in last hour)`
+        );
       } else {
-        checks.push("🟡 High error rate detected");
+        checks.push(
+          `❌ High error rate (${recentErrorEntries.length} in last hour)`
+        );
       }
 
-      const healthStatus = checks.join("\n");
-      const isHealthy = !checks.some((check) => check.includes("❌"));
+      const criticalRecent = recentErrorEntries.filter(
+        (e) => e.category === "critical"
+      ).length;
+      if (criticalRecent > 0) {
+        checks.push(`❌ ${criticalRecent} critical error(s) in the last hour.`);
+      }
+
+      const healthStatus = checks.join("\\n");
+      // isHealthy is true if no "❌" messages
+      const isHealthy = !checks.some((check) => check.startsWith("❌"));
+
+      if (!isHealthy) {
+        return this.createTypedErrorResult<string>(
+          new Error(
+            "ErrorHandler health check failed: Critical issues detected."
+          ),
+          {
+            agentId: this.agentId,
+            operation: "healthCheck.criticalIssues",
+            additionalInfo: { healthStatusDetail: healthStatus }, // Use a different key
+          },
+          healthStatus // fallback data
+        );
+      }
 
       return {
-        success: isHealthy,
+        success: true,
         data: healthStatus,
-        error: isHealthy ? undefined : "Some error handling issues detected",
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          notes: checks.some((c) => c.startsWith("⚠️"))
+            ? "Health check passed with warnings."
+            : "Health check passed.",
+        },
       };
     } catch (error) {
-      return {
-        success: false,
-        error: `Health check failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
-      };
+      // This catch is for errors within the healthCheck logic itself
+      return this.createTypedErrorResult<string>(
+        error instanceof Error
+          ? error
+          : new Error(
+              "Unknown error during ErrorHandler healthCheck execution"
+            ),
+        {
+          agentId: this.agentId,
+          operation: "healthCheck.executionError",
+        }
+      );
     }
   }
 }
@@ -509,11 +728,11 @@ export class ErrorHandler implements ErrorHandlerContract {
 interface ErrorLogEntry {
   timestamp: string;
   agentId: AgentId;
-  operation: string;
-  errorType: string;
+  operation: string; // Operation during which error occurred
+  errorType: string; // e.g., TypeError, ManualError
   errorMessage: string;
   stackTrace?: string;
-  category: "critical" | "warning" | "info" | "application";
+  category: "critical" | "warning" | "info" | "application"; // Internal categorization
   additionalInfo?: any;
 }
 

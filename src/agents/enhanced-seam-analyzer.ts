@@ -1,208 +1,276 @@
-/**
- * 🎯 ENHANCED SEAM ANALYZER
- * PURPOSE: Implementation stub for enhanced seam analysis capabilities
- * STATUS: STUB - Following SDD patterns with NotImplementedError
- * SEAM: SeamAnalyzer ↔ Enhanced pattern recognition system
- * CONTRACT VERSION: 2.0.0 - Enhanced pattern recognition
- */
+// AGENT_ID: EnhancedSeamAnalyzer_Agent
+// SDD_PHASE: 1 (Stubs)
+//
+// PURPOSE:
+// This agent is responsible for performing enhanced seam analysis on requirements text.
+// It uses advanced pattern recognition and AI-powered techniques to identify component
+// seams, data flows, integrations, dependencies, and cross-cutting concerns.
+//
+// SEAMS:
+// - Consumes:
+//   - RequirementsInputSeam: Receives the requirements text and analysis parameters.
+//   - ConfigurationSeam: Retrieves configuration for analysis (e.g., depth, focus areas).
+// - Produces:
+//   - SeamAnalysisOutputSeam: Outputs the identified seams and analysis details.
+// - Internal:
+//   - PatternRecognitionSeam: Applies pattern recognition algorithms.
+//   - AIIntegrationSeam: Interacts with AI models for deeper insights.
+//   - ErrorHandlingSeam: Manages and logs errors during analysis.
+//
+// CONTRACTS:
+// - Implements: IEnhancedSeamAnalyzer (from src/contracts.ts)
+// - Consumes:
+//   - IConfigManager (via seam for configuration)
+//   - IErrorHandler (for logging errors)
 
 import {
+  AnalysisDepth,
   ContractResult,
-  createSDDError,
   DataFlowAnalysis,
   DataFlowAnalysisInput,
+  DesignConcern,
   EnhancedSeamAnalysis,
+  EnhancedSeamAnalysisInput,
+  EnhancedSeamAnalysisOutput,
+  FocusArea,
   IEnhancedSeamAnalyzer,
   InteractionMatrix,
   InteractionMatrixInput,
+  NotImplementedError,
   SeamAnalysisInput,
+  SeamDetail,
   SeamValidationInput,
   SeamValidationResult,
 } from "../contracts.js";
+import { ErrorHandler } from "./error-handler.js"; // Assuming ErrorHandler is in the same directory
 
-// Blueprint: NotImplementedError for tracking implementation progress
-class NotImplementedError extends Error {
-  constructor(contractMethod: string, blueprint: string) {
-    super(`${contractMethod} not implemented. ${blueprint}`);
-    this.name = "NotImplementedError";
-  }
-}
-
+/**
+ * @agent EnhancedSeamAnalyzer_Agent
+ * @description Performs enhanced seam analysis on requirements documentation.
+ * @sdd_phase 1 (Stubs)
+ */
 export class EnhancedSeamAnalyzer implements IEnhancedSeamAnalyzer {
-  private readonly agentId = "enhanced-seam-analyzer-001";
+  private errorHandler: ErrorHandler;
 
-  /**
-   * 🔄 REFACTOR: Enhanced requirements analysis with pattern recognition
-   * Blueprint: TODO - Replace keyword matching with NLP/AI analysis
-   * SEAM: SeamAnalyzer ↔ RequirementsProcessor
-   */
-  async analyzeRequirementsEnhanced(
+  constructor() {
+    this.errorHandler = new ErrorHandler("EnhancedSeamAnalyzer");
+  }
+  analyzeRequirementsEnhanced(
     input: SeamAnalysisInput
   ): Promise<ContractResult<EnhancedSeamAnalysis>> {
-    try {
-      // Fail-fast validation
-      if (!input.requirementsText?.trim()) {
-        return {
-          success: false,
-          error: createSDDError(
-            this.agentId,
-            "ValidationError",
-            "Requirements text is required for enhanced analysis",
-            { seamName: "SeamAnalyzer-RequirementsProcessor" }
-          ),
-        };
-      }
-
-      // 🔨 HARD_WORK: Implement advanced pattern recognition
-      throw new NotImplementedError(
-        `${this.agentId}.analyzeRequirementsEnhanced`,
-        `Blueprint: TODO - Implement NLP-based component identification
-- Multi-pattern matching beyond keywords
-- Context-aware component boundary detection  
-- Cross-cutting concern identification
-- Confidence scoring based on pattern strength`
-      );
-    } catch (error) {
-      return {
-        success: false,
-        error: createSDDError(
-          this.agentId,
-          "NotImplementedError",
-          error instanceof Error ? error.message : String(error),
-          { seamName: "SeamAnalyzer-RequirementsProcessor" }
-        ),
-      };
-    }
+    throw new Error("Method not implemented.");
   }
-
-  /**
-   * 🎯 CRITICAL: Generate component interaction matrix
-   * Blueprint: TODO - Build interaction graph with critical path analysis
-   * SEAM: SeamAnalyzer ↔ InteractionMapper
-   */
-  async generateInteractionMatrix(
+  generateInteractionMatrix(
     input: InteractionMatrixInput
   ): Promise<ContractResult<InteractionMatrix>> {
-    try {
-      // Fail-fast validation
-      if (!input.components?.length) {
-        return {
-          success: false,
-          error: createSDDError(
-            this.agentId,
-            "ValidationError",
-            "Components list is required for interaction matrix generation",
-            { seamName: "SeamAnalyzer-InteractionMapper" }
-          ),
-        };
-      }
-
-      // 🎯 CRITICAL: Implement interaction matrix generation
-      throw new NotImplementedError(
-        `${this.agentId}.generateInteractionMatrix`,
-        `Blueprint: TODO - Build component interaction analysis
-- Parse component relationships from requirements
-- Identify synchronous vs asynchronous interactions
-- Calculate critical paths and bottlenecks  
-- Generate matrix with complexity scoring`
-      );
-    } catch (error) {
-      return {
-        success: false,
-        error: createSDDError(
-          this.agentId,
-          "NotImplementedError",
-          error instanceof Error ? error.message : String(error),
-          { seamName: "SeamAnalyzer-InteractionMapper" }
-        ),
-      };
-    }
+    throw new Error("Method not implemented.");
   }
-
-  /**
-   * 💰 HIGH_ROI: Analyze data flows between components
-   * Blueprint: TODO - Implement data flow tracing with transformation analysis
-   * SEAM: SeamAnalyzer ↔ DataFlowAnalyzer
-   */
-  async analyzeDataFlows(
+  analyzeDataFlows(
     input: DataFlowAnalysisInput
   ): Promise<ContractResult<DataFlowAnalysis>> {
-    try {
-      // Fail-fast validation
-      if (!input.requirements?.trim() || !input.components?.length) {
-        return {
-          success: false,
-          error: createSDDError(
-            this.agentId,
-            "ValidationError",
-            "Requirements and components are required for data flow analysis",
-            { seamName: "SeamAnalyzer-DataFlowAnalyzer" }
-          ),
-        };
-      }
+    throw new Error("Method not implemented.");
+  }
+  validateSeamReadiness(
+    input: SeamValidationInput
+  ): Promise<ContractResult<SeamValidationResult>> {
+    throw new Error("Method not implemented.");
+  }
 
-      // 💰 HIGH_ROI: Implement data flow analysis
-      throw new NotImplementedError(
-        `${this.agentId}.analyzeDataFlows`,
-        `Blueprint: TODO - Build data flow tracing system
-- Identify data entities and types from requirements
-- Map data transformations between components
-- Detect data consistency requirements
-- Identify potential bottlenecks and performance issues`
-      );
-    } catch (error) {
+  /**
+   * @param input - The requirements text and analysis parameters.
+   * @returns A Promise resolving to a ContractResult containing the seam analysis output or an error.
+   * @sdd_phase 1 (Stub)
+   * @tags 🎯 CRITICAL
+   */
+  async analyzeRequirements(
+    input: EnhancedSeamAnalysisInput
+  ): Promise<ContractResult<EnhancedSeamAnalysisOutput>> {
+    // Blueprint:
+    // 1. Validate input: requirementsText must be provided.
+    // 2. Retrieve analysis configuration (depth, focusAreas) using ConfigManager via a seam.
+    // 3. Pre-process requirements text (e.g., clean, tokenize).
+    // 4. Apply basic pattern recognition for initial seam identification.
+    // 5. If AI enhancement is enabled (based on config or input):
+    //    a. Prepare data for AI model.
+    //    b. Call AI model via AIIntegrationSeam.
+    //    c. Process AI model's response to extract enhanced seam details.
+    // 6. Consolidate results from basic and AI-enhanced analysis.
+    // 7. Format the output according to EnhancedSeamAnalysisOutput structure.
+    // 8. Implement comprehensive error handling using ErrorHandler.
+    // 9. Return ContractResult.
+
+    if (!input || !input.requirementsText) {
+      const errorMsg = "Invalid input: requirementsText is mandatory.";
+      await this.errorHandler.logError(new Error(errorMsg), {
+        level: "warn",
+        method: "analyzeRequirements",
+        inputReceived: input,
+      });
       return {
         success: false,
-        error: createSDDError(
-          this.agentId,
-          "NotImplementedError",
-          error instanceof Error ? error.message : String(error),
-          { seamName: "SeamAnalyzer-DataFlowAnalyzer" }
-        ),
+        error: errorMsg,
+        metadata: { errorType: "InputValidationError" },
+      };
+    }
+
+    try {
+      // TODO: Implement actual analysis logic in Phase 2
+      throw new NotImplementedError(
+        "EnhancedSeamAnalyzer.analyzeRequirements",
+        "Blueprint: Validate input, retrieve config, pre-process, apply pattern recognition, integrate AI, consolidate results, format output."
+      );
+    } catch (error: any) {
+      await this.errorHandler.logError(error, {
+        method: "analyzeRequirements",
+        inputReceived: input,
+        description: "Error during requirements analysis stub execution.",
+      });
+      return {
+        success: false,
+        error:
+          error.message || "An unexpected error occurred during seam analysis.",
+        metadata: {
+          errorType:
+            error instanceof NotImplementedError
+              ? "NotImplementedError"
+              : "ProcessingError",
+          originalError: error,
+        },
       };
     }
   }
 
   /**
-   * ⚡ QUICK_WIN: Validate seam readiness for implementation
-   * Blueprint: TODO - Implement seam validation rules
-   * SEAM: SeamAnalyzer ↔ ValidationEngine
+   * @param text - The text to identify seams in.
+   * @param depth - The depth of analysis.
+   * @returns A Promise resolving to a ContractResult containing identified seam details or an error.
+   * @sdd_phase 1 (Stub)
+   * @tags 🔨 HARD_WORK
    */
-  async validateSeamReadiness(
-    input: SeamValidationInput
-  ): Promise<ContractResult<SeamValidationResult>> {
-    try {
-      // Fail-fast validation
-      if (!input.seams?.length) {
-        return {
-          success: false,
-          error: createSDDError(
-            this.agentId,
-            "ValidationError",
-            "Seams list is required for validation",
-            { seamName: "SeamAnalyzer-ValidationEngine" }
-          ),
-        };
-      }
+  async identifySeams(
+    text: string,
+    depth: AnalysisDepth = "basic"
+  ): Promise<ContractResult<SeamDetail[]>> {
+    // Blueprint:
+    // 1. Validate input: text must be provided.
+    // 2. Based on 'depth', apply different levels of pattern matching and rule-based analysis.
+    //    - 'basic': Simple keyword and phrase matching.
+    //    - 'detailed': More complex syntactic and semantic analysis.
+    //    - 'comprehensive': Deep analysis, possibly involving external knowledge bases or AI.
+    // 3. Extract potential seam names, participating components, data flows, and purposes.
+    // 4. Structure the findings into an array of SeamDetail objects.
+    // 5. Implement error handling.
+    // 6. Return ContractResult.
 
-      // ⚡ QUICK_WIN: Basic validation logic can be implemented first
-      throw new NotImplementedError(
-        `${this.agentId}.validateSeamReadiness`,
-        `Blueprint: TODO - Implement seam quality checking
-- Validate seam participant completeness
-- Check for circular dependencies
-- Verify contract interface naming
-- Generate implementation readiness score`
-      );
-    } catch (error) {
+    if (!text) {
+      const errorMsg =
+        "Invalid input: text is mandatory for seam identification.";
+      await this.errorHandler.logError(new Error(errorMsg), {
+        level: "warn",
+        method: "identifySeams",
+        textReceived: text,
+        depthReceived: depth,
+      });
       return {
         success: false,
-        error: createSDDError(
-          this.agentId,
-          "NotImplementedError",
-          error instanceof Error ? error.message : String(error),
-          { seamName: "SeamAnalyzer-ValidationEngine" }
-        ),
+        error: errorMsg,
+        metadata: { errorType: "InputValidationError" },
+      };
+    }
+
+    try {
+      // TODO: Implement actual seam identification logic in Phase 2
+      throw new NotImplementedError(
+        "EnhancedSeamAnalyzer.identifySeams",
+        "Blueprint: Validate input, apply pattern matching based on depth, extract seam details, format output."
+      );
+    } catch (error: any) {
+      await this.errorHandler.logError(error, {
+        method: "identifySeams",
+        textReceived: text,
+        depthReceived: depth,
+        description: "Error during identifySeams stub execution.",
+      });
+      return {
+        success: false,
+        error:
+          error.message ||
+          "An unexpected error occurred during seam identification.",
+        metadata: {
+          errorType:
+            error instanceof NotImplementedError
+              ? "NotImplementedError"
+              : "ProcessingError",
+          originalError: error,
+        },
+      };
+    }
+  }
+
+  /**
+   * @param text - The text to analyze for design concerns.
+   * @param focusAreas - Specific areas to focus the analysis on.
+   * @returns A Promise resolving to a ContractResult containing identified design concerns or an error.
+   * @sdd_phase 1 (Stub)
+   * @tags 🧪 EXPERIMENTAL
+   */
+  async detectDesignConcerns(
+    text: string,
+    focusAreas?: FocusArea[]
+  ): Promise<ContractResult<DesignConcern[]>> {
+    // Blueprint:
+    // 1. Validate input: text must be provided.
+    // 2. If focusAreas are provided, tailor analysis to these areas (e.g., 'data_flows', 'integrations').
+    // 3. Analyze text for patterns indicating potential design issues:
+    //    - Ambiguity, inconsistency, incompleteness.
+    //    - Tight coupling, low cohesion indicators.
+    //    - Missing error handling, security vulnerabilities, performance bottlenecks.
+    // 4. Classify concerns and provide descriptions and potential impacts.
+    // 5. Structure findings into an array of DesignConcern objects.
+    // 6. Implement error handling.
+    // 7. Return ContractResult.
+
+    if (!text) {
+      const errorMsg =
+        "Invalid input: text is mandatory for detecting design concerns.";
+      await this.errorHandler.logError(new Error(errorMsg), {
+        level: "warn",
+        method: "detectDesignConcerns",
+        textReceived: text,
+        focusAreasReceived: focusAreas,
+      });
+      return {
+        success: false,
+        error: errorMsg,
+        metadata: { errorType: "InputValidationError" },
+      };
+    }
+
+    try {
+      // TODO: Implement actual design concern detection logic in Phase 2
+      throw new NotImplementedError(
+        "EnhancedSeamAnalyzer.detectDesignConcerns",
+        "Blueprint: Validate input, tailor analysis to focusAreas, identify design issue patterns, classify concerns, format output."
+      );
+    } catch (error: any) {
+      await this.errorHandler.logError(error, {
+        method: "detectDesignConcerns",
+        textReceived: text,
+        focusAreasReceived: focusAreas,
+        description: "Error during detectDesignConcerns stub execution.",
+      });
+      return {
+        success: false,
+        error:
+          error.message ||
+          "An unexpected error occurred during design concern detection.",
+        metadata: {
+          errorType:
+            error instanceof NotImplementedError
+              ? "NotImplementedError"
+              : "ProcessingError",
+          originalError: error,
+        },
       };
     }
   }

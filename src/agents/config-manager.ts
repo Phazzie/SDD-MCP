@@ -11,16 +11,22 @@ import {
   ContractResult,
   ServerConfig,
 } from "../contracts.js";
+import {
+  ErrorHandler,
+  errorHandler as globalErrorHandler,
+} from "./error-handler.js"; // Corrected import path and import singleton
 
 export class ConfigManager implements ConfigContract {
   private readonly agentId: AgentId = "ConfigManager";
   private config: ServerConfig | null = null;
   private configPath: string;
   private readonly defaultConfig: ServerConfig;
+  private errorHandler: ErrorHandler;
 
-  constructor(configPath?: string) {
+  constructor(configPath?: string, errorHandlerInstance?: ErrorHandler) {
     this.configPath =
       configPath || path.join(process.cwd(), "config", "server.config.json");
+    this.errorHandler = errorHandlerInstance || globalErrorHandler; // Use injected or global singleton
 
     // Blueprint: Default configuration following SDD patterns
     this.defaultConfig = {
@@ -59,49 +65,65 @@ export class ConfigManager implements ConfigContract {
   async loadConfig(): Promise<ContractResult<ServerConfig>> {
     try {
       let loadedConfig: Partial<ServerConfig> = {};
+      let configSource = "default";
 
-      // Try to load config file
       try {
         const configData = await fs.readFile(this.configPath, "utf-8");
         loadedConfig = JSON.parse(configData);
         console.log(
           `✅ ${this.agentId}: Configuration loaded from ${this.configPath}`
         );
+        configSource = this.configPath;
+        this.config = this.mergeConfig(this.defaultConfig, loadedConfig); // Merge loaded with defaults
       } catch (fileError) {
-        console.log(`ℹ️ ${this.agentId}: No config file found, using defaults`);
-        // Create default config file
+        console.log(
+          `ℹ️ ${this.agentId}: No config file found at ${this.configPath}, using defaults. Error: ${fileError}`
+        );
         await this.createDefaultConfigFile();
+        this.config = JSON.parse(JSON.stringify(this.defaultConfig)); // Deep clone default
+        configSource = "generated_default";
       }
 
-      // Merge with defaults (deep merge)
-      this.config = this.mergeConfig(this.defaultConfig, loadedConfig);
-
-      // Validate configuration
-      const validationResult = this.validateConfig(this.config);
-      if (!validationResult.success) {
-        return {
-          success: false,
-          error: `Configuration validation failed: ${validationResult.error}`,
-          agentId: this.agentId,
-          timestamp: new Date().toISOString(),
-        };
+      const validation = this.validateConfigInternal(this.config!);
+      if (!validation.isValid) {
+        return this.errorHandler.createTypedErrorResult<ServerConfig>(
+          new Error(
+            validation.message ||
+              "Configuration validation failed after load/merge"
+          ),
+          {
+            agentId: this.agentId,
+            operation: "loadConfig.validateConfig",
+            additionalInfo: {
+              configPath: this.configPath,
+              validationMessage: validation.message,
+              configSource,
+            },
+          }
+        );
       }
 
       return {
         success: true,
-        data: this.config,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        data: this.config!,
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          operation: "loadConfig",
+          configSource,
+        },
       };
     } catch (error) {
-      return {
-        success: false,
-        error: `Failed to load configuration: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
-      };
+      return this.errorHandler.createTypedErrorResult<ServerConfig>(
+        error instanceof Error
+          ? error
+          : new Error("Unknown error during loadConfig"),
+        {
+          agentId: this.agentId,
+          operation: "loadConfig.catchAll",
+          additionalInfo: { configPath: this.configPath },
+        }
+      );
     }
   }
 
@@ -112,52 +134,69 @@ export class ConfigManager implements ConfigContract {
     try {
       if (!this.config) {
         const loadResult = await this.loadConfig();
-        if (!loadResult.success) {
-          return {
-            success: false,
-            error:
-              "Cannot update config: failed to load existing configuration",
-            agentId: this.agentId,
-            timestamp: new Date().toISOString(),
-          };
+        if (!loadResult.success || !loadResult.data) {
+          const errorMessage =
+            loadResult.error?.message ||
+            "Cannot update config: failed to load existing configuration";
+          return this.errorHandler.createTypedErrorResult<void>(
+            new Error(errorMessage),
+            {
+              agentId: this.agentId,
+              operation: "updateConfig.loadConfigFailure",
+              additionalInfo: {
+                updates: JSON.stringify(updates).substring(0, 100),
+                originalError: loadResult.error,
+              },
+            }
+          );
         }
+        // this.config is set by loadConfig if successful
       }
 
-      // Merge updates with existing config
       const updatedConfig = this.mergeConfig(this.config!, updates);
 
-      // Validate updated configuration
-      const validationResult = this.validateConfig(updatedConfig);
-      if (!validationResult.success) {
-        return {
-          success: false,
-          error: `Configuration update validation failed: ${validationResult.error}`,
-          agentId: this.agentId,
-          timestamp: new Date().toISOString(),
-        };
+      const validation = this.validateConfigInternal(updatedConfig);
+      if (!validation.isValid) {
+        return this.errorHandler.createTypedErrorResult<void>(
+          new Error(
+            validation.message || "Configuration update validation failed"
+          ),
+          {
+            agentId: this.agentId,
+            operation: "updateConfig.validateConfigFailure",
+            additionalInfo: {
+              updates: JSON.stringify(updates).substring(0, 100),
+              validationMessage: validation.message,
+            },
+          }
+        );
       }
 
-      // Apply updates
       this.config = updatedConfig;
-
-      // Persist to file
       await this.saveConfig();
 
       console.log(`✅ ${this.agentId}: Configuration updated successfully`);
       return {
         success: true,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          operation: "updateConfig",
+        },
       };
     } catch (error) {
-      return {
-        success: false,
-        error: `Failed to update configuration: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
-      };
+      return this.errorHandler.createTypedErrorResult<void>(
+        error instanceof Error
+          ? error
+          : new Error("Unknown error during updateConfig"),
+        {
+          agentId: this.agentId,
+          operation: "updateConfig.catchAll",
+          additionalInfo: {
+            updates: JSON.stringify(updates).substring(0, 100),
+          },
+        }
+      );
     }
   }
 
@@ -166,17 +205,23 @@ export class ConfigManager implements ConfigContract {
     try {
       if (!this.config) {
         const loadResult = await this.loadConfig();
-        if (!loadResult.success) {
-          return {
-            success: false,
-            error: "Cannot get template path: configuration not loaded",
-            agentId: this.agentId,
-            timestamp: new Date().toISOString(),
-          };
+        if (!loadResult.success || !loadResult.data) {
+          const errorMessage =
+            loadResult.error?.message ||
+            "Cannot get template path: configuration not loaded";
+          return this.errorHandler.createTypedErrorResult<string>(
+            new Error(errorMessage),
+            {
+              agentId: this.agentId,
+              operation: "getTemplatePath.loadConfigFailure",
+              additionalInfo: { templateType, originalError: loadResult.error },
+            }
+          );
         }
+        // this.config is set by loadConfig if successful
       }
 
-      let templatePath: string;
+      let templatePath: string | undefined;
       switch (templateType.toLowerCase()) {
         case "contract":
           templatePath = this.config!.templates.contractPath;
@@ -188,39 +233,72 @@ export class ConfigManager implements ConfigContract {
           templatePath = this.config!.templates.seamPath;
           break;
         default:
-          return {
-            success: false,
-            error: `Unknown template type: ${templateType}`,
-            agentId: this.agentId,
-            timestamp: new Date().toISOString(),
-          };
+          return this.errorHandler.createTypedErrorResult<string>(
+            new Error(`Unknown template type: ${templateType}`),
+            {
+              agentId: this.agentId,
+              operation: "getTemplatePath.unknownType",
+              additionalInfo: { templateType },
+            }
+          );
       }
 
-      // Check if template file exists
+      // 🛡️ DEFENSIVE: Check for missing or invalid templatePath before fs.access
+      if (typeof templatePath !== "string" || !templatePath.trim()) {
+        return this.errorHandler.createTypedErrorResult<string>(
+          new Error(
+            `Template path for type '${templateType}' is missing or invalid in configuration.`
+          ),
+          {
+            agentId: this.agentId,
+            operation: "getTemplatePath.invalidPath",
+            additionalInfo: { templateType, templatePath },
+          }
+        );
+      }
+
       try {
         await fs.access(templatePath);
-      } catch {
+      } catch (accessError) {
         console.log(
-          `⚠️ ${this.agentId}: Template file not found: ${templatePath}`
+          `⚠️ ${this.agentId}: Template file not found at ${templatePath}. Error: ${accessError}`
         );
-        // Don't fail - template might be created later
+        // Return error if template not found, as path is unusable
+        return this.errorHandler.createTypedErrorResult<string>(
+          new Error(`Template file not found: ${templatePath}`),
+          {
+            agentId: this.agentId,
+            operation: "getTemplatePath.accessError",
+            additionalInfo: {
+              templateType,
+              templatePath,
+              originalError: accessError,
+            },
+          }
+        );
       }
 
       return {
         success: true,
         data: path.resolve(templatePath),
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          operation: "getTemplatePath",
+          templateType,
+        },
       };
     } catch (error) {
-      return {
-        success: false,
-        error: `Failed to get template path: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
-      };
+      return this.errorHandler.createTypedErrorResult<string>(
+        error instanceof Error
+          ? error
+          : new Error("Unknown error during getTemplatePath"),
+        {
+          agentId: this.agentId,
+          operation: "getTemplatePath.catchAll",
+          additionalInfo: { templateType },
+        }
+      );
     }
   }
 
@@ -229,44 +307,71 @@ export class ConfigManager implements ConfigContract {
     try {
       if (!this.config) {
         const loadResult = await this.loadConfig();
-        if (!loadResult.success) {
-          // Safe default: features disabled if config can't be loaded
-          return {
-            success: true,
-            data: false,
-            agentId: this.agentId,
-            timestamp: new Date().toISOString(),
-          };
+        if (!loadResult.success || !loadResult.data) {
+          return this.errorHandler.createTypedErrorResult<boolean>(
+            new Error(
+              "Configuration load failed, feature check cannot proceed reliably. Defaulting to false."
+            ),
+            {
+              agentId: this.agentId,
+              operation: "isFeatureEnabled.loadConfigFailure",
+              additionalInfo: { feature, originalError: loadResult.error },
+            },
+            false // Default data value for fallback
+          );
         }
+        // this.config is set by loadConfig if successful
       }
 
-      const isEnabled = (this.config!.features as any)[feature] || false;
+      const isEnabled = (this.config!.features as any)[feature];
+      if (typeof isEnabled !== "boolean") {
+        console.log(
+          `⚠️ ${this.agentId}: Feature '${feature}' not found or not a boolean in config, defaulting to false.`
+        );
+        return {
+          success: true, // Technically success, but feature is effectively off
+          data: false,
+          metadata: {
+            agentId: this.agentId,
+            timestamp: new Date().toISOString(),
+            operation: "isFeatureEnabled",
+            feature,
+            notes:
+              "Feature not explicitly defined or not boolean, defaulted to false.",
+          },
+        };
+      }
 
       return {
         success: true,
         data: isEnabled,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          operation: "isFeatureEnabled",
+          feature,
+        },
       };
     } catch (error) {
-      // Safe default: return false for unknown features
-      return {
-        success: true,
-        data: false,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
-      };
+      return this.errorHandler.createTypedErrorResult<boolean>(
+        error instanceof Error
+          ? error
+          : new Error("Unknown error during feature check"),
+        {
+          agentId: this.agentId,
+          operation: "isFeatureEnabled.catchAll",
+          additionalInfo: { feature },
+        },
+        false // Default data value for fallback
+      );
     }
   }
 
   // Blueprint: Private helper methods for configuration management
   private async createDefaultConfigFile(): Promise<void> {
     try {
-      // Ensure config directory exists
       const configDir = path.dirname(this.configPath);
       await fs.mkdir(configDir, { recursive: true });
-
-      // Write default configuration
       await fs.writeFile(
         this.configPath,
         JSON.stringify(this.defaultConfig, null, 2)
@@ -275,21 +380,62 @@ export class ConfigManager implements ConfigContract {
         `✅ ${this.agentId}: Default configuration created at ${this.configPath}`
       );
     } catch (error) {
-      console.log(
-        `⚠️ ${this.agentId}: Could not create default config file: ${error}`
-      );
+      // Log this critical failure using the errorHandler instance
+      this.errorHandler
+        .logError(
+          this.agentId,
+          `Could not create default config file at ${this.configPath}`,
+          {
+            operation: "createDefaultConfigFile",
+            originalError:
+              error instanceof Error ? error : new Error(String(error)),
+            configPath: this.configPath,
+          }
+        )
+        .catch((err) =>
+          console.error(
+            "Panic: ErrorHandler failed to log createDefaultConfigFile failure",
+            err
+          )
+        );
+      // Do not re-throw, allow loadConfig to proceed with in-memory default if needed
     }
   }
 
   private async saveConfig(): Promise<void> {
-    if (!this.config) return;
-
+    if (!this.config) {
+      this.errorHandler.logError(
+        this.agentId,
+        "Attempted to save null config",
+        { operation: "saveConfig.nullConfig" }
+      );
+      return;
+    }
     try {
       const configDir = path.dirname(this.configPath);
       await fs.mkdir(configDir, { recursive: true });
       await fs.writeFile(this.configPath, JSON.stringify(this.config, null, 2));
+      console.log(
+        `✅ ${this.agentId}: Configuration saved to ${this.configPath}`
+      );
     } catch (error) {
-      console.log(`⚠️ ${this.agentId}: Could not save configuration: ${error}`);
+      this.errorHandler
+        .logError(
+          this.agentId,
+          `Could not save configuration to ${this.configPath}`,
+          {
+            operation: "saveConfig.writeFileFailure",
+            originalError:
+              error instanceof Error ? error : new Error(String(error)),
+            configPath: this.configPath,
+          }
+        )
+        .catch((err) =>
+          console.error(
+            "Panic: ErrorHandler failed to log saveConfig failure",
+            err
+          )
+        );
     }
   }
 
@@ -297,135 +443,179 @@ export class ConfigManager implements ConfigContract {
     base: ServerConfig,
     updates: Partial<ServerConfig>
   ): ServerConfig {
-    // Deep merge configuration objects
     const merged = JSON.parse(JSON.stringify(base)); // Deep clone base
-
-    if (updates.server) {
-      merged.server = { ...merged.server, ...updates.server };
-    }
-    if (updates.templates) {
+    if (updates.server) merged.server = { ...merged.server, ...updates.server };
+    if (updates.templates)
       merged.templates = { ...merged.templates, ...updates.templates };
-    }
-    if (updates.validation) {
+    if (updates.validation)
       merged.validation = { ...merged.validation, ...updates.validation };
-    }
-    if (updates.features) {
+    if (updates.features)
       merged.features = { ...merged.features, ...updates.features };
-    }
-
     return merged;
   }
 
-  private validateConfig(config: ServerConfig): ContractResult<boolean> {
-    try {
-      // Validate server configuration
-      if (!config.server?.name || !config.server?.version) {
-        return {
-          success: false,
-          error: "Server name and version are required",
-          agentId: this.agentId,
-          timestamp: new Date().toISOString(),
-        };
-      }
-
-      // Validate template paths
-      if (
-        !config.templates?.contractPath ||
-        !config.templates?.stubPath ||
-        !config.templates?.seamPath
-      ) {
-        return {
-          success: false,
-          error: "All template paths are required",
-          agentId: this.agentId,
-          timestamp: new Date().toISOString(),
-        };
-      }
-
-      // Validate validation settings
-      if (!Array.isArray(config.validation?.requiredPatterns)) {
-        return {
-          success: false,
-          error: "Required patterns must be an array",
-          agentId: this.agentId,
-          timestamp: new Date().toISOString(),
-        };
-      }
-
+  private validateConfigInternal(config: ServerConfig | null): {
+    isValid: boolean;
+    message?: string;
+  } {
+    if (!config)
+      return { isValid: false, message: "Config object is null or undefined." };
+    if (!config.server?.name || !config.server?.version) {
       return {
-        success: true,
-        data: true,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: `Configuration validation error: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        isValid: false,
+        message: "Server name and version are required.",
       };
     }
+    if (typeof config.server.debug !== "boolean") {
+      return {
+        isValid: false,
+        message: "Server debug flag must be a boolean.",
+      };
+    }
+    if (
+      !config.templates?.contractPath ||
+      !config.templates?.stubPath ||
+      !config.templates?.seamPath
+    ) {
+      return {
+        isValid: false,
+        message: "All template paths (contract, stub, seam) are required.",
+      };
+    }
+    if (typeof config.validation?.strictMode !== "boolean") {
+      return {
+        isValid: false,
+        message: "Validation strictMode flag must be a boolean.",
+      };
+    }
+    if (
+      !Array.isArray(config.validation?.requiredPatterns) ||
+      !config.validation.requiredPatterns.every((p) => typeof p === "string")
+    ) {
+      return {
+        isValid: false,
+        message: "Required patterns must be an array of strings.",
+      };
+    }
+    if (
+      typeof config.features?.templateHotReload !== "boolean" ||
+      typeof config.features?.diagnostics !== "boolean" ||
+      typeof config.features?.extendedLogging !== "boolean"
+    ) {
+      return {
+        isValid: false,
+        message:
+          "All feature flags (templateHotReload, diagnostics, extendedLogging) must be booleans.",
+      };
+    }
+    return { isValid: true };
   }
 
   // Blueprint: Health check for configuration service
   async healthCheck(): Promise<ContractResult<string>> {
     try {
       const checks = [];
+      let overallHealthy = true;
 
-      // Check if config is loaded
+      // 1. Check if config is loaded and valid
       if (this.config) {
-        checks.push("✅ Configuration loaded");
+        const validation = this.validateConfigInternal(this.config);
+        if (validation.isValid) {
+          checks.push("✅ Configuration loaded and valid.");
+        } else {
+          checks.push(
+            `❌ Configuration loaded but invalid: ${validation.message}`
+          );
+          overallHealthy = false;
+        }
       } else {
-        checks.push("❌ Configuration not loaded");
+        const loadResult = await this.loadConfig(); // This will also validate
+        if (loadResult.success && loadResult.data) {
+          // this.config is set by loadConfig
+          checks.push(
+            "✅ Configuration loaded on-demand for health check and is valid."
+          );
+        } else {
+          checks.push(
+            `❌ Configuration failed to load for health check: ${
+              loadResult.error?.message || "Unknown load error"
+            }`
+          );
+          overallHealthy = false;
+        }
       }
 
-      // Check if config file exists
+      // 2. Check if config file exists (informational, as defaults can be used)
       try {
         await fs.access(this.configPath);
-        checks.push("✅ Configuration file exists");
+        checks.push("✅ Configuration file exists on disk.");
       } catch {
-        checks.push("⚠️ Configuration file missing (using defaults)");
+        checks.push(
+          `⚠️ Configuration file missing at ${this.configPath} (using defaults or in-memory).`
+        );
       }
 
-      // Check template paths
+      // 3. Check template paths if config is available
       if (this.config) {
         for (const [type, templatePath] of Object.entries(
           this.config.templates
         )) {
           try {
             await fs.access(templatePath);
-            checks.push(`✅ ${type} template found`);
+            checks.push(`✅ ${type} template found at ${templatePath}.`);
           } catch {
-            checks.push(`⚠️ ${type} template missing`);
+            checks.push(
+              `❌ ${type} template missing at ${templatePath}. This is critical.`
+            );
+            overallHealthy = false;
           }
         }
       }
 
       const healthStatus = checks.join("\n");
-      const isHealthy = !checks.some((check) => check.includes("❌"));
+
+      if (!overallHealthy) {
+        return this.errorHandler.createTypedErrorResult<string>(
+          new Error(
+            "ConfigManager health check failed: Critical issues detected."
+          ),
+          {
+            agentId: this.agentId,
+            operation: "healthCheck.criticalFailures",
+            additionalInfo: { healthStatusDetail: healthStatus },
+          },
+          healthStatus // Provide current healthStatus as fallback data
+        );
+      }
 
       return {
-        success: isHealthy,
+        success: true,
         data: healthStatus,
-        error: isHealthy ? undefined : "Some configuration issues detected",
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
+        metadata: {
+          agentId: this.agentId,
+          timestamp: new Date().toISOString(),
+          operation: "healthCheck",
+          notes: checks.some((c) => c.startsWith("⚠️"))
+            ? "Health check passed with warnings."
+            : "Health check passed.",
+        },
       };
     } catch (error) {
-      return {
-        success: false,
-        error: `Health check failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
-        agentId: this.agentId,
-        timestamp: new Date().toISOString(),
-      };
+      // Catch errors within the healthCheck logic itself
+      return this.errorHandler.createTypedErrorResult<string>(
+        error instanceof Error
+          ? error
+          : new Error(
+              "Unknown error during ConfigManager healthCheck execution"
+            ),
+        {
+          agentId: this.agentId,
+          operation: "healthCheck.executionError",
+        }
+      );
     }
   }
 }
 
-// Export singleton instance
-export const configManager = new ConfigManager();
+// Export singleton instance, ensuring it uses the global ErrorHandler singleton
+export const configManager = new ConfigManager(undefined, globalErrorHandler);
